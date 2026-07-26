@@ -1,0 +1,14 @@
+{
+    "taxiways": [
+        {
+            "name": "N",
+            "edges": [
+                0
+            ]
+        }
+    ],
+    "aprons": [],
+    "runway_entries": [],
+    "holding_points": [],
+    "aliases": {}
+}

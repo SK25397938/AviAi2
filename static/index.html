@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AviAi — Aviation Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ═══ Token System ═══ */
+        :root {
+            --bg: #161412;
+            --surface: #1e1b18;
+            --surface-raised: #2a2622;
+            --fg: #ddd5c8;
+            --muted: #7d7468;
+            --accent: #d4952a;
+            --accent-dim: rgba(212, 149, 42, 0.13);
+            --danger: #c94432;
+            --danger-dim: rgba(201, 68, 50, 0.09);
+            --caution: #b8862d;
+            --caution-dim: rgba(184, 134, 45, 0.09);
+            --safe: #4a8c5c;
+            --safe-dim: rgba(74, 140, 92, 0.10);
+            --border: #332e28;
+            --border-light: #3d3730;
+
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'IBM Plex Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        /* ═══ Reset & Base ═══ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            font-family: var(--font-body);
+            color: var(--fg);
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Hardware indicator strip at viewport top */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+            z-index: 100;
+        }
+
+        /* ═══ Console Header ═══ */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            gap: 12px;
+        }
+
+        .top-bar__identity {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+
+        .top-bar__mark {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 21px;
+            color: var(--fg);
+            letter-spacing: -0.5px;
+        }
+
+        .top-bar__sub {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Health indicator — dot + label */
+        .top-bar__health {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .health-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            position: relative;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        /* Pulse ring — only active when system is healthy */
+        .health-dot--live::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 1px solid var(--safe);
+            animation: health-pulse 2.4s ease-out infinite;
+        }
+
+        @keyframes health-pulse {
+            0% { transform: scale(1); opacity: 0.55; }
+            100% { transform: scale(2.4); opacity: 0; }
+        }
+
+        .health-label {
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .health-label--ok { color: var(--safe); }
+        .health-label--err { color: var(--danger); }
+
+        /* Buttons — amber outline, fill on hover */
+        .btn {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            padding: 7px 20px;
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .btn:hover { background: var(--accent); color: var(--bg); }
+
+        .btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .btn:active { background: #b87e20; }
+
+        .btn--sm {
+            padding: 5px 16px;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ═══ Main Layout ═══ */
+        .main {
+            padding: 24px;
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* ═══ Metric Strips — flight-strip inspired ═══ */
+        .strips {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .strip {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            padding: 18px 20px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.2s;
+        }
+
+        .strip:hover { border-left-color: var(--fg); }
+
+        .strip__value {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 38px;
+            line-height: 1;
+            color: var(--fg);
+            letter-spacing: -1.5px;
+        }
+
+        .strip__label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted);
+        }
+
+        /* ═══ Two-Column Panels ═══ */
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1.9fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 18px 11px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .panel__title {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted);
+        }
+
+        .panel__badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 500;
+            padding: 2px 10px;
+            border-radius: 2px;
+            background: var(--danger-dim);
+            color: var(--danger);
+            letter-spacing: 1.5px;
+            animation: live-blink 2s ease-in-out infinite;
+        }
+
+        @keyframes live-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+
+        .panel__body {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Scrollbar styling for event feed */
+        .scroll-area {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .scroll-area::-webkit-scrollbar { width: 4px; }
+        .scroll-area::-webkit-scrollbar-track { background: var(--surface); }
+        .scroll-area::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        /* ═══ Behavior Table ═══ */
+        .btable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .btable th,
+        .btable td {
+            padding: 11px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btable th {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            font-weight: 500;
+            padding-bottom: 9px;
+        }
+
+        .btable td:first-child {
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--fg);
+            font-weight: 500;
+        }
+
+        .btable tr:last-child td { border-bottom: none; }
+
+        /* Proportional bar inside count cell */
+        .bar-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bar-cell__num {
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--accent);
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .bar-cell__track {
+            flex: 1;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .bar-cell__fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        /* ═══ Event Feed Table ═══ */
+        .etable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .etable th {
+            padding: 10px 18px;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 2;
+        }
+
+        /* Severity rows — left border like colored flight-strip tabs */
+        .erow {
+            border-left: 3px solid transparent;
+            animation: row-refresh 0.3s ease;
+        }
+
+        @keyframes row-refresh {
+            from { opacity: 0.5; }
+            to { opacity: 1; }
+        }
+
+        .erow--danger {
+            border-left-color: var(--danger);
+            background: var(--danger-dim);
+        }
+
+        .erow--caution {
+            border-left-color: var(--caution);
+            background: var(--caution-dim);
+        }
+
+        .erow--info {
+            border-left-color: var(--border-light);
+        }
+
+        .etable td {
+            padding: 10px 18px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .ecall {
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--fg);
+            letter-spacing: 0.5px;
+        }
+
+        .etype {
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .etype--danger { color: var(--danger); }
+        .etype--caution { color: var(--caution); }
+        .etype--info { color: var(--muted); }
+
+        /* Severity dot — small inline indicator before event text */
+        .edot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 9px;
+            flex-shrink: 0;
+        }
+
+        .edot--danger { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+        .edot--caution { background: var(--caution); }
+        .edot--info { background: var(--muted); opacity: 0.5; }
+
+        .eroute {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        /* ═══ Pagination ═══ */
+        .pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 18px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .pager__info {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 0.8px;
+        }
+
+        .pager__controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 900px) {
+            .panels { grid-template-columns: 1fr; }
+            .scroll-area { max-height: 400px; }
+        }
+
+        @media (max-width: 640px) {
+            body::before { height: 3px; }
+            .top-bar {
+                flex-wrap: wrap;
+                padding: 12px 14px;
+                gap: 8px;
+            }
+            .top-bar__sub { display: none; }
+            .top-bar__health { order: 3; width: 100%; padding-top: 4px; border-top: 1px solid var(--border); }
+            .main { padding: 14px; }
+            .strips { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .strip { padding: 14px 14px 10px; }
+            .strip__value { font-size: 30px; }
+            .etable th, .etable td { padding: 8px 12px; font-size: 12px; }
+            .btable th, .btable td { padding: 9px 12px; }
+            .etype { font-size: 10px; }
+            .eroute { font-size: 10px; }
+            .pager { flex-wrap: wrap; gap: 8px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .health-dot--live::after { animation: none; }
+            .erow { animation: none; }
+            .bar-cell__fill { transition: none; }
+            .panel__badge { animation: none; }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="top-bar" role="banner">
+    <div class="top-bar__identity">
+        <span class="top-bar__mark">AviAi</span>
+        <span class="top-bar__sub">Aviation Intelligence</span>
+    </div>
+    <div class="top-bar__health" aria-live="polite" aria-label="System health status">
+        <span class="health-dot" id="healthDot"></span>
+        <span id="health" class="health-label">Checking</span>
+    </div>
+    <button class="btn" onclick="window.location.href='/map/'" aria-label="Open live map">
+        Live Map
+    </button>
+</header>
+
+<main class="main">
+
+    <!-- Metric strips -->
+    <section class="strips" aria-label="Key metrics">
+        <div class="strip">
+            <span class="strip__value" id="totalAircraft">—</span>
+            <span class="strip__label">Tracked Aircraft</span>
+        </div>
+        <div class="strip">
+            <span class="strip__value" id="eventsCount">—</span>
+            <span class="strip__label">Active Events</span>
+        </div>
+    </section>
+
+    <!-- Two-column panels -->
+    <div class="panels">
+
+        <!-- Behavior distribution -->
+        <section class="panel" aria-label="Behavior distribution">
+            <div class="panel__head">
+                <h2 class="panel__title">Behavior Distribution</h2>
+            </div>
+            <div class="panel__body">
+                <table class="btable" id="behaviorTable">
+                    <thead>
+                        <tr>
+                            <th>Behavior</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Live event feed -->
+        <section class="panel" aria-label="Live event feed">
+            <div class="panel__head">
+                <h2 class="panel__title">Live Event Feed</h2>
+                <span class="panel__badge" aria-hidden="true">LIVE</span>
+            </div>
+            <div class="panel__body scroll-area">
+                <table class="etable" id="eventTable">
+                    <thead>
+                        <tr>
+                            <th>Callsign</th>
+                            <th>Event</th>
+                            <th>Route</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pager">
+                <span class="pager__info" id="pageIndicator">Page 1</span>
+                <div class="pager__controls">
+                    <button class="btn btn--sm" onclick="prevPage()" aria-label="Previous page">Prev</button>
+                    <button class="btn btn--sm" onclick="nextPage()" aria-label="Next page">Next</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<script>
+function classifyEvent(text) {
+    const t = (text || '').toLowerCase();
+    const danger = [
+        'anomaly','deviation','unusual','unauthorized','violation',
+        'intrusion','threat','alert','emergency','conflict',
+        'near-miss','loss','stall','terrain'
+    ];
+    const caution = [
+        'detected','identified','changed','entered','approaching',
+        'descending','ascending','holding','diverted','rerouted',
+        'delayed','unstable','slow'
+    ];
+    for (const w of danger) { if (t.includes(w)) return 'danger'; }
+    for (const w of caution) { if (t.includes(w)) return 'caution'; }
+    return 'info';
+}
+
+let currentPage = 1;
+const pageSize = 10;
+
+async function loadHealth() {
+    const res = await fetch('/health');
+    const data = await res.json();
+    const el = document.getElementById('health');
+    const dot = document.getElementById('healthDot');
+    el.innerText = data.status.toUpperCase();
+
+    const s = (data.status || '').toLowerCase();
+    if (s === 'healthy' || s === 'ok') {
+        dot.style.background = 'var(--safe)';
+        el.className = 'health-label health-label--ok';
+        dot.classList.add('health-dot--live');
+    } else {
+        dot.style.background = 'var(--danger)';
+        el.className = 'health-label health-label--err';
+        dot.classList.remove('health-dot--live');
+    }
+}
+
+async function loadSnapshot() {
+    const res = await fetch('/ai/snapshot');
+    const data = await res.json();
+
+    document.getElementById('totalAircraft').innerText = data.total;
+    document.getElementById('eventsCount').innerText = data.events.length;
+
+    const behaviorBody = document.querySelector('#behaviorTable tbody');
+    behaviorBody.innerHTML = '';
+    const maxVal = Math.max(1, ...Object.values(data.behaviors));
+    for (const [behavior, count] of Object.entries(data.behaviors)) {
+        const pct = (count / maxVal) * 100;
+        behaviorBody.innerHTML += `
+            <tr>
+                <td>${behavior}</td>
+                <td>
+                    <div class="bar-cell">
+                        <span class="bar-cell__num">${count}</span>
+                        <div class="bar-cell__track">
+                            <div class="bar-cell__fill" style="width:${pct}%"></div>
+                        </div>
+                    </div>
+                </td>
+            </tr>`;
+    }
+
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageEvents = data.events.slice(start, end);
+
+    const eventBody = document.querySelector('#eventTable tbody');
+    eventBody.innerHTML = '';
+    pageEvents.forEach(e => {
+        const sev = classifyEvent(e.event);
+        eventBody.innerHTML += `
+            <tr class="erow erow--${sev}">
+                <td class="ecall">${e.callsign || '—'}</td>
+                <td class="etype etype--${sev}">
+                    <span class="edot edot--${sev}"></span>${e.event}
+                </td>
+                <td class="eroute">${e.from || '—'} \u2192 ${e.to || '—'}</td>
+            </tr>`;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(data.events.length / pageSize));
+    document.getElementById('pageIndicator').innerText =
+        `Page ${currentPage} / ${totalPages}`;
+}
+
+function nextPage() {
+    currentPage++;
+    loadSnapshot();
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        loadSnapshot();
+    }
+}
+
+loadHealth();
+loadSnapshot();
+setInterval(loadHealth, 3000);
+setInterval(loadSnapshot, 5000);
+</script>
+
+</body>
+</html>

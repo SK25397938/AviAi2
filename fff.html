@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aviation Live Map</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+body {
+    margin: 0;
+    background: #0b1020;
+    font-family: Arial, sans-serif;
+}
+#map {
+    height: 100vh;
+    width: 100vw;
+}
+#filters {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(15, 15, 25, 0.95);
+    color: white;
+    padding: 10px;
+    z-index: 1000;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.fr24-label {
+    background: rgba(0,0,0,0.75);
+    color: #00e5ff;
+    padding: 4px 6px;
+    font-size: 11px;
+    border-radius: 4px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="filters">
+<b>Filters</b><br>
+<label><input type="checkbox" id="showCruise" checked> Cruise</label><br>
+<label><input type="checkbox" id="showClimb" checked> Climb</label><br>
+<label><input type="checkbox" id="showTakeoff" checked> Takeoff</label>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
+
+<script>
+const map = L.map("map").setView([22.5, 78.9], 5);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors"
+}).addTo(map);
+
+function createAircraftIcon() {
+    return L.icon({
+        iconUrl: "/map/plane.svg",
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+    });
+}
+
+function createSelectedAircraftIcon() {
+    return L.icon({
+        iconUrl: "/map/plane.svg",
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
+    });
+}
+
+const aircraftMarkers = {};
+const aircraftTrails = {};
+const aircraftState = {};
+let selectedAircraftId = null;
+let ws = null;
+
+const mpsToKnots = mps => mps ? (mps * 1.94384).toFixed(0) : "N/A";
+const metersToFeet = m => m ? Math.round(m * 3.28084) : 0;
+const normalizeLng = lng => ((lng + 540) % 360) - 180;
+
+function altitudeColor(feet) {
+    if (feet < 10000) return "#00ff6a";
+    if (feet < 30000) return "#ffd000";
+    return "#ff3b3b";
+}
+
+function updateAircraft(list) {
+    requestAnimationFrame(() => {
+        list.forEach(ac => aircraftState[ac.icao24] = ac);
+
+        Object.values(aircraftState).forEach(ac => {
+            if (ac.latitude == null || ac.longitude == null) return;
+
+            const id = ac.icao24;
+            const latlng = [ac.latitude, ac.longitude];
+            const heading = ac.heading_deg || 0;
+            const altFt = metersToFeet(ac.baro_altitude_m);
+            const trailColor = altitudeColor(altFt);
+
+            if (!aircraftMarkers[id]) {
+                const marker = L.marker(latlng, {
+                    icon: createAircraftIcon(),
+                    rotationAngle: heading
+                }).addTo(map);
+
+                marker.bindTooltip(`
+                    <b>${ac.callsign || "Unknown"}</b><br>
+                    ${altFt} ft<br>
+                    ${mpsToKnots(ac.velocity_mps)} kts<br>
+                    HDG ${heading.toFixed(0)}°
+                `, {
+                    className: "fr24-label",
+                    direction: "top",
+                    offset: [0, -14],
+                    opacity: 0.95
+                });
+
+                marker.on("click", () => {
+                    if (selectedAircraftId && aircraftMarkers[selectedAircraftId]) {
+                        aircraftMarkers[selectedAircraftId].setIcon(createAircraftIcon());
+                    }
+                    marker.setIcon(createSelectedAircraftIcon());
+                    selectedAircraftId = id;
+                });
+
+                aircraftMarkers[id] = marker;
+
+                aircraftTrails[id] = L.polyline([], {
+                    color: trailColor,
+                    weight: 2,
+                    opacity: 0.9
+                }).addTo(map);
+            }
+
+            aircraftMarkers[id].setLatLng(latlng);
+            aircraftMarkers[id].setRotationAngle(heading);
+
+            const trail = aircraftTrails[id];
+            trail.setStyle({ color: trailColor });
+            trail.addLatLng(latlng);
+
+            if (trail.getLatLngs().length > 40) {
+                trail.setLatLngs(trail.getLatLngs().slice(-40));
+            }
+        });
+    });
+}
+
+function connectWebSocket() {
+    if (ws) ws.close();
+
+    const b = map.getBounds();
+    ws = new WebSocket(
+        `ws://127.0.0.1:8000/flights/ws` +
+        `?north=${b.getNorth()}` +
+        `&south=${b.getSouth()}` +
+        `&east=${normalizeLng(b.getEast())}` +
+        `&west=${normalizeLng(b.getWest())}`
+    );
+
+    ws.onmessage = e => {
+        const data = JSON.parse(e.data);
+        updateAircraft(data);
+    };
+
+    ws.onclose = () => {
+        setTimeout(connectWebSocket, 500);
+    };
+}
+
+connectWebSocket();
+map.on("moveend", connectWebSocket);
+</script>
+
+</body>
+</html>
