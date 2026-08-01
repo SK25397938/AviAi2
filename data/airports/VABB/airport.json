@@ -1,0 +1,10 @@
+{
+    "icao": "VABB",
+    "iata": "BOM",
+    "name": "Chhatrapati Shivaji Maharaj International Airport",
+    "reference": {
+        "lat": 19.091667,
+        "lon": 72.866111
+    },
+    "elevation_ft": 39
+}

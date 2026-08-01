@@ -22,54 +22,78 @@ class RunwayRenderer{
 
     }
 
-   runwayPolygon(runway){
+  runwayPolygon(runway){
 
-    const coords=runway.geometry;
+    const coords = runway.geometry;
 
-    const a=coords[0];
+    const width = Number(runway.width) / 2;
 
-    const b=coords[coords.length-1];
+    const R = 6378137;
 
-    const lon1=a[0];
-    const lat1=a[1];
+    const left = [];
+    const right = [];
 
-    const lon2=b[0];
-    const lat2=b[1];
+    for(let i=0;i<coords.length;i++){
 
-    const R=6378137;
+        const p = coords[i];
 
-    const lat0=((lat1+lat2)/2)*Math.PI/180;
+        let prev = coords[Math.max(i-1,0)];
+        let next = coords[Math.min(i+1,coords.length-1)];
 
-    const x1=R*lon1*Math.PI/180*Math.cos(lat0);
-    const y1=R*lat1*Math.PI/180;
+        const lat0 = p[1] * Math.PI / 180;
 
-    const x2=R*lon2*Math.PI/180*Math.cos(lat0);
-    const y2=R*lat2*Math.PI/180;
+        const x1 = prev[0] * Math.PI / 180 * R * Math.cos(lat0);
+        const y1 = prev[1] * Math.PI / 180 * R;
 
-    const dx=x2-x1;
-    const dy=y2-y1;
+        const x2 = next[0] * Math.PI / 180 * R * Math.cos(lat0);
+        const y2 = next[1] * Math.PI / 180 * R;
 
-    const len=Math.sqrt(dx*dx+dy*dy);
+        const dx = x2 - x1;
+        const dy = y2 - y1;
 
-    const nx=-dy/len;
-    const ny=dx/len;
+        const len = Math.sqrt(dx*dx + dy*dy);
 
-    const w=22.5;
+        const nx = -dy / len;
+        const ny = dx / len;
 
-    const p1=[x1+nx*w,y1+ny*w];
-    const p2=[x1-nx*w,y1-ny*w];
-    const p3=[x2-nx*w,y2-ny*w];
-    const p4=[x2+nx*w,y2+ny*w];
+        const x = p[0] * Math.PI / 180 * R * Math.cos(lat0);
+        const y = p[1] * Math.PI / 180 * R;
 
-    function ll(x,y){
+        function ll(px,py){
 
-        return [
+            return [
 
-            x/(R*Math.cos(lat0))*180/Math.PI,
+                px / (R*Math.cos(lat0)) * 180 / Math.PI,
 
-            y/R*180/Math.PI
+                py / R * 180 / Math.PI
 
-        ];
+            ];
+
+        }
+
+        left.push(
+
+            ll(
+
+                x + nx*width,
+
+                y + ny*width
+
+            )
+
+        );
+
+        right.unshift(
+
+            ll(
+
+                x - nx*width,
+
+                y - ny*width
+
+            )
+
+        );
 
     }
 
@@ -89,15 +113,11 @@ class RunwayRenderer{
 
             coordinates:[[
 
-                ll(...p1),
+                ...left,
 
-                ll(...p2),
+                ...right,
 
-                ll(...p3),
-
-                ll(...p4),
-
-                ll(...p1)
+                left[0]
 
             ]]
 
@@ -106,7 +126,145 @@ class RunwayRenderer{
     };
 
 }
+drawCenterlines(runways){
 
+    const features=[];
+
+    runways.forEach(runway=>{
+
+        const coords=runway.geometry;
+
+        if(coords.length<2)return;
+
+        const width=1.0;
+
+        const stripe=30;
+
+        const gap=20;
+
+        const R=6378137;
+
+        for(let i=0;i<coords.length-1;i++){
+
+            const a=coords[i];
+            const b=coords[i+1];
+
+            const lat0=((a[1]+b[1])/2)*Math.PI/180;
+
+            const x1=a[0]*Math.PI/180*R*Math.cos(lat0);
+            const y1=a[1]*Math.PI/180*R;
+
+            const x2=b[0]*Math.PI/180*R*Math.cos(lat0);
+            const y2=b[1]*Math.PI/180*R;
+
+            const dx=x2-x1;
+            const dy=y2-y1;
+
+            const len=Math.sqrt(dx*dx+dy*dy);
+
+            const tx=dx/len;
+            const ty=dy/len;
+
+            const nx=-ty;
+            const ny=tx;
+
+            let d=60;
+
+            while(d+stripe<len-60){
+
+                const sx=x1+tx*d;
+                const sy=y1+ty*d;
+
+                const ex=x1+tx*(d+stripe);
+                const ey=y1+ty*(d+stripe);
+
+                const p1=[sx+nx*width,sy+ny*width];
+                const p2=[sx-nx*width,sy-ny*width];
+                const p3=[ex-nx*width,ey-ny*width];
+                const p4=[ex+nx*width,ey+ny*width];
+
+                function ll(x,y){
+
+                    return[
+                        x/(R*Math.cos(lat0))*180/Math.PI,
+                        y/R*180/Math.PI
+                    ];
+
+                }
+
+                features.push({
+
+                    type:"Feature",
+
+                    geometry:{
+
+                        type:"Polygon",
+
+                        coordinates:[[
+
+                            ll(...p1),
+                            ll(...p2),
+                            ll(...p3),
+                            ll(...p4),
+                            ll(...p1)
+
+                        ]]
+
+                    }
+
+                });
+
+                d+=stripe+gap;
+
+            }
+
+        }
+
+    });
+
+    if(this.map.getLayer("runway-centerline")){
+
+        this.map.removeLayer("runway-centerline");
+
+    }
+
+    if(this.map.getSource("runway-centerline")){
+
+        this.map.removeSource("runway-centerline");
+
+    }
+
+    this.map.addSource("runway-centerline",{
+
+        type:"geojson",
+
+        data:{
+
+            type:"FeatureCollection",
+
+            features
+
+        }
+
+    });
+
+    this.map.addLayer({
+
+        id:"runway-centerline",
+
+        type:"fill",
+
+        source:"runway-centerline",
+
+        paint:{
+
+            "fill-color":"white"
+
+        }
+
+    });
+
+}
    draw(runways){
 
     const polygons=[];
@@ -171,6 +329,7 @@ class RunwayRenderer{
 
     });
 
+
     this.map.addLayer({
 
         id:"runway-outline",
@@ -188,5 +347,5 @@ class RunwayRenderer{
         }
 
     });
-
+this.drawCenterlines(runways);
 }}

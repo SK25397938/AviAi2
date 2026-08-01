@@ -2,11 +2,15 @@ from fastapi import APIRouter, HTTPException
 from app.simulation.clock import simulation_clock
 from app.simulation.world import simulation_world
 from app.simulation.airport.loader import AirportLoader
-
+from fastapi import WebSocket
+import asyncio
 router = APIRouter()
 
 airport_loader = AirportLoader("VABB")
-
+simulation_world.spawn("A320", "AIQ432")
+simulation_world.spawn("A359", "SIA421")
+simulation_world.spawn("B77W", "UAE502")
+simulation_world.spawn("A388", "DLH757")
 @router.get("/status")
 async def simulation_status():
     return simulation_clock.get_state()
@@ -95,3 +99,34 @@ async def set_simulation_speed(speed: float):
         return simulation_world.get_state()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.websocket("/ws")
+async def simulation_ws(
+    websocket: WebSocket
+):
+
+    await websocket.accept()
+
+    try:
+
+        while True:
+
+            simulation_world.update(1)
+
+            await websocket.send_json(
+
+                simulation_world.get_state()
+
+            )
+
+            await asyncio.sleep(0.1)
+
+    except Exception as e:
+
+        import traceback
+
+        traceback.print_exc()
+
+        print("WS ERROR:", e)
+
+        await websocket.close()

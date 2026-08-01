@@ -1,0 +1,18 @@
+[
+    {
+        "id": "27",
+
+        "heading": 271,
+
+        "threshold": {
+
+            "lat": 19.0896,
+
+            "lon": 72.8582
+        },
+
+        "length_ft": 11300,
+
+        "elevation_ft": 23
+    }
+]

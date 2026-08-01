@@ -1,0 +1,55 @@
+{
+    "A320": {
+        "category": "C",
+        "arrival_speed": [280, 300],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "A20N": {
+        "category": "C",
+        "arrival_speed": [280, 300],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "A321": {
+        "category": "C",
+        "arrival_speed": [285, 305],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "A21N": {
+        "category": "C",
+        "arrival_speed": [285, 305],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "B738": {
+        "category": "C",
+        "arrival_speed": [280, 300],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "B739": {
+        "category": "C",
+        "arrival_speed": [285, 305],
+        "arrival_altitude": [17000, 19000]
+    },
+
+    "B77W": {
+        "category": "E",
+        "arrival_speed": [290, 310],
+        "arrival_altitude": [18000, 21000]
+    },
+
+    "A359": {
+        "category": "E",
+        "arrival_speed": [290, 310],
+        "arrival_altitude": [18000, 21000]
+    },
+
+    "A388": {
+        "category": "F",
+        "arrival_speed": [290, 310],
+        "arrival_altitude": [19000, 22000]
+    }
+}

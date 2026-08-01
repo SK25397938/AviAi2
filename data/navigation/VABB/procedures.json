@@ -1,0 +1,62 @@
+{
+    "airport": "VABB",
+    "stars": [
+        {
+            "name": "EMRAK1A",
+            "runways": [
+                "27"
+            ],
+            "route": [
+                {
+                    "fix": "EMRAK",
+                    "altitude": {
+                        "min": 12000
+                    },
+                    "speed": {
+                        "max": 250
+                    }
+                },
+                {
+                    "fix": "MB403",
+                    "altitude": {
+                        "at": 8000
+                    },
+                    "speed": {
+                        "max": 210
+                    }
+                }
+            ]
+        },
+        {
+            "name": "EMRAK1B",
+            "runways": [
+                "09"
+            ],
+            "route": [
+                {
+                    "fix": "EMRAK",
+                    "altitude": {
+                        "min": 12000
+                    },
+                    "speed": {
+                        "max": 250
+                    }
+                },
+                {
+                    "fix": "MB391",
+                    "altitude": {
+                        "at": 11000
+                    },
+                    "speed": {
+                        "max": 250
+                    }
+                },
+                {
+                    "fix": "MB375",
+                    "speed": {}
+                }
+            ]
+        }
+    ],
+    "transitions": []
+}

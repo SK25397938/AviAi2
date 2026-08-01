@@ -1,0 +1,49 @@
+{
+    "airport": "VABB",
+    "version": "1.0",
+    "waypoints": [
+        {
+            "name": "BBB",
+            "type": "VOR",
+            "lat": 19.086667,
+            "lon": 72.875000,
+            "frequency": 116.6
+        },
+        {
+            "name": "EMRAK",
+            "type": "RNAV_FIX",
+            "lat": 19.420000,
+            "lon": 73.871667
+        },
+        {
+            "name": "APUSU",
+            "type": "RNAV_FIX",
+            "lat": 18.001667,
+            "lon": 76.428333
+        },
+        {
+            "name": "OPAKA",
+            "type": "RNAV_FIX",
+            "lat": 19.606667,
+            "lon": 74.550000
+        },
+        {
+            "name": "MB403",
+            "type": "RNAV_FIX",
+            "lat": 19.215000,
+            "lon": 73.473333
+        },
+        {
+            "name": "MB391",
+            "type": "RNAV_FIX",
+            "lat": 19.211667,
+            "lon": 73.143333
+        },
+        {
+            "name": "MB375",
+            "type": "RNAV_FIX",
+            "lat": 19.215000,
+            "lon": 72.335000
+        }
+    ]
+}

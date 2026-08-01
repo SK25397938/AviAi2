@@ -930,26 +930,30 @@
         }
     ],
     "aprons": [],
-    "runway_entries": [
+    "runway_entries":[
     {
-        "runway": "27",
-        "start": 910,
-        "end": 387
+        "runway":"27",
+        "start":910,
+        "end":387,
+        "displaced":0
     },
     {
-        "runway": "09",
-        "start": 387,
-        "end": 910
+        "runway":"09",
+        "start":387,
+        "end":910,
+        "displaced":240
     },
     {
-        "runway": "32",
-        "start": 147,
-        "end": 195
+        "runway":"32",
+        "start":147,
+        "end":195,
+        "displaced":300
     },
     {
-        "runway": "14",
-        "start": 195,
-        "end": 147
+        "runway":"14",
+        "start":195,
+        "end":147,
+        "displaced":0
     }
 ],
     "holding_points": [

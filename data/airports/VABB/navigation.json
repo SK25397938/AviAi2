@@ -1,0 +1,79 @@
+{
+    "runway": "27",
+
+    "arrival": {
+
+        "entry_gate": {
+
+            "name": "RWY27_ENTRY",
+
+            "lat": null,
+
+            "lon": null,
+
+            "altitude_ft": 5000,
+
+            "speed_kts": 220
+        },
+
+        "vector_gate": {
+
+            "name": "RWY27_VECTOR",
+
+            "lat": null,
+
+            "lon": null,
+
+            "altitude_ft": 3500,
+
+            "speed_kts": 180
+        },
+
+        "intercept_gate": {
+
+            "name": "RWY27_INTERCEPT",
+
+            "lat": null,
+
+            "lon": null,
+
+            "altitude_ft": 3000,
+
+            "speed_kts": 170
+        },
+
+        "localizer": {
+
+            "ident": "ISCZ",
+
+            "frequency": 110.3,
+
+            "course": 271
+        },
+
+        "glideslope": {
+
+            "angle": 3.0
+        },
+
+        "decision_altitude_ft": 230
+    },
+
+    "departure": {
+
+        "initial_heading": 271,
+
+        "climb_to_ft": 3000
+    },
+
+    "missed": {
+
+        "climb_to_ft": 600,
+
+        "turn": "LEFT",
+
+        "heading": 230,
+
+        "hold_altitude_ft": 3700
+    }
+}

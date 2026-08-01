@@ -2,181 +2,1775 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Aviation Live Map</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AviAi — ATC Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
 <style>
-body {
-    margin: 0;
-    background: #0b1020;
-    font-family: Arial, sans-serif;
+:root{--bg:#161412;--surface:#1e1b18;--surface-raised:#2a2622;--fg:#ddd5c8;--muted:#7d7468;--accent:#d4952a;--accent-dim:rgba(212,149,42,.13);--border:#332e28;--border-light:#3d3730;--danger:#c94432;--danger-dim:rgba(201,68,50,.09);--safe:#4a8c5c;--safe-dim:rgba(74,140,92,.10);--font-display:'Space Grotesk',sans-serif;--font-body:'IBM Plex Sans',sans-serif;--font-mono:'JetBrains Mono',monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:var(--font-body);color:var(--fg);overflow:hidden;height:100vh;width:100vw}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;background:var(--accent);z-index:10000}
+.sim-header{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);z-index:400;gap:8px}
+.sh-left{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.sh-mark{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--fg);letter-spacing:-.5px;text-decoration:none}
+.sh-mark:hover{color:var(--accent)}
+.sh-sep{width:1px;height:20px;background:var(--border)}
+.sh-sub{font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.8px;white-space:nowrap}
+.sh-center{display:flex;align-items:center;gap:14px;flex:1;justify-content:center;min-width:0}
+.sh-apt{font-family:var(--font-mono);font-size:10px;color:var(--fg);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-status{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;flex-shrink:0}
+.sh-dot{width:7px;height:7px;border-radius:50%;background:var(--safe);position:relative;flex-shrink:0}
+.sh-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--safe);animation:hdp 2.4s ease-out infinite}
+@keyframes hdp{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.4);opacity:0}}
+.sh-clock{font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--accent);letter-spacing:1px;flex-shrink:0;min-width:68px;text-align:center}
+.sh-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.speed-btn{font-family:var(--font-mono);font-size:10px;font-weight:500;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:all .15s;letter-spacing:.8px}
+.speed-btn:hover{border-color:var(--accent);color:var(--accent)}
+.speed-btn--active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.speed-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pp-btn{font-family:var(--font-mono);font-size:10px;font-weight:500;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:2px;cursor:pointer;transition:all .15s;letter-spacing:.8px}
+.pp-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pp-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1px;padding:5px 14px;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:2px;cursor:pointer;transition:background .15s,color .15s;text-decoration:none;display:inline-flex;align-items:center;white-space:nowrap}
+.btn:hover{background:var(--accent);color:var(--bg)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:active{background:#b87e20}
+.btn--sm{padding:4px 10px;font-size:9px;letter-spacing:.8px}
+.btn--danger{border-color:var(--danger);color:var(--danger)}
+.btn--danger:hover{background:var(--danger);color:#fff}
+.btn--ghost{border-color:var(--border-light);color:var(--muted)}
+.btn--ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent}
+#simMap{position:absolute;top:0;left:0;right:0;bottom:0}
+.ov-panel{position:absolute;background:var(--surface);border:1px solid var(--border);z-index:200;transition:transform .25s ease;display:flex;flex-direction:column;overflow:hidden}
+.ov-panel__head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ov-panel__title{font-family:var(--font-mono);font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}
+.ov-panel__body{flex:1;overflow-y:auto;overflow-x:hidden}
+.ov-panel__body::-webkit-scrollbar{width:3px}
+.ov-panel__body::-webkit-scrollbar-track{background:var(--surface)}
+.ov-panel__body::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:2px}
+.ptoggle{width:28px;height:28px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;transition:all .15s;flex-shrink:0}
+.ptoggle:hover{border-color:var(--accent);color:var(--accent)}
+.ptoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ops-panel{top:52px;left:0;bottom:0;width:232px;border-left:none;border-top:none}
+.ops-panel--collapsed{transform:translateX(-232px)}
+.ops-panel .ptoggle{position:absolute;right:-29px;top:8px;z-index:201;border-left:none;border-radius:0 2px 2px 0}
+.ops-panel--collapsed .ptoggle svg{transform:rotate(180deg)}
+.traffic-panel{top:52px;right:0;bottom:0;width:264px;border-right:none;border-top:none}
+.traffic-panel--collapsed{transform:translateX(264px)}
+.traffic-panel .ptoggle{position:absolute;left:-29px;top:8px;z-index:201;border-right:none;border-radius:2px 0 0 2px}
+.traffic-panel--collapsed .ptoggle svg{transform:rotate(180deg)}
+.dlog{left:0;right:0;bottom:0;height:170px;border-bottom:none;border-left:none;border-right:none}
+.dlog--collapsed{transform:translateY(170px)}
+.dlog .ptoggle{position:absolute;right:10px;top:-29px;z-index:201;border-bottom:none;border-radius:2px 2px 0 0}
+.dlog--collapsed .ptoggle svg{transform:rotate(180deg)}
+.sec{padding:10px 14px;border-bottom:1px solid var(--border)}
+.sec:last-child{border-bottom:none}
+.sec__label{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+.sec__row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:12px}
+.sec__key{color:var(--muted);font-size:11px}
+.sec__val{font-family:var(--font-mono);font-size:11px;color:var(--fg);font-weight:500}
+.sec__val--accent{color:var(--accent)}
+.sec__val--safe{color:var(--safe)}
+.ai-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px}
+.ai-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ai-dot--active{background:var(--safe);box-shadow:0 0 4px var(--safe)}
+.ai-label{color:var(--fg);font-size:11px}
+.ai-state{font-family:var(--font-mono);font-size:9px;color:var(--safe);margin-left:auto;letter-spacing:.5px}
+.tq-section{padding:10px 14px}
+.tq-heading{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.tq-row{display:flex;align-items:center;padding:4px 0;font-size:11px;cursor:pointer;transition:background .1s;border-radius:2px;padding-left:4px;padding-right:4px}
+.tq-row:hover{background:var(--accent-dim)}
+.tq-row--selected{background:var(--accent-dim);outline:1px solid var(--accent)}
+.tq-cs{font-family:var(--font-mono);font-weight:500;font-size:11px;color:var(--fg);min-width:62px}
+.tq-type{font-family:var(--font-mono);font-size:10px;color:var(--muted);min-width:36px}
+.tq-info{font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-left:auto}
+.ad-detail{padding:14px}
+.ad-cs{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--fg);letter-spacing:-.5px}
+.ad-type{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px}
+.ad-wake{display:inline-block;font-family:var(--font-mono);font-size:9px;font-weight:500;padding:2px 8px;border:1px solid var(--border-light);border-radius:2px;color:var(--muted);margin-top:6px;letter-spacing:1px}
+.ad-route{display:flex;gap:16px;margin-top:12px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.ad-route__leg{font-family:var(--font-mono);font-size:11px}
+.ad-route__from{color:var(--muted)}
+.ad-route__arrow{color:var(--border-light)}
+.ad-route__to{color:var(--fg);font-weight:500}
+.ad-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px}
+.ad-gitem{display:flex;flex-direction:column;gap:1px}
+.ad-glabel{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.ad-gval{font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--fg)}
+.ad-phase{margin-top:10px;padding:8px 10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:0 2px 2px 0}
+.ad-phase__label{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.ad-phase__val{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--accent);margin-top:2px}
+.ad-ai{margin-top:8px;padding:8px 10px;background:var(--safe-dim);border-left:3px solid var(--safe);border-radius:0 2px 2px 0}
+.ad-ai__label{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.ad-ai__val{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--safe);margin-top:2px}
+.ad-actions{display:flex;gap:6px;margin-top:14px}
+.log-entry{display:flex;align-items:flex-start;gap:10px;padding:5px 14px;font-size:11px;border-bottom:1px solid var(--border)}
+.log-entry:last-child{border-bottom:none}
+.log-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);flex-shrink:0;min-width:62px;padding-top:1px}
+.log-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:6px}
+.log-dot--ground{background:var(--safe)}
+.log-dot--tower{background:var(--accent)}
+.log-dot--approach{background:#5a8fb4}
+.log-dot--weather{background:var(--muted)}
+.log-dot--safety{background:var(--danger)}
+.log-dot--human{background:var(--fg)}
+.log-src{font-family:var(--font-mono);font-size:9px;font-weight:500;letter-spacing:.5px;flex-shrink:0;min-width:100px;padding-top:1px}
+.log-src--ground{color:var(--safe)}
+.log-src--tower{color:var(--accent)}
+.log-src--approach{color:#5a8fb4}
+.log-src--weather{color:var(--muted)}
+.log-src--safety{color:var(--danger)}
+.log-src--human{color:var(--fg)}
+.log-text{color:var(--fg);font-size:11px;line-height:1.5;padding-top:1px}
+.conflict-alert{position:absolute;top:56px;left:50%;transform:translateX(-50%) translateY(-120%);width:420px;max-width:calc(100vw - 20px);background:var(--surface);border:1px solid var(--danger);border-top:3px solid var(--danger);z-index:350;transition:transform .3s ease;overflow:hidden}
+.conflict-alert--visible{transform:translateX(-50%) translateY(0)}
+.ca-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--danger-dim)}
+.ca-title{font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:2px;color:var(--danger)}
+.ca-dismiss{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;transition:color .15s}
+.ca-dismiss:hover{color:var(--fg)}
+.ca-body{padding:10px 14px}
+.ca-pair{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--fg);margin-bottom:8px;letter-spacing:.5px}
+.ca-rows{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.ca-row{display:flex;justify-content:space-between;font-size:11px}
+.ca-rkey{color:var(--muted)}
+.ca-rval{font-family:var(--font-mono);font-weight:500}
+.ca-rval--danger{color:var(--danger)}
+.ca-rval--safe{color:var(--safe)}
+.ca-resolution{padding:8px 10px;background:var(--danger-dim);border-left:3px solid var(--danger);border-radius:0 2px 2px 0;margin-bottom:10px}
+.ca-res-label{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.ca-res-val{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--danger);margin-top:2px}
+.ca-actions{display:flex;gap:6px}
+.atc-input-panel{position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:520px;max-width:calc(100vw - 20px);background:var(--surface);border:1px solid var(--border);border-bottom:none;z-index:360;transition:transform .3s ease}
+.atc-input-panel--visible{transform:translateX(-50%) translateY(0)}
+.aip-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border)}
+.aip-title{font-family:var(--font-mono);font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}
+.aip-body{padding:12px 14px}
+.aip-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--fg);font-family:var(--font-mono);font-size:12px;padding:8px 12px;border-radius:2px;outline:none;transition:border-color .15s}
+.aip-input:focus{border-color:var(--accent)}
+.aip-input::placeholder{color:var(--border-light)}
+.aip-actions{display:flex;gap:8px;margin-top:10px}
+.layer-ctrl{position:absolute;top:56px;right:10px;z-index:210;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:8px 10px;min-width:150px;transition:opacity .15s}
+.layer-ctrl--hidden{opacity:0;pointer-events:none}
+.lc-title{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+.lc-item{display:flex;align-items:center;gap:8px;padding:3px 0}
+.lc-item label{font-size:11px;color:var(--fg);cursor:pointer;display:flex;align-items:center;gap:8px}
+.lc-item input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:12px;height:12px;border:1px solid var(--border-light);background:var(--bg);border-radius:2px;cursor:pointer;position:relative;flex-shrink:0;transition:all .15s}
+.lc-item input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
+.lc-item input[type="checkbox"]:checked::after{content:'';position:absolute;left:3px;top:0;width:4px;height:7px;border:solid var(--bg);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.lc-item input[type="checkbox"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view-ctrl{position:absolute;bottom:180px;left:10px;z-index:210;display:flex;gap:4px}
+.view-ctrl.dlog-collapsed--true{bottom:10px}
+.maplibregl-ctrl-group{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:2px!important;box-shadow:none!important;overflow:hidden;margin-top:52px!important}
+.maplibregl-ctrl-group button{background:var(--surface)!important;color:var(--fg)!important;border-color:var(--border)!important;width:30px!important;height:30px!important;transition:all .15s}
+.maplibregl-ctrl-group button:hover{background:var(--accent)!important;color:var(--bg)!important}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--border)!important}
+.maplibregl-ctrl-attrib{background:rgba(22,20,18,.85)!important;color:var(--muted)!important;font-family:var(--font-mono)!important;font-size:9px!important;letter-spacing:.3px}
+.maplibregl-ctrl-attrib a{color:var(--accent)!important}
+@media(max-width:1200px){.sh-apt{display:none}.sh-center{gap:10px}}
+@media(max-width:900px){.ops-panel{width:200px}.ops-panel--collapsed{transform:translateX(-200px)}.traffic-panel{width:230px}.traffic-panel--collapsed{transform:translateX(230px)}.sh-sub{display:none}}
+@media(max-width:700px){.ops-panel,.traffic-panel{display:none}.dlog{height:140px}.dlog--collapsed{transform:translateY(140px)}.conflict-alert{width:calc(100vw - 20px)}.atc-input-panel{width:calc(100vw - 20px)}.view-ctrl{bottom:150px}.view-ctrl.dlog-collapsed--true{bottom:10px}}
+@media(prefers-reduced-motion:reduce){.sh-dot::after{animation:none}.ov-panel{transition:none}.conflict-alert{transition:none}.atc-input-panel{transition:none}}
+.semantic-edit #opsPanel{
+    display:none;
 }
-#map {
-    height: 100vh;
-    width: 100vw;
+
+.semantic-edit #trafficPanel{
+    display:none;
 }
-#filters {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(15, 15, 25, 0.95);
-    color: white;
-    padding: 10px;
-    z-index: 1000;
-    border-radius: 6px;
-    font-size: 14px;
+
+.semantic-edit #decisionLog{
+    display:none;
 }
-.fr24-label {
-    background: rgba(0,0,0,0.75);
-    color: #00e5ff;
-    padding: 4px 6px;
-    font-size: 11px;
-    border-radius: 4px;
+
+.semantic-edit #layerCtrl{
+    top:60px;
+    right:10px;
+}
+
+.semantic-edit #viewCtrl{
+    bottom:10px;
+}
+
+.semantic-edit #simMap{
+    position:absolute;
+    top:48px;
+    left:0;
+    right:0;
+    bottom:0;
 }
 </style>
 </head>
-
 <body>
-
-<div id="filters">
-<b>Filters</b><br>
-<label><input type="checkbox" id="showCruise" checked> Cruise</label><br>
-<label><input type="checkbox" id="showClimb" checked> Climb</label><br>
-<label><input type="checkbox" id="showTakeoff" checked> Takeoff</label>
+<header class="sim-header" role="banner">
+<div class="sh-left">
+<a href="/" class="sh-mark">AviAi</a>
+<span class="sh-sep"></span>
+<span class="sh-sub">Autonomous ATC Simulation</span>
 </div>
+<div class="sh-center">
+<span class="sh-apt" id="headerApt">Loading...</span>
+<div class="sh-status"><span class="sh-dot" id="simDot"></span><span id="simStatus" style="color:var(--safe)">RUNNING</span></div>
+<span class="sh-clock" id="simClock">14:30:00</span>
+</div>
+<div class="sh-right">
+<button class="speed-btn speed-btn--active" data-speed="1" onclick="setSpeed(1)">1X</button>
+<button class="speed-btn" data-speed="2" onclick="setSpeed(2)">2X</button>
+<button class="speed-btn" data-speed="4" onclick="setSpeed(4)">4X</button>
+<button class="pp-btn" id="ppBtn" onclick="togglePause()">&#9208;</button>
+<button class="btn btn--ghost btn--sm" onclick="toggleAtcInput()">ATC INPUT</button>
+<a href="/" class="btn btn--sm">Operations</a>
+<a href="/map/" class="btn btn--sm">Live Map</a>
+<button id="semanticModeBtn" class="top-btn">
+    Semantic Edit
+</button>
+<button id="holdingModeBtn">
+    Holding Mode
+</button>
+</div>
+</header>
+<div id="simMap"></div>
+<aside id="opsPanel" class="ov-panel ops-panel" role="complementary" aria-label="Operations panel">
+<button class="ptoggle" onclick="togglePanel('opsPanel')" aria-label="Toggle operations panel"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M7 1L2 5l5 4z"/></svg></button>
+<div class="ov-panel__body">
+<div class="sec">
+<div class="sec__label">Airport Status</div>
+<div class="sec__row"><span class="sec__key">Airport</span><span class="sec__val" id="opAirport">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Active Runway</span><span class="sec__val" id="opActiveRwy">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Arrival Runway</span><span class="sec__val" id="opArrRwy">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Departure Runway</span><span class="sec__val" id="opDepRwy">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Runway Status</span><span class="sec__val" id="opRwyStatus">Loading...</span></div>
+</div>
+<div class="sec">
+<div class="sec__label">Weather</div>
+<div class="sec__row"><span class="sec__key">Wind</span><span class="sec__val" id="opWind">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Visibility</span><span class="sec__val" id="opVis">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Weather</span><span class="sec__val" id="opWeather">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">QNH</span><span class="sec__val" id="opQnh">Loading...</span></div>
+</div>
+<div class="sec">
+<div class="sec__label">Traffic</div>
+<div class="sec__row"><span class="sec__key">Arrivals</span><span class="sec__val" id="opArr">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Departures</span><span class="sec__val" id="opDep">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Ground</span><span class="sec__val" id="opGnd">Loading...</span></div>
+<div class="sec__row"><span class="sec__key">Holding</span><span class="sec__val" id="opHold">Loading...</span></div>
+</div>
+<div class="sec">
+<div class="sec__label">AI System</div>
+<div class="ai-row"><span class="ai-dot"></span><span class="ai-label">Ground AI</span><span class="ai-state" id="aiGround">Loading...</span></div>
+<div class="ai-row"><span class="ai-dot"></span><span class="ai-label">Tower AI</span><span class="ai-state" id="aiTower">Loading...</span></div>
+<div class="ai-row"><span class="ai-dot"></span><span class="ai-label">Approach AI</span><span class="ai-state" id="aiApproach">Loading...</span></div>
+<div class="ai-row"><span class="ai-dot"></span><span class="ai-label">Weather AI</span><span class="ai-state" id="aiWeather">Loading...</span></div>
+<div class="ai-row"><span class="ai-dot"></span><span class="ai-label">Safety Supervisor</span><span class="ai-state" id="aiSafety">Loading...</span></div>
+</div>
+</div>
+</aside>
+<aside id="trafficPanel" class="ov-panel traffic-panel" role="complementary" aria-label="Traffic panel">
+    <button class="ptoggle"
+            onclick="togglePanel('trafficPanel')"
+            aria-label="Toggle traffic panel">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <path d="M3 1l5 4-5 4z"/>
+        </svg>
+    </button>
 
-<div id="map"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
-
+    <div class="ov-panel__body" id="trafficBody"></div>
+</aside>
+<div id="decisionLog" class="ov-panel dlog" role="log" aria-label="AI decision log">
+<button class="ptoggle" onclick="togglePanel('decisionLog')" aria-label="Toggle decision log"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M1 3l4 5 4-5z"/></svg></button>
+<div class="ov-panel__head">
+<span class="ov-panel__title">AI ATC Decision Log</span>
+</div>
+<div class="ov-panel__body" id="logBody"></div>
+</div>
+<div id="conflictAlert" class="conflict-alert" role="alert">
+<div class="ca-head">
+<span class="ca-title">Conflict Alert</span>
+<button class="ca-dismiss" onclick="dismissConflict()" aria-label="Dismiss alert">&times;</button>
+</div>
+<div class="ca-body" id="conflictBody">
+<div class="ca-resolution">
+<div class="ca-res-label">Status</div>
+<div class="ca-res-val" id="caResolution">No active conflicts</div>
+</div>
+</div>
+<div class="ca-actions">
+<button class="btn btn--sm btn--ghost" onclick="dismissConflict()">DISMISS</button>
+</div>
+</div>
+<div id="atcInputPanel" class="atc-input-panel">
+<div class="aip-head">
+<span class="aip-title">ATC Input</span>
+<button class="ca-dismiss" onclick="toggleAtcInput()" aria-label="Close ATC input">&times;</button>
+</div>
+<div class="aip-body">
+<input class="aip-input" id="atcCmd" type="text" placeholder='e.g. "Prioritize AIC101" or "Hold IGO221"' autocomplete="off">
+<div class="aip-actions">
+<button class="btn btn--sm" onclick="submitAtcCmd()">SUBMIT SUGGESTION</button>
+<button class="btn btn--sm btn--danger" onclick="emergencyPause()">EMERGENCY PAUSE</button>
+</div>
+</div>
+</div>
+<div class="layer-ctrl" id="layerCtrl">
+<div class="lc-title">Layers</div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="aircraft" onchange="toggleLayer(this)"> Aircraft</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="labels" onchange="toggleLayer(this)"> Aircraft Labels</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="runways" onchange="toggleLayer(this)"> Runways</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="taxiways" onchange="toggleLayer(this)"> Taxiways</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="aprons" onchange="toggleLayer(this)"> Aprons</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="gates" onchange="toggleLayer(this)"> Gates</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
+<div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
+<div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
+</div>
+<div class="view-ctrl" id="viewCtrl">
+<button class="btn btn--sm" onclick="setView('airport')">AIRPORT VIEW</button>
+<button class="btn btn--sm" onclick="setView('60nm')">60 NM VIEW</button>
+</div>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="/static/js/runway_renderer.js"></script>
 <script>
-const map = L.map("map").setView([22.5, 78.9], 5);
+const VABB=[72.8656,19.0896];
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors"
-}).addTo(map);
+let acData = [];
+let airportGraph = null;
+let startNode = null;
+let endNode = null;
+let selectedRoute = null;
+let simRunning=true,simSpeed=1,selectedCs=null,lastFrame=performance.now();
+let simTime=14*3600+30*60;
+let map,markers={},atcOpen=false;
+let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false};
 
-function createAircraftIcon() {
-    return L.icon({
-        iconUrl: "/map/plane.svg",
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
+const fmtTime=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0')};
+
+const planeSVG=(color,sel)=>`<svg viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`;
+
+function acColor(ac){
+    if(ac.flight_phase==="HOLDING")
+        return "#d4952a";
+    if(!ac.baro_altitude_m || ac.baro_altitude_m < 10)
+        return "#7d7468";
+    return "#4a8c5c";
+}
+
+function makeLabel(ac){
+
+    const alt =
+        ac.baro_altitude_m
+            ? Math.round(ac.baro_altitude_m * 3.28084)
+            : "GND";
+
+    const spd =
+        ac.velocity_mps
+            ? Math.round(ac.velocity_mps * 1.94384)
+            : "---";
+
+    return `
+        <div class="ac-label ${selectedCs===ac.callsign?'ac-label--selected':''}">
+            <div class="ac-label__cs">
+                ${ac.callsign}
+            </div>
+
+            <div>
+                ${ac.aircraft_type}
+            </div>
+
+            <div>
+                ${alt} ft
+            </div>
+
+            <div>
+                ${spd} kt
+            </div>
+        </div>
+    `;
+
+}
+
+function makeIcon(ac, selected) {
+
+    const color = selected
+        ? "#ddd5c8"
+        : acColor(ac);
+
+    const element = document.createElement("div");
+
+    element.className = "ac-marker";
+
+    element.innerHTML = `
+        <div class="ac-icon"
+             style="transform: rotate(${ac.heading_deg || 0}deg)">
+            ${planeSVG(color, selected)}
+        </div>
+
+        ${layers.labels ? makeLabel(ac) : ""}
+    `;
+
+    element.addEventListener("click", (event) => {
+
+        event.stopPropagation();
+
+        selectAircraft(ac.callsign);
+
     });
+
+    return element;
+
 }
 
-function createSelectedAircraftIcon() {
-    return L.icon({
-        iconUrl: "/map/plane.svg",
-        iconSize: [48, 48],
-        iconAnchor: [24, 24]
+function initMap(){
+
+    map = new maplibregl.Map({
+
+        container:"simMap",
+
+        style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+
+        center:VABB,
+
+        zoom:11.5,
+
+        pitch:0,
+
+        antialias:false
+
     });
-}
 
-const aircraftMarkers = {};
-const aircraftTrails = {};
-const aircraftState = {};
-let selectedAircraftId = null;
-let ws = null;
+    map.addControl(
 
-const mpsToKnots = mps => mps ? (mps * 1.94384).toFixed(0) : "N/A";
-const metersToFeet = m => m ? Math.round(m * 3.28084) : 0;
-const normalizeLng = lng => ((lng + 540) % 360) - 180;
+        new maplibregl.NavigationControl(),
 
-function altitudeColor(feet) {
-    if (feet < 10000) return "#00ff6a";
-    if (feet < 30000) return "#ffd000";
-    return "#ff3b3b";
-}
+        "top-left"
 
-function updateAircraft(list) {
-    requestAnimationFrame(() => {
-        list.forEach(ac => aircraftState[ac.icao24] = ac);
+    );
 
-        Object.values(aircraftState).forEach(ac => {
-            if (ac.latitude == null || ac.longitude == null) return;
+    map.on("load",async()=>{
 
-            const id = ac.icao24;
-            const latlng = [ac.latitude, ac.longitude];
-            const heading = ac.heading_deg || 0;
-            const altFt = metersToFeet(ac.baro_altitude_m);
-            const trailColor = altitudeColor(altFt);
+        await loadAirport();
+        await loadGraph();
+        addAirportFeatures();
+        drawGraph();
 
-            if (!aircraftMarkers[id]) {
-                const marker = L.marker(latlng, {
-                    icon: createAircraftIcon(),
-                    rotationAngle: heading
-                }).addTo(map);
+        map.on("mouseenter","graph-nodes",e=>{
 
-                marker.bindTooltip(`
-                    <b>${ac.callsign || "Unknown"}</b><br>
-                    ${altFt} ft<br>
-                    ${mpsToKnots(ac.velocity_mps)} kts<br>
-                    HDG ${heading.toFixed(0)}°
-                `, {
-                    className: "fr24-label",
-                    direction: "top",
-                    offset: [0, -14],
-                    opacity: 0.95
+            if(!semanticMode)
+                return;
+
+            map.getCanvas().style.cursor="pointer";
+
+            if(hoveredNode!==null){
+
+                map.setFeatureState({
+
+                    source:"graph-nodes",
+
+                    id:hoveredNode
+
+                },{
+
+                    hover:false
+
                 });
 
-                marker.on("click", () => {
-                    if (selectedAircraftId && aircraftMarkers[selectedAircraftId]) {
-                        aircraftMarkers[selectedAircraftId].setIcon(createAircraftIcon());
-                    }
-                    marker.setIcon(createSelectedAircraftIcon());
-                    selectedAircraftId = id;
-                });
-
-                aircraftMarkers[id] = marker;
-
-                aircraftTrails[id] = L.polyline([], {
-                    color: trailColor,
-                    weight: 2,
-                    opacity: 0.9
-                }).addTo(map);
             }
 
-            aircraftMarkers[id].setLatLng(latlng);
-            aircraftMarkers[id].setRotationAngle(heading);
+            hoveredNode=e.features[0].id;
 
-            const trail = aircraftTrails[id];
-            trail.setStyle({ color: trailColor });
-            trail.addLatLng(latlng);
+map.setFeatureState({
 
-            if (trail.getLatLngs().length > 40) {
-                trail.setLatLngs(trail.getLatLngs().slice(-40));
+    source:"graph-nodes",
+
+    id:hoveredNode
+
+},{
+
+    hover:true
+
+});
+
+if(window.nodePopup){
+    window.nodePopup.remove();
+}
+
+window.nodePopup=new maplibregl.Popup({
+
+    closeButton:false,
+    closeOnClick:false,
+    offset:10
+
+})
+.setLngLat(
+    e.features[0].geometry.coordinates
+)
+.setHTML(
+    "<b>Node "+e.features[0].properties.id+"</b>"
+)
+.addTo(map);
+
+        });
+
+        map.on("mouseleave","graph-nodes",()=>{
+
+            map.getCanvas().style.cursor="";
+
+            if(hoveredNode!==null){
+
+                map.setFeatureState({
+
+                    source:"graph-nodes",
+
+                    id:hoveredNode
+
+                },{
+
+                    hover:false
+
+                });
+
+            }
+
+            if(window.nodePopup){
+    window.nodePopup.remove();
+    window.nodePopup=null;
+}
+
+hoveredNode=null;
+
+        });
+
+        map.on("click","graph-nodes",async e=>{
+
+            if(!semanticMode)
+                return;
+
+            const nodeId=e.features[0].properties.id;
+
+            if(startNode===null){
+
+                startNode=nodeId;
+
+map.setFilter(
+
+    "selected-nodes",
+
+    ["in","id",startNode]
+
+);
+
+map.setPaintProperty(
+
+    "selected-nodes",
+
+    "circle-color",
+
+    [
+
+        "match",
+
+        ["get","id"],
+
+        startNode,
+
+        "#00ff00",
+
+        endNode,
+
+        "#ff0000",
+
+        "#ffffff"
+
+    ]
+
+);
+
+return;
+
+            }
+
+            endNode=nodeId;
+
+map.setFilter(
+
+    "selected-nodes",
+
+    ["in","id",startNode,endNode]
+
+);
+
+map.setPaintProperty(
+
+    "selected-nodes",
+
+    "circle-color",
+
+    [
+
+        "match",
+
+        ["get","id"],
+
+        startNode,
+
+        "#00ff00",
+
+        endNode,
+
+        "#ff0000",
+
+        "#ffffff"
+
+    ]
+
+);
+
+            const response=await fetch(
+
+                `/semantics/VABB/route?start=${startNode}&end=${endNode}`
+
+            );
+
+            const route=await response.json();
+
+            selectedRoute=route;
+
+            const preview=[];
+
+            route.edges.forEach(id=>{
+
+                const edge=airportGraph.edges.find(e=>e.id===id);
+
+                if(!edge)
+                    return;
+
+                const a=airportGraph.nodes.find(n=>n.id===edge.start);
+
+                const b=airportGraph.nodes.find(n=>n.id===edge.end);
+
+                preview.push({
+
+                    type:"Feature",
+
+                    properties:{
+                        id:edge.id
+                    },
+
+                    geometry:{
+
+                        type:"LineString",
+
+                        coordinates:[
+
+                            [a.lon,a.lat],
+
+                            [b.lon,b.lat]
+
+                        ]
+
+                    }
+
+                });
+
+            });
+
+            map.getSource("selected-edge").setData({
+
+                type:"FeatureCollection",
+
+                features:preview
+
+            });
+
+            const name=prompt("Taxiway Name");
+
+            if(name){
+
+                await fetch(
+
+                    "/semantics/VABB/taxiway",
+
+                    {
+
+                        method:"POST",
+
+                        headers:{
+
+                            "Content-Type":"application/json"
+
+                        },
+
+                        body:JSON.stringify({
+
+                            edge_ids:route.edges,
+
+                            name:name
+
+                        })
+
+                    }
+
+                );
+
+                await loadGraph();
+
+drawGraph();
+
+map.getSource("selected-edge").setData({
+
+    type:"FeatureCollection",
+
+    features:[]
+
+});
+
+startNode=null;
+
+endNode=null;
+
+map.setFilter(
+
+    "selected-nodes",
+
+    ["in","id",""]
+
+);
+
+map.setPaintProperty(
+
+    "selected-nodes",
+
+    "circle-color",
+
+    "#ffffff"
+
+);
+
+            }
+
+            startNode=null;
+
+            endNode=null;
+
+            map.setFilter(
+
+                "selected-nodes",
+
+                ["in","id",""]
+
+            );
+
+        });
+
+        map.addSource("selected-edge",{
+
+            type:"geojson",
+
+            data:{
+
+                type:"FeatureCollection",
+
+                features:[]
+
+            }
+
+        });
+
+        map.addLayer({
+
+            id:"selected-edge",
+
+            type:"line",
+
+            source:"selected-edge",
+
+            paint:{
+
+                "line-color":"#00ff00",
+
+                "line-width":5
+
+            }
+
+        });
+
+        loadAircraft();
+
+        renderLog();
+
+        requestAnimationFrame(tick);
+
+    });
+
+    map.on("click",()=>{
+
+        selectAircraft(null);
+
+    });
+
+}
+
+let airportData=null;
+let socket;
+
+function loadAircraft() {
+    socket = new WebSocket(
+        `ws://${location.host}/simulation/ws`
+    );
+    socket.onmessage = (event) => {
+        const updates = JSON.parse(event.data);
+        updates.forEach(update => {
+            const index = acData.findIndex(
+                a => a.icao24 === update.icao24
+            );
+            if(index >= 0){
+                acData[index] = update;
+            }
+            else{
+                acData.push(update);
+            }
+        });
+        renderTrafficList();
+        addAircraftMarkers();
+    };
+}
+
+async function loadAirport(){
+    const res = await fetch("/airport/VABB");
+    airportData = await res.json();
+}
+
+async function loadGraph(){
+    const response = await fetch("/airport/VABB/graph");
+    airportGraph = await response.json();
+}
+
+function drawGraph(){
+
+    const lookup = {};
+    const nodeFeatures = [];
+    const features = [];
+
+    airportGraph.nodes.forEach(node=>{
+
+        lookup[node.id]=node;
+
+        nodeFeatures.push({
+
+            type:"Feature",
+
+            properties:{
+                id:node.id
+            },
+
+            geometry:{
+                type:"Point",
+                coordinates:[
+                    node.lon,
+                    node.lat
+                ]
+            }
+
+        });
+
+    });
+
+    airportGraph.edges.forEach(edge=>{
+
+    const a=lookup[edge.start];
+    const b=lookup[edge.end];
+
+    if(!a || !b)
+        return;
+
+    let taxiway="";
+
+    airportGraph.semantics.taxiways.forEach(t=>{
+
+        if(t.edges.includes(edge.id))
+            taxiway=t.name;
+
+    });
+
+    features.push({
+
+        type:"Feature",
+
+        properties:{
+
+            id:edge.id,
+
+            name:taxiway
+
+        },
+
+        geometry:{
+
+            type:"LineString",
+
+            coordinates:[
+
+                [a.lon,a.lat],
+
+                [b.lon,b.lat]
+
+            ]
+
+        }
+
+    });
+
+});
+
+    if(!map.getSource("graph")){
+
+        map.addSource("graph",{
+
+            type:"geojson",
+
+            data:{
+                type:"FeatureCollection",
+                features:features
+            }
+
+        });
+
+    }else{
+
+        map.getSource("graph").setData({
+
+            type:"FeatureCollection",
+
+            features:features
+
+        });
+
+    }
+
+    if(!map.getSource("graph-nodes")){
+
+        map.addSource("graph-nodes",{
+
+            type:"geojson",
+
+            generateId:true,
+
+            data:{
+                type:"FeatureCollection",
+                features:nodeFeatures
+            }
+
+        });
+
+    }else{
+
+        map.getSource("graph-nodes").setData({
+
+            type:"FeatureCollection",
+
+            features:nodeFeatures
+
+        });
+
+    }
+
+    if(!map.getLayer("graph")){
+
+        map.addLayer({
+
+            id:"graph",
+
+            type:"line",
+
+            source:"graph",
+
+            paint:{
+    "line-color":[
+        "case",
+        ["==",["get","name"],""],
+        "#00ffff",
+        "#ff9d00"
+    ],
+    "line-width":[
+        "case",
+        ["==",["get","name"],""],
+        1.5,
+        4
+    ]
+}
+
+        });
+
+    }
+
+    if(!map.getLayer("graph-nodes")){
+
+        map.addLayer({
+
+            id:"graph-nodes",
+
+            type:"circle",
+
+            source:"graph-nodes",
+
+            paint:{
+
+                "circle-radius":[
+
+                    "case",
+
+                    ["boolean",["feature-state","hover"],false],
+
+                    8,
+
+                    4
+
+                ],
+
+                "circle-color":"#ffffff",
+
+                "circle-stroke-width":1,
+
+                "circle-stroke-color":"#000"
+
+            }
+
+        });
+
+    }
+
+    if(!map.getLayer("selected-nodes")){
+
+        map.addLayer({
+
+            id:"selected-nodes",
+
+            type:"circle",
+
+            source:"graph-nodes",
+
+            filter:["in","id",""],
+
+           paint:{
+
+    "circle-radius":7,
+
+    "circle-color":[
+
+        "match",
+
+        ["get","id"],
+
+        startNode,
+        "#00ff00",
+
+        endNode,
+        "#ff0000",
+
+        "#ffffff"
+
+    ],
+
+    "circle-stroke-width":2,
+
+    "circle-stroke-color":"#000"
+
+}
+
+        });
+
+    }
+
+}
+
+function addAircraftMarkers() {
+    Object.values(markers).forEach(m => m.marker.remove());
+    markers = {};
+    acData.forEach(ac => {
+        const el = makeIcon(ac,false);
+        const marker =
+            new maplibregl.Marker({
+                element: el,
+                anchor: "center"
+            })
+            .setLngLat([
+                ac.longitude,
+                ac.latitude
+            ])
+            .addTo(map);
+        markers[ac.icao24] = {
+            marker,
+            el,
+            data: ac
+        };
+    });
+}
+
+function addAirportFeatures(){
+
+    if(!airportData) return;
+    const runwayRenderer = new RunwayRenderer(map);
+    if(map.getSource("runways"))
+        return;
+    const taxiwayGeojson={
+        type:"FeatureCollection",
+        features:[]
+    };
+    const apronGeojson={
+        type:"FeatureCollection",
+        features:[]
+    };
+    const gateGeojson={
+    type:"FeatureCollection",
+    features:[]
+};
+
+const parkingGeojson={
+    type:"FeatureCollection",
+    features:[]
+};
+
+const holdingGeojson={
+    type:"FeatureCollection",
+    features:[]
+};
+    airportData.taxiways.forEach(t=>{
+        taxiwayGeojson.features.push({
+            type:"Feature",
+            properties:{
+                name:t.name
+            },
+            geometry:{
+                type:"LineString",
+                coordinates:t.geometry
             }
         });
     });
-}
+    airportData.aprons.forEach(a=>{
+        apronGeojson.features.push({
+            type:"Feature",
+            properties:{},
+            geometry:{
+                type:"Polygon",
+                coordinates:[a.geometry]
+            }
+        });
+    });
+    airportData.gates.forEach(g=>{
+        if(!g.position)
+            return;
+        gateGeojson.features.push({
+            type:"Feature",
+            properties:{
+                name:g.name
+            },
+            geometry:{
+                type:"Point",
+                coordinates:g.position
+            }
+        });
+    });
+    airportData.parking_positions.forEach(p=>{
+    if(!p.position)
+        return;
+    parkingGeojson.features.push({
+        type:"Feature",
+        properties:{
+            name:p.name
+        },
+        geometry:{
+            type:"Point",
+            coordinates:p.position
+        }
+    });
+});
+   airportData.holding_positions.forEach((h,index)=>{
+    if(!h.position)
+        return;
+    holdingGeojson.features.push({
 
-function connectWebSocket() {
-    if (ws) ws.close();
+    type:"Feature",
 
-    const b = map.getBounds();
-    ws = new WebSocket(
-        `ws://127.0.0.1:8000/flights/ws` +
-        `?north=${b.getNorth()}` +
-        `&south=${b.getSouth()}` +
-        `&east=${normalizeLng(b.getEast())}` +
-        `&west=${normalizeLng(b.getWest())}`
+    properties:{
+
+    name:"H"+(index+1)
+
+},
+
+    geometry:{
+
+        type:"Point",
+
+        coordinates:h.position
+
+    }
+
+});
+});
+    map.addSource("taxiways",{
+        type:"geojson",
+        data:taxiwayGeojson
+    });
+    map.addSource("aprons",{
+        type:"geojson",
+        data:apronGeojson
+    });
+    map.addSource("parking",{
+    type:"geojson",
+    data:parkingGeojson
+});
+    map.addSource("gates",{
+        type:"geojson",
+        data:gateGeojson
+    });
+    map.addSource("holding",{
+        type:"geojson",
+        data:holdingGeojson
+    });
+    runwayRenderer.draw(
+    airportData.runways
+);
+    map.addLayer({
+        id:"taxiways",
+        type:"line",
+        source:"taxiways",
+        paint:{
+            "line-color":"#f3c623",
+            "line-width":2
+        }
+    });
+    map.addLayer({
+        id:"aprons",
+        type:"fill",
+        source:"aprons",
+        paint:{
+            "fill-color":"#bdbdbd",
+            "fill-opacity":0.35
+        }
+    });
+    map.addLayer({
+    id:"parking",
+    type:"circle",
+    source:"parking",
+    paint:{
+        "circle-radius":3,
+        "circle-color":"#444444"
+    }
+});
+map.addLayer({
+    id:"parking-labels",
+    type:"symbol",
+    source:"parking",
+    layout:{
+        "text-field":["get","name"],
+        "text-size":9,
+        "text-offset":[0,1]
+    },
+    paint:{
+        "text-color":"#cccccc"
+    }
+});
+    map.addLayer({
+        id:"gates",
+        type:"circle",
+        source:"gates",
+        paint:{
+            "circle-radius":4,
+            "circle-color":"#0066ff"
+        }
+    });
+    map.addLayer({
+    id:"gate-labels",
+    type:"symbol",
+    source:"gates",
+    layout:{
+        "text-field":["get","name"],
+        "text-size":10,
+        "text-offset":[0,1.2]
+    },
+    paint:{
+        "text-color":"#ffffff"
+    }
+});
+    map.addLayer({
+        id:"holding",
+        type:"circle",
+        source:"holding",
+        paint:{
+            "circle-radius":4,
+            "circle-color":"#ff0000"
+        }
+    });
+   map.on("click","holding",async e=>{
+
+    if(!holdingMode)
+        return;
+
+    const feature=e.features[0];
+
+    const name=feature.properties.name;
+
+    const lon=feature.geometry.coordinates[0];
+
+    const lat=feature.geometry.coordinates[1];
+
+    const graph=await fetch(
+
+        "/airport/VABB/graph"
+
+    ).then(r=>r.json());
+
+    let node=null;
+
+    let best=Infinity;
+
+    graph.nodes.forEach(n=>{
+
+        const d=
+
+            (n.lat-lat)*(n.lat-lat)
+
+            +
+
+            (n.lon-lon)*(n.lon-lon);
+
+        if(d<best){
+
+            best=d;
+
+            node=n.id;
+
+        }
+
+    });
+
+    await fetch(
+
+        "/semantics/VABB/holding-point",
+
+        {
+
+            method:"POST",
+
+            headers:{
+
+                "Content-Type":"application/json"
+
+            },
+
+            body:JSON.stringify({
+
+                name:name,
+
+                node:node
+
+            })
+
+        }
+
     );
 
-    ws.onmessage = e => {
-        const data = JSON.parse(e.data);
-        updateAircraft(data);
-    };
+    alert(name+" saved");
 
-    ws.onclose = () => {
-        setTimeout(connectWebSocket, 500);
-    };
+});
+    map.addLayer({
+    id:"holding-labels",
+    type:"symbol",
+    source:"holding",
+    layout:{
+        "text-field":["get","name"],
+        "text-size":10,
+        "text-offset":[0,1]
+    },
+    paint:{
+        "text-color":"#ff4444"
+    }
+});
+const runwayLabels=[];
+airportData.runways.forEach(r=>{
+    if(!r.geometry.length)
+        return;
+    runwayLabels.push({
+        type:"Feature",
+        properties:{
+            name:r.ref
+        },
+        geometry:{
+            type:"Point",
+            coordinates:r.geometry[0]
+        }
+    });
+});
+
+map.addSource("runway-labels",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:runwayLabels
+    }
+});
+map.addLayer({
+    id:"runway-labels",
+    type:"symbol",
+    source:"runway-labels",
+    layout:{
+        "text-field":["get","name"],
+        "text-size":12
+    },
+    paint:{
+        "text-color":"#ffffff"
+    }
+});
 }
 
-connectWebSocket();
-map.on("moveend", connectWebSocket);
-</script>
+function updateAircraftMarkers(){
+  Object.keys(markers).forEach(id=>{
+    const m=markers[id];
+    const ac=m.data;
+    const sel = selectedCs===ac.callsign;
+    const iconDiv=m.el.querySelector('.ac-icon');
+    iconDiv.style.transform=`rotate(${ac.heading_deg || 0}deg)`;
+    iconDiv.innerHTML=planeSVG(sel?'#ddd5c8':acColor(ac),sel);
+    const labelDiv=m.el.querySelector('.ac-label');
+    if(labelDiv)labelDiv.remove();
+    if(layers.labels){
+      const newLabel=makeLabel(ac);
+      m.el.insertAdjacentHTML('beforeend',newLabel);
+    }
+    m.marker.setLngLat([
+      ac.longitude,
+      ac.latitude
+    ]);
+    if(sel){
+      map.flyTo({
+        center:[
+          ac.longitude,
+          ac.latitude
+        ],
+        duration:800,
+        easing:t=>t*(2-t)
+      });
+    }
+  });
+}
 
+async function tick(now){
+    const realDt=Math.min((now-lastFrame)/1000,0.1);
+    lastFrame=now;
+    if(simRunning){
+        simTime+=realDt;
+        document.getElementById("simClock").textContent=
+            fmtTime(simTime);
+    }
+    requestAnimationFrame(tick);
+}
+
+function renderLog(){
+    const body = document.getElementById("logBody");
+    body.innerHTML = "";
+}
+
+function addLogEntry(e){
+  const body=document.getElementById('logBody');
+  const div=document.createElement('div');
+  div.className='log-entry';
+  div.innerHTML=`<span class="log-time">${e.time}</span><span class="log-dot log-dot--${e.cls}"></span><span class="log-src log-src--${e.cls}">${e.src}</span><span class="log-text">${e.text}</span>`;
+  body.appendChild(div);
+  body.scrollTop=body.scrollHeight;
+}
+
+function renderTrafficList(){
+    if(selectedCs) return;
+    const body = document.getElementById("trafficBody");
+    let html = '<div class="tq-section"><div class="tq-heading">Active Traffic</div>';
+    if(acData.length === 0){
+        html += '<div style="padding:8px 4px;font-size:11px;color:var(--muted)">No traffic data</div>';
+    }
+    acData.forEach(ac => {
+        const cs = ac.callsign || '---';
+        html += '<div class="tq-row" data-cs="' + cs + '" onclick="selectAircraft(\'' + cs + '\')">' +
+            '<span class="tq-cs">' + cs + '</span>' +
+            '<span class="tq-type">' + (ac.aircraft_type || '---') + '</span>' +
+            '<span class="tq-info">' + (ac.flight_phase || '---') + '</span>' +
+            '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+}
+function selectAircraft(cs){
+    selectedCs = cs;
+    document.querySelectorAll(".tq-row").forEach(row => {
+        row.classList.toggle(
+            "tq-row--selected",
+            row.dataset.cs === cs
+        );
+    });
+    const body = document.getElementById("trafficBody");
+    if(!cs){
+        renderTrafficList();
+        return;
+    }
+    const ac = acData.find(
+        a => a.callsign === cs
+    );
+    if(!ac)
+        return;
+    const altitude = ac.baro_altitude_m
+        ? Math.round(ac.baro_altitude_m * 3.28084) + " ft"
+        : "GROUND";
+    const speed = ac.velocity_mps
+        ? Math.round(ac.velocity_mps * 1.94384) + " kt"
+        : "0 kt";
+    const heading = ac.heading_deg != null
+        ? Math.round(ac.heading_deg) + "°"
+        : "---";
+    body.innerHTML = `
+    <div class="ad-detail">
+        <div class="ad-cs">
+            ${ac.callsign || "UNKNOWN"}
+        </div>
+        <div class="ad-type">
+            ${ac.aircraft_type || "UNKNOWN"}
+        </div>
+        <div class="ad-grid">
+            <div class="ad-gitem">
+                <span class="ad-glabel">ICAO24</span>
+                <span class="ad-gval">${ac.icao24}</span>
+            </div>
+            <div class="ad-gitem">
+                <span class="ad-glabel">Altitude</span>
+                <span class="ad-gval">${altitude}</span>
+            </div>
+            <div class="ad-gitem">
+                <span class="ad-glabel">Speed</span>
+                <span class="ad-gval">${speed}</span>
+            </div>
+            <div class="ad-gitem">
+                <span class="ad-glabel">Heading</span>
+                <span class="ad-gval">${heading}</span>
+            </div>
+            <div class="ad-gitem">
+                <span class="ad-glabel">Latitude</span>
+                <span class="ad-gval">${ac.latitude.toFixed(5)}</span>
+            </div>
+            <div class="ad-gitem">
+                <span class="ad-glabel">Longitude</span>
+                <span class="ad-gval">${ac.longitude.toFixed(5)}</span>
+            </div>
+        </div>
+        <div class="ad-phase">
+            <div class="ad-phase__label">
+                Flight Phase
+            </div>
+
+            <div class="ad-phase__val">
+                ${ac.flight_phase || "UNKNOWN"}
+            </div>
+        </div>
+    </div>
+    `;
+}
+
+function togglePanel(id){
+  document.getElementById(id).classList.toggle(id+'--collapsed');
+  if(id==='decisionLog'){
+    document.getElementById('viewCtrl').classList.toggle('dlog-collapsed--true');
+  }
+}
+
+function setSpeed(s){
+  simSpeed=s;
+  document.querySelectorAll('.speed-btn').forEach(b=>{
+    b.classList.toggle('speed-btn--active',parseInt(b.dataset.speed)===s);
+  });
+}
+
+function togglePause(){
+  simRunning=!simRunning;
+  const btn=document.getElementById('ppBtn');
+  const dot=document.getElementById('simDot');
+  const st=document.getElementById('simStatus');
+  if(simRunning){
+    btn.innerHTML='&#9208;';
+    dot.style.background='var(--safe)';
+    st.textContent='RUNNING';
+    st.style.color='var(--safe)';
+    dot.classList.add('sh-dot');
+  }else{
+    btn.innerHTML='&#9654;';
+    dot.style.background='var(--accent)';
+    st.textContent='PAUSED';
+    st.style.color='var(--accent)';
+  }
+  lastFrame=performance.now();
+}
+
+function showConflict(){
+  document.getElementById('conflictAlert').classList.add('conflict-alert--visible');
+}
+
+function dismissConflict(){
+  document.getElementById('conflictAlert').classList.remove('conflict-alert--visible');
+}
+
+function toggleAtcInput(){
+  atcOpen=!atcOpen;
+  document.getElementById('atcInputPanel').classList.toggle('atc-input-panel--visible',atcOpen);
+  if(atcOpen)document.getElementById('atcCmd').focus();
+}
+
+function submitAtcCmd(){
+  const input=document.getElementById('atcCmd');
+  const cmd=input.value.trim();
+  if(!cmd)return;
+  addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:'Suggestion received: '+cmd});
+  input.value='';
+}
+
+function emergencyPause(){
+  if(simRunning)togglePause();
+  addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:'EMERGENCY PAUSE activated by human controller.'});
+  if(atcOpen)toggleAtcInput();
+}
+
+function toggleLayer(cb){
+  const layer=cb.dataset.layer;
+  layers[layer]=cb.checked;
+
+  if(layer==='aircraft'){
+    Object.values(markers).forEach(m=>{m.marker.getElement().style.display=cb.checked?'':'none';});
+  }
+  if(layer==='labels'){
+    updateAircraftMarkers();
+  }
+if(layer==="runways"){
+
+    if(map.getLayer("runway-surface")){
+
+        map.setLayoutProperty(
+            "runway-surface",
+            "visibility",
+            cb.checked?"visible":"none"
+        );
+
+    }
+
+}
+  if(layer==='taxiways' && map.getLayer('taxiways')){
+    map.setLayoutProperty('taxiways','visibility',cb.checked?'visible':'none');
+  }
+  if(layer==='aprons' && map.getLayer('aprons')){
+    map.setLayoutProperty('aprons','visibility',cb.checked?'visible':'none');
+  }
+  if(layer==='gates' && map.getLayer('gates')){
+    map.setLayoutProperty('gates','visibility',cb.checked?'visible':'none');
+  }
+  if(layer==='holdpts' && map.getLayer('holding')){
+    map.setLayoutProperty('holding','visibility',cb.checked?'visible':'none');
+  }
+  if(layer==="gates"){
+    map.setLayoutProperty(
+        "gate-labels",
+        "visibility",
+        cb.checked?"visible":"none"
+    );
+}
+if(layer==="holdpts"){
+    map.setLayoutProperty(
+        "holding-labels",
+        "visibility",
+        cb.checked?"visible":"none"
+    );
+}
+}
+
+function setView(v){
+  if(v==='airport'){
+    map.flyTo({center:VABB,zoom:14,duration:1200,easing:t=>t*(2-t)});
+  }else{
+    map.flyTo({center:VABB,zoom:7.8,duration:1200,easing:t=>t*(2-t)});
+  }
+}
+
+document.getElementById('atcCmd').addEventListener('keydown',e=>{
+  if(e.key==='Enter')submitAtcCmd();
+  if(e.key==='Escape')toggleAtcInput();
+});
+let semanticMode = false;
+let holdingMode=false;
+let hoveredNode = null;
+let selectedNodes = [];
+document
+    .getElementById("semanticModeBtn")
+    .addEventListener("click", () => {
+         semanticMode=!semanticMode;
+    document.body.classList.toggle(
+        "semantic-edit",
+        semanticMode
+    );
+    if(semanticMode){
+        map.dragPan.disable();
+        map.boxZoom.disable();
+        map.doubleClickZoom.disable();
+        map.dragRotate.disable();
+        map.keyboard.disable();
+    }
+    else{
+        map.dragPan.enable();
+        map.boxZoom.enable();
+        map.doubleClickZoom.enable();
+        map.dragRotate.enable();
+        map.keyboard.enable();
+        startNode=null;
+        endNode=null;
+        selectedNodes=[];
+        map.setFilter(
+            "selected-nodes",
+            ["in","id",""]
+        );
+        map.getSource("selected-edge").setData({
+            type:"FeatureCollection",
+            features:[]
+        });
+    }
+    map.resize();
+});
+document
+    .getElementById("holdingModeBtn")
+    .addEventListener("click",()=>{
+
+        holdingMode=!holdingMode;
+
+        semanticMode=false;
+
+        document.body.classList.toggle(
+
+            "semantic-edit",
+
+            holdingMode
+
+        );
+
+        if(holdingMode){
+
+            map.dragPan.disable();
+            map.boxZoom.disable();
+            map.doubleClickZoom.disable();
+            map.dragRotate.disable();
+            map.keyboard.disable();
+
+        }else{
+
+            map.dragPan.enable();
+            map.boxZoom.enable();
+            map.doubleClickZoom.enable();
+            map.dragRotate.enable();
+            map.keyboard.enable();
+
+        }
+
+    });
+initMap();
+</script>
 </body>
 </html>
