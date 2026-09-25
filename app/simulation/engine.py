@@ -1,6 +1,7 @@
 from app.simulation.manager import AircraftManager
 from app.simulation.spawn import spawn_aircraft
 from app.simulation.physics import move_aircraft
+from app.simulation.aircraft_db import AircraftDatabase
 
 from app.intelligence.arrival_manager import ArrivalManager
 from app.intelligence.arrival_ai import ArrivalAI
@@ -14,6 +15,7 @@ from app.navigation.runway import Runway
 from app.navigation.centerline import build_centerline
 from app.navigation.grid_builder import build_grid
 from app.navigation.graph_builder import build_graph
+from app.navigation.loader import load_arrival_routes
 
 
 class SimulationEngine:
@@ -25,6 +27,8 @@ class SimulationEngine:
     ):
 
         self.manager = AircraftManager()
+
+        self.aircraft_db = AircraftDatabase()
 
         self.airport_lat = airport_lat
         self.airport_lon = airport_lon
@@ -50,6 +54,18 @@ class SimulationEngine:
             self.grid
         )
 
+        self.arrival_routes = load_arrival_routes()
+
+        for route in self.arrival_routes.values():
+
+            for waypoint in route["waypoints"]:
+
+                self.graph.add_node(
+                    waypoint["name"],
+                    waypoint["latitude"],
+                    waypoint["longitude"]
+                )
+
         self.arrival = ArrivalManager(
             self.graph
         )
@@ -65,8 +81,16 @@ class SimulationEngine:
         )
 
         self.landing_ai = LandingAI(
-            self.runway
+            self.runway,
+            self.graph
         )
+
+        self.prototype_routes = {
+            "AIQ432": "001",
+            "SIA421": "002",
+            "UAE502": "003",
+            "DLH757": "004"
+        }
 
     def spawn(
         self,
@@ -74,20 +98,39 @@ class SimulationEngine:
         callsign
     ):
 
+        route_id = self.prototype_routes.get(callsign)
+
+        if route_id is None:
+
+            raise ValueError(
+                f"No prototype arrival route assigned to {callsign}"
+            )
+
+        route_definition = self.arrival_routes[route_id]
+        waypoints = route_definition["waypoints"]
+        first_waypoint = waypoints[0]
+
         aircraft = spawn_aircraft(
             callsign,
             aircraft_type,
-            self.airport_lat,
-            self.airport_lon
+            first_waypoint["latitude"],
+            first_waypoint["longitude"]
         )
 
-        self.arrival.assign_entry(
-            aircraft
+        aircraft.assign_route(
+            [waypoint["name"] for waypoint in waypoints]
+        )
+
+        print(
+            f"ROUTE ASSIGNED: {callsign} -> {route_id} "
+            f"at {first_waypoint['name']}"
         )
 
         self.manager.add(
             aircraft
         )
+
+        return aircraft
 
     def update(
         self,
@@ -98,30 +141,80 @@ class SimulationEngine:
 
         for aircraft in traffic:
 
-            self.arrival_ai.update(
-                aircraft
-            )
+            try:
 
-            mistral_controller.update(
-                aircraft,
-                traffic
-            )
-
-            self.guidance.update(
-                aircraft
-            )
-
-            if aircraft.phase == "FINAL":
-
-                self.approach_ai.update(
+                self.arrival_ai.update(
                     aircraft
                 )
 
-            self.landing_ai.update(
-                aircraft
-            )
+                try:
 
-            move_aircraft(
-                aircraft,
-                dt
-            )
+                    mistral_controller.update(
+                        aircraft,
+                        traffic
+                    )
+
+                except Exception as error:
+
+                    if "429" not in str(error):
+
+                        print(
+                            f"MISTRAL ERROR "
+                            f"{aircraft.callsign}: {error}"
+                        )
+
+                self.guidance.update(
+                    aircraft
+                )
+
+                if aircraft.phase == "FINAL":
+
+                    self.approach_ai.update(
+                        aircraft
+                    )
+
+                if getattr(
+                    aircraft,
+                    "approach_complete",
+                    False
+                ):
+
+                    self.aircraft_db.upsert(
+                        callsign=aircraft.callsign,
+                        aircraft_type=aircraft.aircraft_type,
+                        runway_exit="27",
+                        taxiway="23ft"
+                    )
+
+                    print(
+                        f"FINAL APPROACH COMPLETE: "
+                        f"{aircraft.callsign} -> "
+                        f"RWY 27 / 23ft"
+                    )
+
+                    self.manager.remove(
+                        aircraft
+                    )
+
+                    print(
+                        f"AIRCRAFT REMOVED FROM SIM: "
+                        f"{aircraft.callsign}"
+                    )
+
+                    continue
+
+                self.landing_ai.update(
+                    aircraft
+                )
+
+                move_aircraft(
+                    aircraft,
+                    dt
+                )
+
+            except Exception as error:
+
+                print(
+                    f"AIRCRAFT UPDATE ERROR "
+                    f"{aircraft.callsign}: {error}"
+                )

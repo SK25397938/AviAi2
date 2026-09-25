@@ -508,6 +508,175 @@ function acColor(ac){
     return "#4a8c5c";
 }
 
+async function loadApproachVisualization(){
+
+    try{
+
+        const response = await fetch(
+            "/airport/VABB/approach"
+        );
+
+        if(!response.ok){
+            throw new Error("Approach data unavailable");
+        }
+
+        const data = await response.json();
+
+        const points = data.approach || [];
+
+        const coordinates = points.map(function(point){
+            return [
+                point.longitude,
+                point.latitude
+            ];
+        });
+
+        map.getSource("vabb-approach").setData({
+            type:"FeatureCollection",
+            features:[
+                {
+                    type:"Feature",
+                    properties:{
+                        name:"VABB RWY27 FINAL APPROACH"
+                    },
+                    geometry:{
+                        type:"LineString",
+                        coordinates:coordinates
+                    }
+                }
+            ]
+        });
+
+        map.getSource("vabb-approach-points").setData({
+            type:"FeatureCollection",
+            features:points.map(function(point){
+                return {
+                    type:"Feature",
+                    properties:{
+                        id:point.id,
+                        name:point.name,
+                        altitude_ft:point.altitude_ft
+                    },
+                    geometry:{
+                        type:"Point",
+                        coordinates:[
+                            point.longitude,
+                            point.latitude
+                        ]
+                    }
+                };
+            })
+        });
+
+    }catch(error){
+
+        console.error(
+            "Failed to load VABB approach:",
+            error
+        );
+
+    }
+
+}
+
+async function loadRouteVisualization(){
+
+    try{
+
+        const response = await fetch(
+            "/airport/VABB/routes"
+        );
+
+        if(!response.ok){
+            throw new Error("Route data unavailable");
+        }
+
+        const data = await response.json();
+
+        const routes = data.routes || [];
+
+        const waypointFeatures = [];
+        const routeFeatures = [];
+
+        routes.forEach(function(route){
+
+            const waypoints = route.waypoints || [];
+
+            const coordinates = [];
+
+            waypoints.forEach(function(point){
+
+                if(
+                    typeof point.latitude !== "number" ||
+                    typeof point.longitude !== "number"
+                ){
+                    return;
+                }
+
+                coordinates.push([
+                    point.longitude,
+                    point.latitude
+                ]);
+
+                waypointFeatures.push({
+                    type:"Feature",
+                    properties:{
+                        name:point.name,
+                        route_id:route.id
+                    },
+                    geometry:{
+                        type:"Point",
+                        coordinates:[
+                            point.longitude,
+                            point.latitude
+                        ]
+                    }
+                });
+
+            });
+
+            if(coordinates.length > 1){
+
+                routeFeatures.push({
+                    type:"Feature",
+                    properties:{
+                        id:route.id
+                    },
+                    geometry:{
+                        type:"LineString",
+                        coordinates:coordinates
+                    }
+                });
+
+            }
+
+        });
+
+        map.getSource(
+            "vabb-routes"
+        ).setData({
+            type:"FeatureCollection",
+            features:routeFeatures
+        });
+
+        map.getSource(
+            "vabb-route-waypoints"
+        ).setData({
+            type:"FeatureCollection",
+            features:waypointFeatures
+        });
+
+    }catch(error){
+
+        console.error(
+            "Failed to load VABB routes:",
+            error
+        );
+
+    }
+
+}
+
 function makeLabel(ac){
 
     const alt = Math.round(ac.altitude);
@@ -622,6 +791,125 @@ map.addLayer({
         "line-opacity":0.75
     }
 });
+map.addSource("vabb-approach",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:[]
+    }
+});
+
+map.addLayer({
+    id:"vabb-approach-line",
+    type:"line",
+    source:"vabb-approach",
+    paint:{
+        "line-color":"#ff0000",
+        "line-width":3,
+        "line-opacity":0.85
+    }
+});
+
+map.addSource("vabb-approach-points",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:[]
+    }
+});
+
+map.addLayer({
+    id:"vabb-approach-points",
+    type:"circle",
+    source:"vabb-approach-points",
+    paint:{
+        "circle-radius":6,
+        "circle-color":"#ff0000",
+        "circle-stroke-width":2,
+        "circle-stroke-color":"#ffffff"
+    }
+});
+
+map.addLayer({
+    id:"vabb-approach-labels",
+    type:"symbol",
+    source:"vabb-approach-points",
+    layout:{
+        "text-field":[
+            "concat",
+            ["get","id"],
+            " ",
+            ["to-string",["get","altitude_ft"]],
+            "ft"
+        ],
+        "text-size":11,
+        "text-offset":[0,1.2]
+    },
+    paint:{
+        "text-color":"#ff0000",
+        "text-halo-color":"#ffffff",
+        "text-halo-width":2
+    }
+});
+
+map.addSource("vabb-routes",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:[]
+    }
+});
+
+map.addLayer({
+    id:"vabb-route-lines",
+    type:"line",
+    source:"vabb-routes",
+    paint:{
+        "line-color":"#00aaff",
+        "line-width":2,
+        "line-opacity":0.7
+    }
+});
+
+map.addSource("vabb-route-waypoints",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:[]
+    }
+});
+
+map.addLayer({
+    id:"vabb-route-waypoints",
+    type:"circle",
+    source:"vabb-route-waypoints",
+    paint:{
+        "circle-radius":5,
+        "circle-color":"#00aaff",
+        "circle-stroke-width":2,
+        "circle-stroke-color":"#ffffff"
+    }
+});
+
+map.addLayer({
+    id:"vabb-route-waypoint-labels",
+    type:"symbol",
+    source:"vabb-route-waypoints",
+    layout:{
+        "text-field":["get","name"],
+        "text-size":10,
+        "text-offset":[0,1.1],
+        "text-anchor":"top"
+    },
+    paint:{
+        "text-color":"#0077aa",
+        "text-halo-color":"#ffffff",
+        "text-halo-width":2
+    }
+});
+
+loadRouteVisualization();
+loadApproachVisualization();
     loadAircraft();
     renderLog();
     requestAnimationFrame(tick);
@@ -664,23 +952,29 @@ function loadAircraft(){
 
         }
 
-        if(Object.keys(markers).length === 0){
-
-            addAircraftMarkers();
-
-        }else{
-
-            updateAircraftMarkers();
-
-        }
+        addAircraftMarkers();
 
         renderTrafficList();
 
         if(selectedCs){
 
-            selectAircraft(
-                selectedCs
+            const stillActive = acData.some(
+                ac => ac.callsign === selectedCs
             );
+
+            if(stillActive){
+
+                selectAircraft(
+                    selectedCs
+                );
+
+            }else{
+
+                selectedCs = null;
+
+                renderTrafficList();
+
+            }
 
         }
 

@@ -2,7 +2,13 @@ import os
 
 from dotenv import load_dotenv
 
-from mistralai import Mistral
+try:
+
+    from mistralai import Mistral
+
+except ImportError:
+
+    Mistral = None
 
 
 load_dotenv()
@@ -17,19 +23,10 @@ api_key = os.getenv(
 
 )
 
-if not api_key:
-
-    raise RuntimeError(
-
-        "MISTRAL_API_KEY not found in .env"
-
-    )
-
-
-client = Mistral(
-
-    api_key=api_key
-
+client = (
+    Mistral(api_key=api_key)
+    if api_key and Mistral is not None
+    else None
 )
 
 
@@ -38,6 +35,12 @@ def generate(
     prompt
 
 ):
+
+    if client is None:
+
+        print("MISTRAL ERROR: client is unavailable")
+
+        return None
 
     try:
 

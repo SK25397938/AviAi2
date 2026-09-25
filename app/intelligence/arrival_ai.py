@@ -11,6 +11,7 @@ class ArrivalAI:
 
         self.speed = SpeedManager()
 
+
     def determine_phase(
         self,
         distance_nm
@@ -39,6 +40,10 @@ class ArrivalAI:
 
             return
 
+        if aircraft.phase == "FINAL":
+
+            return
+
         remaining = (
 
             len(
@@ -54,12 +59,6 @@ class ArrivalAI:
         )
 
         distance_nm = remaining
-
-        aircraft.phase = self.determine_phase(
-
-            distance_nm
-
-        )
 
         aircraft.recommended_altitude = (
 

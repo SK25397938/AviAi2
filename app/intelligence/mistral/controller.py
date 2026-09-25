@@ -4,13 +4,14 @@ from app.intelligence.mistral.parser import parse
 from app.intelligence.clearance_event_engine import clearance_event_engine
 from app.intelligence.instruction_manager import instruction_manager
 from app.intelligence.aircraft_state import ActiveClearance
+from concurrent.futures import ThreadPoolExecutor
 
 
 class MistralController:
 
     def __init__(self):
 
-        pass
+        self.executor = ThreadPoolExecutor(max_workers=4)
 
     def update(
         self,
@@ -26,6 +27,20 @@ class MistralController:
             return
 
         aircraft.ai_busy = True
+
+        self.executor.submit(
+            self._request_clearance,
+            aircraft,
+            list(traffic),
+            event
+        )
+
+    def _request_clearance(
+        self,
+        aircraft,
+        traffic,
+        event
+    ):
 
         try:
 
@@ -45,7 +60,7 @@ class MistralController:
 
             if data is None:
 
-                aircraft.ai_busy = False
+                aircraft.pending_event = ""
 
                 return
 
@@ -63,8 +78,10 @@ class MistralController:
                     ""
                 ),
 
-                heading=data.get(
-                    "heading"
+                heading=(
+                    None
+                    if aircraft.route and aircraft.phase != "FINAL"
+                    else data.get("heading")
                 ),
 
                 altitude_ft=data.get(
@@ -75,8 +92,10 @@ class MistralController:
                     "speed"
                 ),
 
-                next_node=data.get(
-                    "next_node"
+                next_node=(
+                    None
+                    if aircraft.route and aircraft.phase != "FINAL"
+                    else data.get("next_node")
                 ),
 
                 runway=data.get(
@@ -114,6 +133,9 @@ class MistralController:
         except Exception as e:
 
             print("MISTRAL ERROR:", e)
+
+            aircraft.pending_event = ""
+
 
         finally:
 

@@ -76,6 +76,10 @@ class AircraftState:
 
     last_instruction: str = ""
 
+    assigned_runway_exit: Optional[str] = None
+
+    exit_distance_km: Optional[float] = None
+
     runway_vacated: bool = False
 
     spoilers_deployed: bool = False
@@ -153,7 +157,7 @@ class AircraftState:
     ):
 
         self.target_altitude_ft = altitude
-        self.clearance.speed_kts_ft = altitude
+        self.clearance.altitude_ft = altitude
 
     def assign_speed(
         self,
@@ -161,7 +165,7 @@ class AircraftState:
     ):
 
         self.target_speed_kts = speed
-        self.clearance.speed_kts_kts = speed
+        self.clearance.speed_kts = speed
 
     def assign_runway(
         self,
@@ -182,16 +186,16 @@ class AircraftState:
         if clearance.heading is not None:
             self.assign_heading(clearance.heading)
 
-        if clearance.speed_kts_ft is not None:
-            self.assign_altitude(clearance.speed_kts_ft)
+        if clearance.altitude_ft is not None:
+            self.assign_altitude(clearance.altitude_ft)
 
-        if clearance.speed_kts_kts is not None:
-            self.assign_speed(clearance.speed_kts_kts)
+        if clearance.speed_kts is not None:
+            self.assign_speed(clearance.speed_kts)
 
         if clearance.runway:
             self.assign_runway(clearance.runway)
 
-        if clearance.next_node:
+        if clearance.next_node and not self.route:
             self.target_node = clearance.next_node
 
         self.controller = clearance.controller

@@ -1,0 +1,254 @@
+{
+    "airport": "VABB",
+    "runway": "27",
+
+    "localizer": {
+        "ident": "ISCZ",
+        "frequency_mhz": 110.3,
+        "course_deg": 270
+    },
+
+    "glideslope": {
+        "angle_deg": 3.0
+    },
+
+    "speed_profiles": {
+        "A320": {
+            "APP12": 190,
+            "FAF": 180,
+            "APP07": 170,
+            "APP05": 155,
+            "APP03": 145,
+            "APP01": 140,
+            "RWY27": 135
+        },
+        "A321": {
+            "APP12": 195,
+            "FAF": 185,
+            "APP07": 175,
+            "APP05": 160,
+            "APP03": 150,
+            "APP01": 140,
+            "RWY27": 135
+        },
+        "A359": {
+            "APP12": 200,
+            "FAF": 190,
+            "APP07": 180,
+            "APP05": 165,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B787-8": {
+            "APP12": 200,
+            "FAF": 190,
+            "APP07": 180,
+            "APP05": 165,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B787-9": {
+            "APP12": 205,
+            "FAF": 195,
+            "APP07": 185,
+            "APP05": 170,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B787-10": {
+            "APP12": 205,
+            "FAF": 195,
+            "APP07": 185,
+            "APP05": 170,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B777-200": {
+            "APP12": 210,
+            "FAF": 195,
+            "APP07": 185,
+            "APP05": 170,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B777-200LR": {
+            "APP12": 210,
+            "FAF": 195,
+            "APP07": 185,
+            "APP05": 170,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B777-300ER": {
+            "APP12": 210,
+            "FAF": 200,
+            "APP07": 190,
+            "APP05": 175,
+            "APP03": 160,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B777F": {
+            "APP12": 210,
+            "FAF": 195,
+            "APP07": 185,
+            "APP05": 170,
+            "APP03": 155,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "A350-1000": {
+            "APP12": 210,
+            "FAF": 200,
+            "APP07": 190,
+            "APP05": 175,
+            "APP03": 160,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B747-400": {
+            "APP12": 215,
+            "FAF": 200,
+            "APP07": 190,
+            "APP05": 175,
+            "APP03": 160,
+            "APP01": 145,
+            "RWY27": 140
+        },
+        "B747-8": {
+            "APP12": 215,
+            "FAF": 205,
+            "APP07": 195,
+            "APP05": 180,
+            "APP03": 165,
+            "APP01": 150,
+            "RWY27": 145
+        },
+        "B747-8F": {
+            "APP12": 215,
+            "FAF": 205,
+            "APP07": 195,
+            "APP05": 180,
+            "APP03": 165,
+            "APP01": 150,
+            "RWY27": 145
+        },
+        "A388": {
+            "APP12": 220,
+            "FAF": 205,
+            "APP07": 195,
+            "APP05": 180,
+            "APP03": 165,
+            "APP01": 150,
+            "RWY27": 145
+        }
+    },
+
+    "approach": [
+    {
+        "id": "APP38",
+        "name": "60 KM",
+        "distance_km": 60.0,
+        "distance_dme": null,
+        "latitude": 19.09796579638452,
+        "longitude": 73.44695115275142,
+        "altitude_ft": 7000
+    },
+    {
+        "id": "APP32",
+        "name": "50 KM",
+        "distance_km": 50.0,
+        "distance_dme": null,
+        "latitude": 19.096406260704658,
+        "longitude": 73.35182349104991,
+        "altitude_ft": 6000
+    },
+    {
+        "id": "APP25",
+        "name": "40 KM",
+        "distance_km": 40.0,
+        "distance_dme": null,
+        "latitude": 19.094706731897773,
+        "longitude": 73.25672452639625,
+        "altitude_ft": 5000
+    },
+    {
+        "id": "APP18",
+        "name": "30 KM",
+        "distance_km": 30.0,
+        "distance_dme": null,
+        "latitude": 19.093899311454233,
+        "longitude": 73.16158525877752,
+        "altitude_ft": 4400
+    },
+    {
+        "id": "APP12",
+        "name": "LOC_INTERCEPT",
+        "distance_km": 22.0,
+        "distance_dme": 11.88,
+        "latitude": 19.09251278087918,
+        "longitude": 73.08535029160754,
+        "altitude_ft": 3800
+    },
+    {
+        "id": "FAF",
+        "name": "FAF",
+        "distance_km": 16.86,
+        "distance_dme": 9.1,
+        "latitude": 19.09164139530287,
+        "longitude": 73.0365501083535,
+        "altitude_ft": 2900
+    },
+    {
+        "id": "APP07",
+        "name": "7 DME",
+        "distance_km": 12.96,
+        "distance_dme": 7.0,
+        "latitude": 19.090982985565947,
+        "longitude": 72.99943622720511,
+        "altitude_ft": 2250
+    },
+    {
+        "id": "APP05",
+        "name": "5 DME",
+        "distance_km": 9.25,
+        "distance_dme": 5.0,
+        "latitude": 19.090365838708326,
+        "longitude": 72.96416986562592,
+        "altitude_ft": 1610
+    },
+    {
+        "id": "APP03",
+        "name": "3 DME",
+        "distance_km": 5.5,
+        "distance_dme": 3.0,
+        "latitude": 19.089725055506406,
+        "longitude": 72.92843536138602,
+        "altitude_ft": 980
+    },
+    {
+        "id": "APP01",
+        "name": "1 NM",
+        "distance_km": 2.0,
+        "distance_dme": 1.08,
+        "latitude": 19.089161463325354,
+        "longitude": 72.89518613432439,
+        "altitude_ft": 500
+    },
+    {
+        "id": "RWY27",
+        "name": "RUNWAY 27 THRESHOLD",
+        "distance_km": 0.0,
+        "distance_dme": 0.0,
+        "latitude": 19.08888137303069,
+        "longitude": 72.87611110880309,
+        "altitude_ft": 23
+    }
+]
+}

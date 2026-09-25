@@ -1,17 +1,21 @@
 class LandingAI:
 
+    ROLLOUT_SPEED = 30
+    ROLLOUT_TIME = 5
+
     def __init__(
         self,
-        runway
+        runway,
+        graph
     ):
-
         self.runway = runway
+        self.graph = graph
+        self.rollout_timers = {}
 
     def update(
         self,
         aircraft
     ):
-
         if aircraft.phase != "FINAL":
             return
 
@@ -43,7 +47,6 @@ class LandingAI:
         self,
         aircraft
     ):
-
         distance = self.runway.distance_to_touchdown(
             aircraft.lat,
             aircraft.lon
@@ -57,7 +60,6 @@ class LandingAI:
         self,
         aircraft
     ):
-
         aircraft.assign_heading(
             self.runway.centerline_heading()
         )
@@ -78,7 +80,6 @@ class LandingAI:
         self,
         aircraft
     ):
-
         aircraft.on_ground = True
 
         aircraft.assign_heading(
@@ -95,35 +96,71 @@ class LandingAI:
 
         aircraft.approach_phase = "ROLLOUT"
 
+        self.rollout_timers[
+            aircraft.callsign
+        ] = 0
+
+        print(
+            f"TOUCHDOWN: "
+            f"{aircraft.callsign}"
+        )
+
     def _rollout(
         self,
         aircraft
     ):
+        callsign = aircraft.callsign
+
+        aircraft.on_ground = True
 
         aircraft.assign_heading(
             self.runway.centerline_heading()
         )
 
-        if aircraft.speed_kts > 80:
-
-            aircraft.assign_speed(
+        aircraft.assign_speed(
+            max(
+                self.ROLLOUT_SPEED,
                 aircraft.speed_kts - 4
             )
+        )
 
-        elif aircraft.speed_kts > 40:
+        aircraft.assign_altitude(
+            0
+        )
 
-            aircraft.assign_speed(
-                aircraft.speed_kts - 2
-            )
+        self.rollout_timers[callsign] = (
+            self.rollout_timers.get(
+                callsign,
+                0
+            ) + 1
+        )
 
-        else:
+        if self.rollout_timers[callsign] < self.ROLLOUT_TIME:
+            return
 
-            aircraft.assign_speed(
-                20
-            )
+        aircraft.runway_vacated = True
+        aircraft.landing_complete = True
 
-            aircraft.phase = "GROUND"
+        aircraft.phase = "GROUND"
+        aircraft.state = "TAXI"
 
-            aircraft.state = "TAXI"
+        aircraft.approach_phase = "RUNWAY_EXIT"
 
-            aircraft.landing_complete = True
+        aircraft.assigned_runway_exit = None
+        aircraft.exit_distance_km = None
+
+        aircraft.target_node = None
+        aircraft.assigned_node = None
+
+        aircraft.previous_taxi_node = None
+
+        aircraft.assign_speed(
+            15
+        )
+
+        del self.rollout_timers[callsign]
+
+        print(
+            f"LANDING COMPLETE: "
+            f"{aircraft.callsign} -> GROUND/TAXI"
+        )

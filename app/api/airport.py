@@ -41,6 +41,42 @@ def airport(icao: str):
 
     return data
 
+@router.get("/airport/{icao}/approach")
+def airport_approach(icao: str):
+
+    path = Path(
+        f"data/semantics/{icao.lower()}_approach.json"
+    )
+
+    with open(
+        path,
+        encoding="utf-8"
+    ) as f:
+
+        return json.load(f)
+
+@router.get("/airport/{icao}/routes")
+def airport_routes(icao: str):
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "navigation"
+        / "routes"
+        / f"{icao.lower()}_routes.json"
+    )
+
+    if not path.exists():
+        return {
+            "routes": []
+        }
+
+    with open(
+        path,
+        encoding="utf-8"
+    ) as f:
+
+        return json.load(f)
+
 @router.get("/airport/{icao}/graph")
 def airport_graph(icao: str):
 

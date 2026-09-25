@@ -15,101 +15,17 @@ class ClearanceEventEngine:
 
             return None
 
+        if aircraft.phase == "FINAL":
+
+            return None
+
         if aircraft.active_clearance.completed:
 
-            return aircraft.pending_event
+            if aircraft.pending_event == "":
 
-        if aircraft.target_node is not None:
+                return None
 
-            if aircraft.target_node != aircraft.active_clearance.next_node:
-
-                aircraft.complete_clearance()
-
-                aircraft.pending_event = "WAYPOINT_REACHED"
-
-                return aircraft.pending_event
-
-        if (
-
-            aircraft.clearance.heading is not None
-
-            and
-
-            abs(
-
-                aircraft.heading_deg
-
-                -
-
-                aircraft.clearance.heading
-
-            )
-
-            <=
-
-            self.HEADING_TOLERANCE
-
-        ):
-
-            aircraft.complete_clearance()
-
-            aircraft.pending_event = "HEADING_REACHED"
-
-            return aircraft.pending_event
-
-        if (
-
-            aircraft.clearance.speed_kts_ft_ft is not None
-
-            and
-
-            abs(
-
-                aircraft.altitude_ft
-
-                -
-
-                aircraft.clearance.speed_kts_ft_ft
-
-            )
-
-            <=
-
-            self.ALTITUDE_TOLERANCE
-
-        ):
-
-            aircraft.complete_clearance()
-
-            aircraft.pending_event = "ALTITUDE_REACHED"
-
-            return aircraft.pending_event
-
-        if (
-
-            aircraft.clearance.speed_kts_kts_kts is not None
-
-            and
-
-            abs(
-
-                aircraft.speed_kts
-
-                -
-
-                aircraft.clearance.speed_kts_kts_kts
-
-            )
-
-            <=
-
-            self.SPEED_TOLERANCE
-
-        ):
-
-            aircraft.complete_clearance()
-
-            aircraft.pending_event = "SPEED_REACHED"
+        if aircraft.active_clearance.completed:
 
             return aircraft.pending_event
 

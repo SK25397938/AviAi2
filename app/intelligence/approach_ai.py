@@ -1,7 +1,17 @@
+import json
+from pathlib import Path
+from math import radians
+from math import sin
+from math import cos
+from math import sqrt
+from math import atan2
+
 from app.intelligence.instruction_manager import instruction_manager
 
 
 class ApproachAI:
+
+    CAPTURE_DISTANCE_KM = 0.35
 
     def __init__(
         self,
@@ -9,6 +19,29 @@ class ApproachAI:
     ):
 
         self.runway = runway
+
+        path = (
+            Path(__file__).resolve().parents[2]
+            / "data"
+            / "semantics"
+            / "vabb_approach.json"
+        )
+
+        with open(
+            path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            self.approach_data = json.load(f)
+
+        self.approach_points = (
+            self.approach_data["approach"]
+        )
+
+        self.speed_profiles = (
+            self.approach_data["speed_profiles"]
+        )
 
     def update(
         self,
@@ -21,248 +54,245 @@ class ApproachAI:
 
         aircraft.state = "APPROACH"
 
-        if aircraft.approach_phase == "INTERCEPT":
+        if not hasattr(
+            aircraft,
+            "approach_index"
+        ):
 
-            self._intercept(
-                aircraft
+            aircraft.approach_index = (
+                self._closest_waypoint_index(
+                    aircraft.lat,
+                    aircraft.lon
+                )
             )
 
-        elif aircraft.approach_phase == "LOCALIZER":
+            aircraft.approach_instruction_index = None
 
-            self._localizer(
-                aircraft
-            )
+        if aircraft.approach_index >= len(
+            self.approach_points
+        ):
 
-        elif aircraft.approach_phase == "GLIDESLOPE":
+            return
 
-            self._glideslope(
-                aircraft
-            )
+        point = self.approach_points[
+            aircraft.approach_index
+        ]
 
-        elif aircraft.approach_phase == "FINAL_APPROACH":
+        aircraft.approach_phase = point["id"]
 
-            self._final(
-                aircraft
-            )
-
-    def _intercept(
-        self,
-        aircraft
-    ):
-
-        cross = self.runway.cross_track_error(
-
+        heading = self._bearing(
             aircraft.lat,
-
-            aircraft.lon
-
-        )
-
-        along = self.runway.along_track_distance(
-
-            aircraft.lat,
-
-            aircraft.lon
-
-        )
-
-        if aircraft.clearance.heading is None:
-
-            intercept_heading = (
-
-                self.runway.centerline_heading()
-
-                +
-
-                25
-
-            ) % 360
-
-            aircraft.assign_heading(
-
-                intercept_heading
-
-            )
-
-        if aircraft.clearance.altitude_ft is None:
-
-            aircraft.assign_altitude(
-
-                3000
-
-            )
-
-        if aircraft.clearance.speed_kts is None:
-
-            aircraft.assign_speed(
-
-                180
-
-            )
-
-        if aircraft.last_instruction == "":
-
-            instruction_manager.issue(
-
-                aircraft,
-
-                "Approach",
-
-                "Intercept localizer."
-
-            )
-
-        if cross <= 0.30 and along <= 10:
-
-            aircraft.approach_phase = "LOCALIZER"
-
-    def _localizer(
-        self,
-        aircraft
-    ):
-
-        along = self.runway.along_track_distance(
-
-            aircraft.lat,
-
-            aircraft.lon
-
+            aircraft.lon,
+            point["latitude"],
+            point["longitude"]
         )
 
         aircraft.assign_heading(
-
-            self.runway.centerline_heading()
-
-        )
-
-        if aircraft.clearance.speed_kts is None:
-
-            aircraft.assign_speed(
-
-                170
-
-            )
-
-        if aircraft.last_instruction == "":
-
-            instruction_manager.issue(
-
-                aircraft,
-
-                "Approach",
-
-                "Localizer captured."
-
-            )
-
-        if along <= 6:
-
-            aircraft.approach_phase = "GLIDESLOPE"
-
-    def _glideslope(
-        self,
-        aircraft
-    ):
-
-        along = self.runway.along_track_distance(
-
-            aircraft.lat,
-
-            aircraft.lon
-
-        )
-
-        aircraft.assign_heading(
-
-            self.runway.centerline_heading()
-
+            heading
         )
 
         aircraft.assign_altitude(
-
-            self.runway.glidepath_altitude(
-
-                along
-
-            )
-
+            point["altitude_ft"]
         )
 
-        if aircraft.clearance.speed_kts is None:
+        speed = self._get_speed(
+            aircraft,
+            point["id"]
+        )
+
+        if speed is not None:
 
             aircraft.assign_speed(
-
-                150
-
+                speed
             )
 
-        if aircraft.last_instruction == "":
+        distance = self._distance(
+            aircraft.lat,
+            aircraft.lon,
+            point["latitude"],
+            point["longitude"]
+        )
+
+        aircraft.current_distance = distance
+
+        if (
+            aircraft.approach_instruction_index
+            != aircraft.approach_index
+        ):
 
             instruction_manager.issue(
-
                 aircraft,
-
                 "Approach",
-
-                "Glideslope captured."
-
+                f"Proceed to {point['id']}, "
+                f"maintain {point['altitude_ft']} feet, "
+                f"{speed} knots."
             )
 
-        if along <= 2:
+            aircraft.approach_instruction_index = (
+                aircraft.approach_index
+            )
 
-            aircraft.approach_phase = "FINAL_APPROACH"
+        if distance <= self.CAPTURE_DISTANCE_KM:
 
-    def _final(
+            aircraft.approach_index += 1
+
+            aircraft.approach_instruction_index = None
+
+            if aircraft.approach_index >= len(
+                self.approach_points
+            ):
+
+                aircraft.state = "APPROACH_COMPLETE"
+                aircraft.phase = "APPROACH_COMPLETE"
+                aircraft.approach_complete = True
+
+    def _closest_waypoint_index(
         self,
-        aircraft
+        latitude,
+        longitude
     ):
 
-        along = self.runway.along_track_distance(
+        closest_index = 0
+        closest_distance = float("inf")
 
-            aircraft.lat,
+        for index, point in enumerate(
+            self.approach_points
+        ):
 
-            aircraft.lon
-
-        )
-
-        aircraft.assign_heading(
-
-            self.runway.centerline_heading()
-
-        )
-
-        aircraft.assign_altitude(
-
-            self.runway.glidepath_altitude(
-
-                along
-
+            distance = self._distance(
+                latitude,
+                longitude,
+                point["latitude"],
+                point["longitude"]
             )
 
+            if distance < closest_distance:
+
+                closest_distance = distance
+                closest_index = index
+
+        return closest_index
+
+    def _bearing(
+        self,
+        lat1,
+        lon1,
+        lat2,
+        lon2
+    ):
+
+        lat1 = radians(lat1)
+        lat2 = radians(lat2)
+
+        dlon = radians(
+            lon2 - lon1
         )
 
-        if aircraft.clearance.speed_kts is None:
-
-            aircraft.assign_speed(
-
-                145 if along > 1 else 135
-
-            )
-
-        aircraft.assign_runway(
-
-            self.runway.ident
-
+        y = (
+            sin(dlon)
+            * cos(lat2)
         )
 
-        if aircraft.last_instruction == "":
+        x = (
+            cos(lat1)
+            * sin(lat2)
+            -
+            sin(lat1)
+            * cos(lat2)
+            * cos(dlon)
+        )
 
-            instruction_manager.issue(
+        return (
+            atan2(y, x)
+            * 180
+            / 3.141592653589793
+            + 360
+        ) % 360
 
-                aircraft,
+    def _get_speed(
+        self,
+        aircraft,
+        point_id
+    ):
 
-                "Tower",
+        aircraft_type = aircraft.aircraft_type
 
-                f"Cleared to land Runway {self.runway.ident}."
+        profile = self.speed_profiles.get(
+            aircraft_type
+        )
 
+        if profile is None:
+
+            aliases = {
+                "B77W": "B777-300ER",
+                "B77L": "B777-200LR",
+                "B772": "B777-200",
+                "B77F": "B777F",
+                "B748": "B747-8",
+                "B748F": "B747-8F",
+                "A388": "A388",
+                "A359": "A359",
+                "A35K": "A350-1000",
+                "A320": "A320",
+                "A321": "A321",
+                "B788": "B787-8",
+                "B789": "B787-9",
+                "B78X": "B787-10"
+            }
+
+            mapped_type = aliases.get(
+                aircraft_type
             )
+
+            if mapped_type is not None:
+
+                profile = self.speed_profiles.get(
+                    mapped_type
+                )
+
+        if profile is None:
+
+            profile = self.speed_profiles.get(
+                "A320"
+            )
+
+        if profile is None:
+
+            return None
+
+        return profile.get(
+            point_id
+        )
+
+    def _distance(
+        self,
+        lat1,
+        lon1,
+        lat2,
+        lon2
+    ):
+
+        earth_radius_km = 6371.0
+
+        dlat = radians(
+            lat2 - lat1
+        )
+
+        dlon = radians(
+            lon2 - lon1
+        )
+
+        a = (
+            sin(dlat / 2) ** 2
+            +
+            cos(radians(lat1))
+            * cos(radians(lat2))
+            * sin(dlon / 2) ** 2
+        )
+
+        c = 2 * atan2(
+            sqrt(a),
+            sqrt(1 - a)
+        )
+
+        return earth_radius_km * c

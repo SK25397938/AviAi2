@@ -1,0 +1,88 @@
+{
+    "routes": [
+        {
+            "id": "001",
+            "waypoints": [
+                {
+                    "name": "MB379",
+                    "latitude": 19.216667,
+                    "longitude": 72.603333
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                },
+                {
+                    "name": "OLGUS",
+                    "latitude": 19.215000,
+                    "longitude": 73.473333
+                }
+            ],
+            "approach_trigger": "OLGUS"
+        },
+        {
+            "id": "002",
+            "waypoints": [
+                {
+                    "name": "MB393",
+                    "latitude": 18.906667,
+                    "longitude": 72.615000
+                },
+                {
+                    "name": "LIKTA",
+                    "latitude": 18.926667,
+                    "longitude": 73.151667
+                },
+                {
+                    "name": "MB395",
+                    "latitude": 18.936667,
+                    "longitude": 73.380000
+                }
+            ],
+            "approach_trigger": "MB395"
+        },
+        {
+            "id": "003",
+            "waypoints": [
+                {
+                    "name": "MB379",
+                    "latitude": 19.216667,
+                    "longitude": 72.603333
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                },
+                {
+                    "name": "OLGUS",
+                    "latitude": 19.215000,
+                    "longitude": 73.473333
+                }
+            ],
+            "approach_trigger": "OLGUS"
+        },
+        {
+            "id": "004",
+            "waypoints": [
+                {
+                    "name": "MB392",
+                    "latitude": 19.518333,
+                    "longitude": 73.150000
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                },
+                {
+                    "name": "OLGUS",
+                    "latitude": 19.215000,
+                    "longitude": 73.473333
+                }
+            ],
+            "approach_trigger": "OLGUS"
+        }
+    ]
+}
