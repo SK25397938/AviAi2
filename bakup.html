@@ -203,9 +203,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <span class="sh-sub">Autonomous ATC Simulation</span>
 </div>
 <div class="sh-center">
+<span class="sh-apt" id="headerApt">Loading...</span>
+<div class="sh-status"><span class="sh-dot" id="simDot"></span><span id="simStatus" style="color:var(--safe)">RUNNING</span></div>
 <span class="sh-clock" id="simClock">14:30:00</span>
 </div>
 <div class="sh-right">
+<button class="speed-btn speed-btn--active" data-speed="1" onclick="setSpeed(1)">1X</button>
+<button class="speed-btn" data-speed="2" onclick="setSpeed(2)">2X</button>
+<button class="speed-btn" data-speed="4" onclick="setSpeed(4)">4X</button>
 <button class="pp-btn" id="ppBtn" onclick="togglePause()">&#9208;</button>
 <button class="btn btn--ghost btn--sm" onclick="toggleAtcInput()">ATC INPUT</button>
 <a href="/" class="btn btn--sm">Operations</a>
@@ -1543,10 +1548,19 @@ function setSpeed(s){
 function togglePause(){
   simRunning=!simRunning;
   var btn=document.getElementById('ppBtn');
+  var dot=document.getElementById('simDot');
+  var st=document.getElementById('simStatus');
   if(simRunning){
     btn.innerHTML='&#9208;';
+    dot.style.background='var(--safe)';
+    st.textContent='RUNNING';
+    st.style.color='var(--safe)';
+    dot.className='sh-dot';
   }else{
     btn.innerHTML='&#9654;';
+    dot.style.background='var(--accent)';
+    st.textContent='PAUSED';
+    st.style.color='var(--accent)';
   }
   lastFrame=performance.now();
 }

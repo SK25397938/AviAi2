@@ -1,0 +1,226 @@
+{
+    "001": {
+        "route_id": "001",
+        "name": "ANOLI 1A - MB399",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 530
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB364",
+                "latitude": 19.0861,
+                "longitude": 72.7517,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 2600
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "ANOLI",
+                "latitude": 19.3017,
+                "longitude": 72.7400,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 7000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB399",
+                "latitude": 19.4933,
+                "longitude": 72.6650,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 10000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+
+    "002": {
+        "route_id": "002",
+        "name": "ANOLI 1A - MB361",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 530
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB364",
+                "latitude": 19.0861,
+                "longitude": 72.7517,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 2600
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "ANOLI",
+                "latitude": 19.3017,
+                "longitude": 72.7400,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 7000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB361",
+                "latitude": 20.0833,
+                "longitude": 72.8600,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+
+    "003": {
+        "route_id": "003",
+        "name": "RAXET 1A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 530
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB364",
+                "latitude": 19.0861,
+                "longitude": 72.7517,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 2600
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "RAXET",
+                "latitude": 19.1567,
+                "longitude": 72.0983,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 7000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+
+    "004": {
+        "route_id": "004",
+        "name": "VEVAK 1A - ONAPA",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 530
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "MB364",
+                "latitude": 19.0861,
+                "longitude": 72.7517,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 2600
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "VEVAK",
+                "latitude": 18.7767,
+                "longitude": 72.7433,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 7000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "ONAPA",
+                "latitude": 18.4650,
+                "longitude": 72.6167,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    }
+}

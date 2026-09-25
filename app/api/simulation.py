@@ -7,10 +7,6 @@ import asyncio
 router = APIRouter()
 
 airport_loader = AirportLoader("VABB")
-simulation_world.spawn("A320", "AIQ432")
-simulation_world.spawn("A359", "SIA421")
-simulation_world.spawn("B77W", "UAE502")
-simulation_world.spawn("A388", "DLH757")
 @router.get("/status")
 async def simulation_status():
     return simulation_clock.get_state()

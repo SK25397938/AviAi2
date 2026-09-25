@@ -2,6 +2,8 @@ from app.simulation.manager import AircraftManager
 from app.simulation.spawn import spawn_aircraft
 from app.simulation.physics import move_aircraft
 from app.simulation.aircraft_db import AircraftDatabase
+from app.simulation.traffic_manager import TrafficManager
+from app.simulation.traffic_scheduler import TrafficScheduler
 
 from app.intelligence.arrival_manager import ArrivalManager
 from app.intelligence.arrival_ai import ArrivalAI
@@ -29,6 +31,10 @@ class SimulationEngine:
         self.manager = AircraftManager()
 
         self.aircraft_db = AircraftDatabase()
+
+        self.traffic_manager = TrafficManager()
+
+        self.scheduler = TrafficScheduler()
 
         self.airport_lat = airport_lat
         self.airport_lon = airport_lon
@@ -85,29 +91,27 @@ class SimulationEngine:
             self.graph
         )
 
-        self.prototype_routes = {
-            "AIQ432": "001",
-            "SIA421": "002",
-            "UAE502": "003",
-            "DLH757": "004"
-        }
-
     def spawn(
         self,
         aircraft_type,
-        callsign
+        callsign,
+        route_id
     ):
 
-        route_id = self.prototype_routes.get(callsign)
-
-        if route_id is None:
+        if route_id not in self.arrival_routes:
 
             raise ValueError(
-                f"No prototype arrival route assigned to {callsign}"
+                f"No arrival route found for {route_id}"
             )
 
-        route_definition = self.arrival_routes[route_id]
-        waypoints = route_definition["waypoints"]
+        route_definition = self.arrival_routes[
+            route_id
+        ]
+
+        waypoints = route_definition[
+            "waypoints"
+        ]
+
         first_waypoint = waypoints[0]
 
         aircraft = spawn_aircraft(
@@ -118,7 +122,10 @@ class SimulationEngine:
         )
 
         aircraft.assign_route(
-            [waypoint["name"] for waypoint in waypoints]
+            [
+                waypoint["name"]
+                for waypoint in waypoints
+            ]
         )
 
         print(
@@ -132,10 +139,96 @@ class SimulationEngine:
 
         return aircraft
 
+    def spawn_due_arrivals(self):
+
+        arrivals = self.scheduler.get_due_arrivals()
+
+        active_callsigns = {
+            aircraft.callsign
+            for aircraft in self.manager.all()
+        }
+
+        route_ids = list(
+            self.arrival_routes.keys()
+        )
+
+        if not route_ids:
+
+            return
+
+        for aircraft_data in arrivals:
+
+            callsign = aircraft_data["callsign"]
+
+            if callsign in active_callsigns:
+                continue
+
+            route_id = route_ids[
+                hash(callsign) % len(route_ids)
+            ]
+
+            try:
+
+                aircraft = self.spawn(
+                    aircraft_type=aircraft_data[
+                        "aircraft_type"
+                    ],
+                    callsign=callsign,
+                    route_id=route_id
+                )
+
+                print(
+                    f"TRAFFIC SPAWNED: "
+                    f"{callsign} | "
+                    f"{aircraft_data['airline']} | "
+                    f"{aircraft_data['origin']} -> "
+                    f"{aircraft_data['destination']}"
+                )
+
+            except Exception as error:
+
+                print(
+                    f"ARRIVAL SPAWN ERROR "
+                    f"{callsign}: {error}"
+                )
+
+    def process_due_departures(self):
+
+        departures = self.scheduler.get_due_departures()
+
+        for aircraft_data in departures:
+
+            callsign = aircraft_data["callsign"]
+
+            print(
+                f"DEPARTURE DUE: "
+                f"{callsign} | "
+                f"{aircraft_data['airline']} | "
+                f"VABB -> {aircraft_data['destination']}"
+            )
+
+            self.scheduler.db.mark_departing(
+                callsign
+            )
+
+            self.scheduler.aircraft_completed(
+                callsign
+            )
+
+            print(
+                f"DEPARTURE COMPLETED: "
+                f"{callsign} | "
+                f"NEXT ARRIVAL SCHEDULED"
+            )
+
     def update(
         self,
         dt=1.0
     ):
+
+        self.spawn_due_arrivals()
+
+        self.process_due_departures()
 
         traffic = self.manager.all()
 
@@ -186,10 +279,18 @@ class SimulationEngine:
                         taxiway="23ft"
                     )
 
+                    self.scheduler.aircraft_landed(
+                        aircraft.callsign
+                    )
+
                     print(
                         f"FINAL APPROACH COMPLETE: "
-                        f"{aircraft.callsign} -> "
-                        f"RWY 27 / 23ft"
+                        f"{aircraft.callsign} -> RWY 27 / 23ft"
+                    )
+
+                    print(
+                        f"TRAFFIC STORED AT AIRPORT: "
+                        f"{aircraft.callsign}"
                     )
 
                     self.manager.remove(

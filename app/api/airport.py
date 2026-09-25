@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.airport.graph.builder import AirportGraphBuilder
 from app.airport.semantics import AirportSemantics
+from app.navigation.loader import load_arrival_routes, load_departure_routes
 
 router = APIRouter()
 
@@ -66,16 +67,32 @@ def airport_routes(icao: str):
     )
 
     if not path.exists():
-        return {
+        payload = {
             "routes": []
         }
+    else:
+        with open(
+            path,
+            encoding="utf-8"
+        ) as f:
+            payload = json.load(f)
 
-    with open(
-        path,
-        encoding="utf-8"
-    ) as f:
+    arrival_routes = payload.get("routes", [])
 
-        return json.load(f)
+    if icao.upper() == "VABB":
+        arrival_routes = load_arrival_routes()
+
+    try:
+        departure_routes = load_departure_routes()
+    except FileNotFoundError:
+        departure_routes = {}
+
+    return {
+        **payload,
+        "arrival_routes": arrival_routes,
+        "departure_routes": departure_routes,
+        "routes": arrival_routes if isinstance(arrival_routes, list) else payload.get("routes", [])
+    }
 
 @router.get("/airport/{icao}/graph")
 def airport_graph(icao: str):

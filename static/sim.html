@@ -203,14 +203,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <span class="sh-sub">Autonomous ATC Simulation</span>
 </div>
 <div class="sh-center">
-<span class="sh-apt" id="headerApt">Loading...</span>
-<div class="sh-status"><span class="sh-dot" id="simDot"></span><span id="simStatus" style="color:var(--safe)">RUNNING</span></div>
 <span class="sh-clock" id="simClock">14:30:00</span>
 </div>
 <div class="sh-right">
-<button class="speed-btn speed-btn--active" data-speed="1" onclick="setSpeed(1)">1X</button>
-<button class="speed-btn" data-speed="2" onclick="setSpeed(2)">2X</button>
-<button class="speed-btn" data-speed="4" onclick="setSpeed(4)">4X</button>
 <button class="pp-btn" id="ppBtn" onclick="togglePause()">&#9208;</button>
 <button class="btn btn--ghost btn--sm" onclick="toggleAtcInput()">ATC INPUT</button>
 <a href="/" class="btn btn--sm">Operations</a>
@@ -593,12 +588,19 @@ async function loadRouteVisualization(){
 
         const data = await response.json();
 
-        const routes = data.routes || [];
+        const arrivalRoutes = Array.isArray(data.routes)
+            ? data.routes
+            : Object.values(data.arrival_routes || {});
+
+        const departureRoutes = Array.isArray(data.departure_routes)
+            ? data.departure_routes
+            : Object.values(data.departure_routes || {});
 
         const waypointFeatures = [];
         const routeFeatures = [];
+        const departureRouteFeatures = [];
 
-        routes.forEach(function(route){
+        arrivalRoutes.forEach(function(route){
 
             const waypoints = route.waypoints || [];
 
@@ -652,11 +654,57 @@ async function loadRouteVisualization(){
 
         });
 
+        departureRoutes.forEach(function(route){
+
+            const waypoints = route.waypoints || [];
+
+            const coordinates = [];
+
+            waypoints.forEach(function(point){
+
+                if(
+                    typeof point.latitude !== "number" ||
+                    typeof point.longitude !== "number"
+                ){
+                    return;
+                }
+
+                coordinates.push([
+                    point.longitude,
+                    point.latitude
+                ]);
+
+            });
+
+            if(coordinates.length > 1){
+
+                departureRouteFeatures.push({
+                    type:"Feature",
+                    properties:{
+                        id:route.route_id || route.id || "departure-route"
+                    },
+                    geometry:{
+                        type:"LineString",
+                        coordinates:coordinates
+                    }
+                });
+
+            }
+
+        });
+
         map.getSource(
             "vabb-routes"
         ).setData({
             type:"FeatureCollection",
             features:routeFeatures
+        });
+
+        map.getSource(
+            "vabb-departure-routes"
+        ).setData({
+            type:"FeatureCollection",
+            features:departureRouteFeatures
         });
 
         map.getSource(
@@ -868,6 +916,26 @@ map.addLayer({
         "line-color":"#00aaff",
         "line-width":2,
         "line-opacity":0.7
+    }
+});
+
+map.addSource("vabb-departure-routes",{
+    type:"geojson",
+    data:{
+        type:"FeatureCollection",
+        features:[]
+    }
+});
+
+map.addLayer({
+    id:"vabb-departure-route-lines",
+    type:"line",
+    source:"vabb-departure-routes",
+    paint:{
+        "line-color":"#ff8c42",
+        "line-width":2.5,
+        "line-opacity":0.9,
+        "line-dasharray":[2,1.5]
     }
 });
 
@@ -1548,19 +1616,10 @@ function setSpeed(s){
 function togglePause(){
   simRunning=!simRunning;
   var btn=document.getElementById('ppBtn');
-  var dot=document.getElementById('simDot');
-  var st=document.getElementById('simStatus');
   if(simRunning){
     btn.innerHTML='&#9208;';
-    dot.style.background='var(--safe)';
-    st.textContent='RUNNING';
-    st.style.color='var(--safe)';
-    dot.className='sh-dot';
   }else{
     btn.innerHTML='&#9654;';
-    dot.style.background='var(--accent)';
-    st.textContent='PAUSED';
-    st.style.color='var(--accent)';
   }
   lastFrame=performance.now();
 }
