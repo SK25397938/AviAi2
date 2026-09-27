@@ -1,4 +1,5 @@
 import random
+import time
 
 from app.simulation.traffic_db import TrafficDatabase
 
@@ -125,13 +126,11 @@ class TrafficManager:
 
     TOTAL_AIRCRAFT = 100
 
-    AIRPORT_COUNT = 30
-
     INITIAL_ARRIVALS = 3
     MAX_ACTIVE_ARRIVALS = 8
 
-    MIN_ARRIVAL_INTERVAL = 30
-    MAX_ARRIVAL_INTERVAL = 60
+    MIN_ARRIVAL_INTERVAL = 35
+    MAX_ARRIVAL_INTERVAL = 70
 
     def __init__(self):
 
@@ -175,7 +174,7 @@ class TrafficManager:
 
         aircraft_list = self.build_test_aircraft()
 
-        arrival_count = len(aircraft_list) - self.AIRPORT_COUNT
+        arrival_count = round(len(aircraft_list) * 0.70)
 
         for index, aircraft in enumerate(aircraft_list):
 
@@ -216,8 +215,9 @@ class TrafficManager:
 
     def get_active_arrivals(self):
 
-        return self.db.get_by_status(
-            "ARRIVAL"
+        return (
+            self.db.get_by_status("ARRIVAL")
+            + self.db.get_by_status("ACTIVE_ARRIVAL")
         )
 
     def get_airport_aircraft(self):
@@ -233,7 +233,11 @@ class TrafficManager:
 
         waiting = self.get_waiting_arrivals()
 
-        selected = waiting[:self.INITIAL_ARRIVALS]
+        available_slots = max(
+            0,
+            self.MAX_ACTIVE_ARRIVALS - len(self.get_active_arrivals())
+        )
+        selected = waiting[:min(self.INITIAL_ARRIVALS, available_slots)]
 
         spawned = []
 
@@ -260,6 +264,11 @@ class TrafficManager:
     def update(self, dt):
 
         spawned = []
+
+        now = time.time()
+        for aircraft in self.db.get_due_completions(now):
+            self.db.set_status(aircraft["callsign"], "WAITING_ARRIVAL")
+            self.db.set_arrival_time(aircraft["callsign"], None)
 
         if not self.initial_arrivals_spawned:
 

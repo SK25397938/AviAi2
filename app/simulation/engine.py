@@ -146,9 +146,9 @@ class SimulationEngine:
 
         return aircraft
 
-    def spawn_due_arrivals(self):
+    def spawn_due_arrivals(self, dt=1.0):
 
-        arrivals = self.scheduler.get_due_arrivals()
+        arrivals = self.traffic_manager.update(dt)
 
         active_callsigns = {
             aircraft.callsign
@@ -250,7 +250,7 @@ class SimulationEngine:
         dt=1.0
     ):
 
-        self.spawn_due_arrivals()
+        self.spawn_due_arrivals(dt)
 
         self.process_due_departures()
 
