@@ -6,11 +6,11 @@ from app.simulation.traffic_db import TrafficDatabase
 
 class TrafficScheduler:
 
-    MIN_ARRIVAL_GAP = 180
-    MAX_ARRIVAL_GAP = 720
+    MIN_ARRIVAL_GAP = 15
+    MAX_ARRIVAL_GAP = 30
 
-    MIN_DEPARTURE_GAP = 240
-    MAX_DEPARTURE_GAP = 900
+    MIN_DEPARTURE_GAP = 25
+    MAX_DEPARTURE_GAP = 45
 
     MIN_TURNAROUND = 2700
     MAX_TURNAROUND = 7200
@@ -21,11 +21,25 @@ class TrafficScheduler:
 
         self.random = random.Random()
 
+        self.next_arrival_release = None
+        self.next_departure_release = None
+
         self.initialize_schedule()
 
     def initialize_schedule(self):
 
         now = time.time()
+
+        waiting = self.db.get_by_status(
+            "WAITING_ARRIVAL"
+        )
+
+        for aircraft in waiting:
+
+            self.db.set_status(
+                aircraft["callsign"],
+                "ARRIVAL"
+            )
 
         arrivals = self.db.get_by_status(
             "ARRIVAL"
@@ -37,25 +51,33 @@ class TrafficScheduler:
             if aircraft["arrival_time"] is None
         ]
 
-        if unscheduled_arrivals:
+        self.random.shuffle(
+            unscheduled_arrivals
+        )
 
-            current_time = now
+        current_time = now
 
-            self.random.shuffle(
-                unscheduled_arrivals
-            )
+        for index, aircraft in enumerate(
+            unscheduled_arrivals
+        ):
 
-            for aircraft in unscheduled_arrivals:
+            if index == 0:
+
+                arrival_time = now
+
+            else:
 
                 current_time += self.random.randint(
                     self.MIN_ARRIVAL_GAP,
                     self.MAX_ARRIVAL_GAP
                 )
 
-                self.db.set_arrival_time(
-                    aircraft["callsign"],
-                    current_time
-                )
+                arrival_time = current_time
+
+            self.db.set_arrival_time(
+                aircraft["callsign"],
+                arrival_time
+            )
 
         airport_aircraft = self.db.get_airport_aircraft()
 
@@ -65,37 +87,129 @@ class TrafficScheduler:
             if aircraft["departure_time"] is None
         ]
 
-        if unscheduled_departures:
+        self.random.shuffle(
+            unscheduled_departures
+        )
 
-            current_time = now
+        current_time = now
 
-            self.random.shuffle(
-                unscheduled_departures
-            )
+        for index, aircraft in enumerate(
+            unscheduled_departures
+        ):
 
-            for aircraft in unscheduled_departures:
+            if index == 0:
+
+                departure_time = now
+
+            else:
 
                 current_time += self.random.randint(
                     self.MIN_DEPARTURE_GAP,
                     self.MAX_DEPARTURE_GAP
                 )
 
-                self.db.set_departure_time(
-                    aircraft["callsign"],
-                    current_time
-                )
+                departure_time = current_time
+
+            self.db.set_departure_time(
+                aircraft["callsign"],
+                departure_time
+            )
+
+        self.next_arrival_release = now
+        self.next_departure_release = now
 
     def get_due_arrivals(self):
 
-        return self.db.get_available_arrivals(
-            time.time()
+        now = time.time()
+
+        completed = self.db.get_due_completions(
+            now
         )
+
+        for aircraft in completed:
+
+            self.db.return_to_arrival(
+                aircraft["callsign"],
+                now
+            )
+
+        if now < self.next_arrival_release:
+
+            return []
+
+        arrivals = self.db.get_available_arrivals(
+            now
+        )
+
+        if not arrivals:
+
+            return []
+
+        arrivals.sort(
+            key=lambda aircraft: (
+                aircraft["arrival_time"]
+                if aircraft["arrival_time"] is not None
+                else 0
+            )
+        )
+
+        aircraft = arrivals[0]
+
+        self.db.set_status(
+            aircraft["callsign"],
+            "ACTIVE_ARRIVAL"
+        )
+
+        self.db.set_arrival_time(
+            aircraft["callsign"],
+            None
+        )
+
+        self.next_arrival_release = (
+            now
+            + self.random.randint(
+                self.MIN_ARRIVAL_GAP,
+                self.MAX_ARRIVAL_GAP
+            )
+        )
+
+        return [aircraft]
 
     def get_due_departures(self):
 
-        return self.db.get_available_departures(
-            time.time()
+        now = time.time()
+
+        if now < self.next_departure_release:
+
+            return []
+
+        departures = self.db.get_available_departures(
+            now
         )
+
+        if not departures:
+
+            return []
+
+        departures.sort(
+            key=lambda aircraft: (
+                aircraft["departure_time"]
+                if aircraft["departure_time"] is not None
+                else 0
+            )
+        )
+
+        aircraft = departures[0]
+
+        self.next_departure_release = (
+            now
+            + self.random.randint(
+                self.MIN_DEPARTURE_GAP,
+                self.MAX_DEPARTURE_GAP
+            )
+        )
+
+        return [aircraft]
 
     def aircraft_landed(
         self,
@@ -123,12 +237,20 @@ class TrafficScheduler:
 
         now = time.time()
 
-        next_arrival = now + self.random.randint(
-            self.MIN_ARRIVAL_GAP,
-            self.MAX_ARRIVAL_GAP
+        next_arrival = (
+            now
+            + self.random.randint(
+                self.MIN_ARRIVAL_GAP,
+                self.MAX_ARRIVAL_GAP
+            )
         )
 
-        self.db.return_to_arrival(
+        self.db.set_status(
+            callsign,
+            "COMPLETED"
+        )
+
+        self.db.set_arrival_time(
             callsign,
             next_arrival
         )

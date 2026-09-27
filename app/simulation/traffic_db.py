@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from pathlib import Path
 
 
@@ -219,8 +220,7 @@ AND (
     def get_available_departures(self, current_time=None):
 
         if current_time is None:
-
-            return self.get_by_status("DEPARTURE")
+            current_time = time.time()
 
         self.cursor.execute("""
 SELECT
@@ -236,10 +236,8 @@ SELECT
     turnaround_until
 FROM traffic_aircraft
 WHERE status = 'AIRPORT'
-AND (
-    departure_time IS NULL
-    OR departure_time <= ?
-)
+AND departure_time IS NOT NULL
+AND departure_time <= ?
 """, (current_time,))
 
         rows = self.cursor.fetchall()
@@ -248,6 +246,13 @@ AND (
             self._row_to_dict(row)
             for row in rows
         ]
+
+    def get_due_completions(self, current_time):
+        self.cursor.execute("""SELECT callsign, aircraft_type, airline, origin,
+destination, side, status, arrival_time, departure_time, turnaround_until
+FROM traffic_aircraft WHERE status = 'COMPLETED' AND arrival_time <= ?""",
+                            (current_time,))
+        return [self._row_to_dict(row) for row in self.cursor.fetchall()]
 
     def get_departures(self):
 

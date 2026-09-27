@@ -17,7 +17,7 @@ from app.navigation.runway import Runway
 from app.navigation.centerline import build_centerline
 from app.navigation.grid_builder import build_grid
 from app.navigation.graph_builder import build_graph
-from app.navigation.loader import load_arrival_routes
+from app.navigation.loader import load_arrival_routes, load_departure_routes
 
 
 class SimulationEngine:
@@ -61,6 +61,13 @@ class SimulationEngine:
         )
 
         self.arrival_routes = load_arrival_routes()
+        self.departure_routes = load_departure_routes()
+        self.departure_waypoints = {}
+
+        for route in self.departure_routes.values():
+            for waypoint in route["waypoints"]:
+                self.departure_waypoints[waypoint["name"]] = waypoint
+                self.graph.add_node(waypoint["name"], waypoint["latitude"], waypoint["longitude"])
 
         for route in self.arrival_routes.values():
 
@@ -207,19 +214,36 @@ class SimulationEngine:
                 f"VABB -> {aircraft_data['destination']}"
             )
 
-            self.scheduler.db.mark_departing(
-                callsign
-            )
+            if any(a.callsign == callsign for a in self.manager.all()):
+                continue
+            route = self._departure_route_for(aircraft_data["destination"])
+            if route is None:
+                print(f"DEPARTURE ROUTE UNAVAILABLE: {callsign} -> {aircraft_data['destination']}")
+                continue
+            points = route["waypoints"]
+            if not points:
+                continue
+            first = points[0]
+            aircraft = spawn_aircraft(callsign, aircraft_data["aircraft_type"], first["latitude"], first["longitude"])
+            aircraft.phase = "DEPARTURE"
+            aircraft.destination = aircraft_data["destination"]
+            aircraft.assign_route([p["name"] for p in points])
+            aircraft.departure_waypoints = points
+            aircraft.departure_route_id = route["route_id"]
+            self.scheduler.db.mark_departing(callsign)
+            self.manager.add(aircraft)
+            print(f"DEPARTURE SPAWNED: {callsign} route {route['route_id']}")
 
-            self.scheduler.aircraft_completed(
-                callsign
-            )
-
-            print(
-                f"DEPARTURE COMPLETED: "
-                f"{callsign} | "
-                f"NEXT ARRIVAL SCHEDULED"
-            )
+    def _departure_route_for(self, destination):
+        routes = list(self.departure_routes.values())
+        if not routes:
+            return None
+        destination = str(destination or "").upper()
+        matching = [r for r in routes if destination in r.get("name", "").upper()
+                    or destination == r["waypoints"][-1]["name"].upper()]
+        if matching:
+            return min(matching, key=lambda route: route["route_id"])
+        return routes[sum(destination.encode("utf-8")) % len(routes)]
 
     def update(
         self,
@@ -235,6 +259,26 @@ class SimulationEngine:
         for aircraft in traffic:
 
             try:
+
+                if aircraft.phase == "DEPARTURE":
+                    self.guidance.update(aircraft)
+                    if aircraft.target_node is None:
+                        aircraft.lat = self.departure_waypoints[aircraft.assigned_node]["latitude"]
+                        aircraft.lon = self.departure_waypoints[aircraft.assigned_node]["longitude"]
+                        self.manager.remove(aircraft)
+                        self.scheduler.aircraft_completed(aircraft.callsign)
+                        print(f"DEPARTURE COMPLETED: {aircraft.callsign} | NEXT ARRIVAL SCHEDULED")
+                        continue
+                    waypoint = next((p for p in aircraft.departure_waypoints if p["name"] == aircraft.target_node), None)
+                    if waypoint:
+                        altitude = waypoint.get("altitude", {})
+                        if altitude.get("feet") is not None:
+                            aircraft.assign_altitude(altitude["feet"])
+                        speed = waypoint.get("speed", {})
+                        if speed.get("knots") is not None:
+                            aircraft.assign_speed(speed["knots"])
+                    move_aircraft(aircraft, dt)
+                    continue
 
                 self.arrival_ai.update(
                     aircraft

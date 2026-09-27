@@ -84,16 +84,19 @@ class GuidanceAI:
 
             if aircraft.target_node is None:
 
+                is_departure = aircraft.phase == "DEPARTURE"
                 aircraft.phase = "FINAL"
-                aircraft.state = "APPROACH"
-                aircraft.approach_phase = "INTERCEPT"
+                if not is_departure:
+                    aircraft.state = "APPROACH"
+                    aircraft.approach_phase = "INTERCEPT"
                 aircraft.pending_event = ""
 
-                print(
-                    f"APPROACH HANDOFF: "
-                    f"{aircraft.callsign} "
-                    f"at {aircraft.assigned_node}"
-                )
+                if not is_departure:
+                    print(
+                        f"APPROACH HANDOFF: "
+                        f"{aircraft.callsign} "
+                        f"at {aircraft.assigned_node}"
+                    )
 
                 return
 

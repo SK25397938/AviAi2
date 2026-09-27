@@ -124,20 +124,18 @@ class TrafficManager:
     ]
 
     TOTAL_AIRCRAFT = 100
-    ARRIVAL_COUNT = 70
+
     AIRPORT_COUNT = 30
 
-    INITIAL_ARRIVALS = 5
-    MAX_ACTIVE_ARRIVALS = 10
+    INITIAL_ARRIVALS = 3
+    MAX_ACTIVE_ARRIVALS = 8
 
-    MIN_ARRIVAL_INTERVAL = 180
-    MAX_ARRIVAL_INTERVAL = 600
+    MIN_ARRIVAL_INTERVAL = 30
+    MAX_ARRIVAL_INTERVAL = 60
 
     def __init__(self):
 
         self.db = TrafficDatabase()
-
-        self.simulation_time = 0.0
 
         self.arrival_timer = 0.0
 
@@ -146,17 +144,17 @@ class TrafficManager:
             self.MAX_ARRIVAL_INTERVAL
         )
 
-        self.seed_test_aircraft()
-
         self.initial_arrivals_spawned = False
+
+        self.seed_test_aircraft()
 
     def build_test_aircraft(self):
 
         aircraft = []
 
-        for index, route in enumerate(
-            self.ROUTES[:self.TOTAL_AIRCRAFT]
-        ):
+        routes = self.ROUTES[:self.TOTAL_AIRCRAFT]
+
+        for index, route in enumerate(routes):
 
             code, airline, origin, aircraft_type = route
 
@@ -177,6 +175,8 @@ class TrafficManager:
 
         aircraft_list = self.build_test_aircraft()
 
+        arrival_count = len(aircraft_list) - self.AIRPORT_COUNT
+
         for index, aircraft in enumerate(aircraft_list):
 
             existing = self.db.get(
@@ -186,31 +186,27 @@ class TrafficManager:
             if existing is not None:
                 continue
 
-            if index < self.ARRIVAL_COUNT:
+            if index < arrival_count:
 
                 status = "WAITING_ARRIVAL"
-
                 origin = aircraft["origin"]
+                destination = "VABB"
 
             else:
 
                 status = "AIRPORT"
-
                 origin = "VABB"
+                destination = aircraft["origin"]
 
             self.db.upsert(
                 callsign=aircraft["callsign"],
                 aircraft_type=aircraft["aircraft_type"],
                 airline=aircraft["airline"],
                 origin=origin,
-                destination="VABB",
+                destination=destination,
                 side=aircraft["side"],
                 status=status
             )
-
-    def get_arrivals(self):
-
-        return self.db.get_available_arrivals()
 
     def get_waiting_arrivals(self):
 
@@ -218,18 +214,16 @@ class TrafficManager:
             "WAITING_ARRIVAL"
         )
 
-    def get_departures(self):
-
-        return self.db.get_departures()
-
-    def get_airport_aircraft(self):
-
-        return self.db.get_airport_aircraft()
-
     def get_active_arrivals(self):
 
         return self.db.get_by_status(
             "ARRIVAL"
+        )
+
+    def get_airport_aircraft(self):
+
+        return self.db.get_by_status(
+            "AIRPORT"
         )
 
     def spawn_initial_arrivals(self):
@@ -239,9 +233,7 @@ class TrafficManager:
 
         waiting = self.get_waiting_arrivals()
 
-        selected = waiting[
-            :self.INITIAL_ARRIVALS
-        ]
+        selected = waiting[:self.INITIAL_ARRIVALS]
 
         spawned = []
 
@@ -252,20 +244,20 @@ class TrafficManager:
                 "ARRIVAL"
             )
 
-            spawned.append(
-                aircraft
-            )
+            spawned.append(aircraft)
 
         self.initial_arrivals_spawned = True
 
+        self.arrival_timer = 0.0
+
+        self.next_arrival_interval = random.uniform(
+            self.MIN_ARRIVAL_INTERVAL,
+            self.MAX_ARRIVAL_INTERVAL
+        )
+
         return spawned
 
-    def update(
-        self,
-        dt
-    ):
-
-        self.simulation_time += dt
+    def update(self, dt):
 
         spawned = []
 
@@ -280,6 +272,8 @@ class TrafficManager:
         active_arrivals = self.get_active_arrivals()
 
         if len(active_arrivals) >= self.MAX_ACTIVE_ARRIVALS:
+
+            self.arrival_timer = 0.0
 
             return spawned
 
@@ -319,47 +313,33 @@ class TrafficManager:
 
         return spawned
 
-    def mark_landed(
-        self,
-        callsign
-    ):
+    def mark_landed(self, callsign):
 
         self.db.mark_landed(
             callsign
         )
 
-    def mark_departing(
-        self,
-        callsign
-    ):
+    def mark_departing(self, callsign):
 
         self.db.mark_departing(
             callsign
         )
 
-    def mark_completed(
-        self,
-        callsign
-    ):
-
-        self.db.mark_completed(
-            callsign
-        )
-
-    def mark_arrival_available(
-        self,
-        callsign
-    ):
+    def mark_completed(self, callsign):
 
         self.db.set_status(
             callsign,
             "WAITING_ARRIVAL"
         )
 
-    def mark_parked(
-        self,
-        callsign
-    ):
+    def mark_arrival_available(self, callsign):
+
+        self.db.set_status(
+            callsign,
+            "WAITING_ARRIVAL"
+        )
+
+    def mark_parked(self, callsign):
 
         self.db.set_status(
             callsign,
