@@ -10,6 +10,7 @@ from app.intelligence.arrival_ai import ArrivalAI
 from app.intelligence.guidance_ai import GuidanceAI
 from app.intelligence.approach_ai import ApproachAI
 from app.intelligence.landing_ai import LandingAI
+from app.intelligence.trajectory import apply_arrival_separation
 
 from app.intelligence.mistral.controller import mistral_controller
 
@@ -351,6 +352,8 @@ class SimulationEngine:
                 self.landing_ai.update(
                     aircraft
                 )
+
+                apply_arrival_separation(traffic, self.graph)
 
                 move_aircraft(
                     aircraft,

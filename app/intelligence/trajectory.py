@@ -1,10 +1,89 @@
 import json
+import math
 import time
 from collections import deque
 from app.core.config import redis_client
 
 MAX_POINTS = 6
 WINDOW_SECONDS = 40
+MIN_ARRIVAL_SEPARATION_NM = 4.5
+MIN_ARRIVAL_SPEED_KTS = 140.0
+SEPARATION_SPEED_GAIN = 12.0
+
+
+def _distance_nm(lat1, lon1, lat2, lon2):
+    """Great-circle distance for measuring position on a route polyline."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = p2 - p1
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 3440.065 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def arrival_path_progress(aircraft, graph):
+    """Return along-route progress in NM, projecting onto its assigned route."""
+    route = getattr(aircraft, "route", None) or []
+    if len(route) < 2:
+        return None
+
+    points = []
+    for node_id in route:
+        node = graph.get_node(node_id)
+        points.append((node["lat"], node["lon"]))
+
+    cumulative = 0.0
+    best = None
+    for (lat1, lon1), (lat2, lon2) in zip(points, points[1:]):
+        segment = _distance_nm(lat1, lon1, lat2, lon2)
+        if segment == 0:
+            continue
+        # Local tangent-plane projection gives the position's progress on this segment.
+        mean_lat = math.radians((lat1 + lat2) / 2)
+        dx = math.radians(lon2 - lon1) * math.cos(mean_lat) * 3440.065
+        dy = math.radians(lat2 - lat1) * 3440.065
+        px = math.radians(aircraft.lon - lon1) * math.cos(mean_lat) * 3440.065
+        py = math.radians(aircraft.lat - lat1) * 3440.065
+        fraction = max(0.0, min(1.0, (px * dx + py * dy) / (dx * dx + dy * dy)))
+        cross_track = math.hypot(px - fraction * dx, py - fraction * dy)
+        candidate = (cross_track, cumulative + fraction * segment)
+        if best is None or candidate[0] < best[0]:
+            best = candidate
+        cumulative += segment
+
+    return best[1] if best else None
+
+
+def apply_arrival_separation(aircraft_list, graph):
+    """Cap follower target speeds using along-route distance and current leader speed."""
+    arrivals = []
+    for aircraft in aircraft_list:
+        # Remove only the previous separation adjustment, preserving any newer
+        # target speed set by guidance or another existing controller.
+        previous_target = getattr(aircraft, "_separation_target_speed", None)
+        if previous_target is not None:
+            if aircraft.target_speed_kts == previous_target:
+                aircraft.target_speed_kts = aircraft._separation_original_speed
+            del aircraft._separation_target_speed
+            del aircraft._separation_original_speed
+
+        if getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL") or not getattr(aircraft, "route", None):
+            continue
+        progress = arrival_path_progress(aircraft, graph)
+        if progress is not None:
+            arrivals.append((progress, aircraft))
+
+    arrivals.sort(key=lambda item: (-item[0], item[1].callsign))
+    for index in range(1, len(arrivals)):
+        leader_progress, leader = arrivals[index - 1]
+        follower_progress, follower = arrivals[index]
+        gap = leader_progress - follower_progress
+        target = getattr(follower, "target_speed_kts", None)
+        if gap < MIN_ARRIVAL_SEPARATION_NM and target is not None:
+            adjusted = max(MIN_ARRIVAL_SPEED_KTS,
+                           leader.speed_kts - (MIN_ARRIVAL_SEPARATION_NM - gap) * SEPARATION_SPEED_GAIN)
+            follower._separation_original_speed = target
+            follower.target_speed_kts = max(MIN_ARRIVAL_SPEED_KTS, min(target, adjusted))
+            follower._separation_target_speed = follower.target_speed_kts
 
 
 def update_trajectory(icao: str, altitude: float):
