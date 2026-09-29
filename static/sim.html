@@ -478,32 +478,35 @@ function switchInspector(mod){
 
 const fmtTime=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0')};
 
-const planeSVG=(color,sel)=>`<svg viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`;
+function planeSVG(color) {
+    return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path fill="${color}" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+    </svg>`;
+}
 
-function acColor(ac){
-
-    if(ac.landing_complete)
+function acColor(ac) {
+    if (ac.landing_complete)
         return "#5a8fb4";
 
-    if(ac.on_ground)
+    if (ac.on_ground)
         return "#8a8a8a";
 
-    if(ac.approach_phase==="FINAL_APPROACH")
+    if (ac.approach_phase === "FINAL_APPROACH")
         return "#ff3b30";
 
-    if(ac.approach_phase==="GLIDESLOPE")
+    if (ac.approach_phase === "GLIDESLOPE")
         return "#ff8c00";
 
-    if(ac.phase==="FINAL")
+    if (ac.phase === "FINAL")
         return "#f4b942";
 
-    if(ac.phase==="ARRIVAL")
+    if (ac.phase === "ARRIVAL")
         return "#4a8c5c";
 
-    if(ac.phase==="DEPARTURE")
+    if (ac.phase === "DEPARTURE")
         return "#3b82f6";
 
-    return "#4a8c5c";
+    return "#6b7280";
 }
 
 async function loadApproachVisualization(){
@@ -748,18 +751,6 @@ function makeLabel(ac){
         <div>${spd} kt</div>
     </div>
     `;
-}
-
-function makeIcon(ac,selected){
-  const color=selected?"#ddd5c8":acColor(ac);
-  const element=document.createElement("div");
-  element.className="ac-marker";
-  element.innerHTML=`<div class="ac-icon" style="transform:rotate(${ac.heading||0}deg)">${planeSVG(color,selected)}</div>${layers.labels?makeLabel(ac):""}`;
-  element.addEventListener("click",function(event){
-    event.stopPropagation();
-    selectAircraft(ac.callsign);
-  });
-  return element;
 }
 
 function initMap(){
@@ -1214,7 +1205,7 @@ function addAircraftMarkers(){
 
 }
 
-function makeIcon(ac, selected){
+function makeIcon(ac, selected) {
 
     const color = selected ? "#ddd5c8" : acColor(ac);
 
@@ -1224,19 +1215,20 @@ function makeIcon(ac, selected){
 
     element.innerHTML =
 
-        `<div class="ac-icon" style="transform:rotate(${ac.heading || 0}deg)">
-            ${planeSVG(color, selected)}
+        `<div class="ac-icon" style="color:${color};transform:rotate(${ac.heading || 0}deg)">
+            ${planeSVG(color)}
         </div>
 
         ${layers.labels ? makeLabel(ac) : ""}`;
 
-    element.onclick = function(event){
-
+    element.addEventListener("click", function(event) {
         event.stopPropagation();
-
         selectAircraft(ac.callsign);
+    });
 
-    };
+    element.addEventListener("dblclick", function(event) {
+        event.stopPropagation();
+    });
 
     return element;
 
@@ -1336,18 +1328,16 @@ function updateAircraftMarkers(){
 
         m.data = ac;
 
-        var sel = selectedCs === ac.callsign;
+        const marker = m.marker;
+        const selected = selectedCs === ac.callsign;
+        const color = selected ? "#ddd5c8" : acColor(ac);
+        const iconDiv = marker.getElement()?.querySelector(".ac-icon");
 
-        var iconDiv = m.el.querySelector(".ac-icon");
-
-        iconDiv.style.transform =
-            "rotate(" + (ac.heading || 0) + "deg)";
-
-        iconDiv.innerHTML =
-            planeSVG(
-                sel ? "#ddd5c8" : acColor(ac),
-                sel
-            );
+        if (iconDiv) {
+            iconDiv.style.color = color;
+            iconDiv.innerHTML = planeSVG(color);
+            iconDiv.style.transform = "rotate(" + (ac.heading || 0) + "deg)";
+        }
 
         var labelDiv = m.el.querySelector(".ac-label");
 
@@ -1374,7 +1364,7 @@ function updateAircraftMarkers(){
             ac
         );
 
-        if(sel){
+        if(selected){
 
             map.flyTo({
 
