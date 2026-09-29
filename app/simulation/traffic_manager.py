@@ -231,13 +231,19 @@ class TrafficManager:
         if self.initial_arrivals_spawned:
             return []
 
-        waiting = self.get_waiting_arrivals()
-
-        available_slots = max(
-            0,
-            self.MAX_ACTIVE_ARRIVALS - len(self.get_active_arrivals())
+        previous_arrivals = (
+            self.db.get_by_status("ARRIVAL")
+            + self.db.get_by_status("ACTIVE_ARRIVAL")
         )
-        selected = waiting[:min(self.INITIAL_ARRIVALS, available_slots)]
+
+        for aircraft in previous_arrivals:
+            self.db.set_status(
+                aircraft["callsign"],
+                "WAITING_ARRIVAL"
+            )
+
+        waiting = self.get_waiting_arrivals()
+        selected = waiting[:self.INITIAL_ARRIVALS]
 
         spawned = []
 
@@ -261,7 +267,7 @@ class TrafficManager:
 
         return spawned
 
-    def update(self, dt):
+    def update(self, dt, can_release_arrival=None):
 
         spawned = []
 
@@ -303,6 +309,9 @@ class TrafficManager:
         aircraft = random.choice(
             waiting
         )
+
+        if can_release_arrival is not None and not can_release_arrival(aircraft):
+            return spawned
 
         self.db.set_status(
             aircraft["callsign"],

@@ -28,8 +28,26 @@ def arrival_path_progress(aircraft, graph):
 
     points = []
     for node_id in route:
-        node = graph.get_node(node_id)
-        points.append((node["lat"], node["lon"]))
+        try:
+            node = graph.get_node(node_id)
+            points.append((float(node["lat"]), float(node["lon"])))
+        except (TypeError, KeyError, ValueError):
+            return None
+
+    if len(points) < 2:
+        return None
+
+    if not all(math.isfinite(value) for point in points for value in point):
+        return None
+
+    try:
+        aircraft_lat = float(aircraft.lat)
+        aircraft_lon = float(aircraft.lon)
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+    if not math.isfinite(aircraft_lat) or not math.isfinite(aircraft_lon):
+        return None
 
     cumulative = 0.0
     best = None
@@ -41,8 +59,8 @@ def arrival_path_progress(aircraft, graph):
         mean_lat = math.radians((lat1 + lat2) / 2)
         dx = math.radians(lon2 - lon1) * math.cos(mean_lat) * 3440.065
         dy = math.radians(lat2 - lat1) * 3440.065
-        px = math.radians(aircraft.lon - lon1) * math.cos(mean_lat) * 3440.065
-        py = math.radians(aircraft.lat - lat1) * 3440.065
+        px = math.radians(aircraft_lon - lon1) * math.cos(mean_lat) * 3440.065
+        py = math.radians(aircraft_lat - lat1) * 3440.065
         fraction = max(0.0, min(1.0, (px * dx + py * dy) / (dx * dx + dy * dy)))
         cross_track = math.hypot(px - fraction * dx, py - fraction * dy)
         candidate = (cross_track, cumulative + fraction * segment)
@@ -55,10 +73,8 @@ def arrival_path_progress(aircraft, graph):
 
 def apply_arrival_separation(aircraft_list, graph):
     """Cap follower target speeds using along-route distance and current leader speed."""
-    arrivals = []
+    arrivals_by_route = {}
     for aircraft in aircraft_list:
-        # Remove only the previous separation adjustment, preserving any newer
-        # target speed set by guidance or another existing controller.
         previous_target = getattr(aircraft, "_separation_target_speed", None)
         if previous_target is not None:
             if aircraft.target_speed_kts == previous_target:
@@ -66,24 +82,40 @@ def apply_arrival_separation(aircraft_list, graph):
             del aircraft._separation_target_speed
             del aircraft._separation_original_speed
 
-        if getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL") or not getattr(aircraft, "route", None):
+        route_id = getattr(aircraft, "arrival_route_id", None)
+        if (
+            getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
+            or route_id is None
+            or not getattr(aircraft, "route", None)
+        ):
             continue
         progress = arrival_path_progress(aircraft, graph)
         if progress is not None:
-            arrivals.append((progress, aircraft))
+            arrivals_by_route.setdefault(route_id, []).append((progress, aircraft))
 
-    arrivals.sort(key=lambda item: (-item[0], item[1].callsign))
-    for index in range(1, len(arrivals)):
-        leader_progress, leader = arrivals[index - 1]
-        follower_progress, follower = arrivals[index]
-        gap = leader_progress - follower_progress
-        target = getattr(follower, "target_speed_kts", None)
-        if gap < MIN_ARRIVAL_SEPARATION_NM and target is not None:
-            adjusted = max(MIN_ARRIVAL_SPEED_KTS,
-                           leader.speed_kts - (MIN_ARRIVAL_SEPARATION_NM - gap) * SEPARATION_SPEED_GAIN)
-            follower._separation_original_speed = target
-            follower.target_speed_kts = max(MIN_ARRIVAL_SPEED_KTS, min(target, adjusted))
-            follower._separation_target_speed = follower.target_speed_kts
+    for arrivals in arrivals_by_route.values():
+        arrivals.sort(key=lambda item: (-item[0], item[1].callsign))
+        for index in range(1, len(arrivals)):
+            leader_progress, leader = arrivals[index - 1]
+            follower_progress, follower = arrivals[index]
+            gap = leader_progress - follower_progress
+            target = getattr(follower, "target_speed_kts", None)
+            if (
+                0 <= gap < MIN_ARRIVAL_SEPARATION_NM
+                and target is not None
+                and target >= MIN_ARRIVAL_SPEED_KTS
+            ):
+                adjusted = max(
+                    MIN_ARRIVAL_SPEED_KTS,
+                    leader.speed_kts
+                    - (MIN_ARRIVAL_SEPARATION_NM - gap) * SEPARATION_SPEED_GAIN
+                )
+                follower._separation_original_speed = target
+                follower.target_speed_kts = max(
+                    MIN_ARRIVAL_SPEED_KTS,
+                    min(target, adjusted)
+                )
+                follower._separation_target_speed = follower.target_speed_kts
 
 
 def update_trajectory(icao: str, altitude: float):

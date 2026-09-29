@@ -1,3 +1,5 @@
+import math
+
 from app.simulation.manager import AircraftManager
 from app.simulation.spawn import spawn_aircraft
 from app.simulation.physics import move_aircraft
@@ -149,41 +151,57 @@ class SimulationEngine:
 
     def spawn_due_arrivals(self, dt=1.0):
 
-        arrivals = self.traffic_manager.update(dt)
+        initial_batch = not self.traffic_manager.initial_arrivals_spawned
+        arrivals = self.traffic_manager.update(
+            dt,
+            can_release_arrival=self._arrival_has_spacing
+        )
 
         active_callsigns = {
             aircraft.callsign
             for aircraft in self.manager.all()
         }
 
-        route_ids = list(
-            self.arrival_routes.keys()
-        )
-
-        if not route_ids:
-
+        if not self.arrival_routes:
             return
 
-        for aircraft_data in arrivals:
+        for index, aircraft_data in enumerate(arrivals):
 
             callsign = aircraft_data["callsign"]
 
             if callsign in active_callsigns:
                 continue
 
-            route_id = route_ids[
-                hash(callsign) % len(route_ids)
-            ]
+            route_id = self._arrival_route_for(callsign)
+
+            if route_id is None:
+                continue
 
             try:
 
                 aircraft = self.spawn(
-                    aircraft_type=aircraft_data[
-                        "aircraft_type"
-                    ],
+                    aircraft_type=aircraft_data["aircraft_type"],
                     callsign=callsign,
                     route_id=route_id
                 )
+
+                aircraft.arrival_route_id = route_id
+                if initial_batch:
+                    route = self.arrival_routes[route_id]
+                    distance_nm = 0.0
+                    route_length_nm = sum(
+                        self._route_segment_length_nm(start, end)
+                        for start, end in zip(
+                            route.get("waypoints", []),
+                            route.get("waypoints", [])[1:]
+                        )
+                    )
+                    if route_length_nm >= distance_nm:
+                        self._position_on_arrival_route(
+                            aircraft,
+                            route,
+                            distance_nm
+                        )
 
                 print(
                     f"TRAFFIC SPAWNED: "
@@ -199,6 +217,116 @@ class SimulationEngine:
                     f"ARRIVAL SPAWN ERROR "
                     f"{callsign}: {error}"
                 )
+
+    @staticmethod
+    def _route_segment_length_nm(start, end):
+
+        mean_lat = math.radians(
+            (start["latitude"] + end["latitude"]) / 2
+        )
+        dx = (end["longitude"] - start["longitude"]) * 60.0 * math.cos(mean_lat)
+        dy = (end["latitude"] - start["latitude"]) * 60.0
+        return math.hypot(dx, dy)
+
+    def _route_progress_nm(self, aircraft, route):
+
+        if not isinstance(route, dict):
+            return None
+
+        points = route.get("waypoints", [])
+        if len(points) < 2:
+            return None
+
+        progress = 0.0
+        best_progress = None
+        best_distance_sq = float("inf")
+        lat = aircraft.lat
+        lon = aircraft.lon
+
+        for start, end in zip(points, points[1:]):
+            mean_lat = math.radians(
+                (start["latitude"] + end["latitude"]) / 2
+            )
+            lon_scale = 60.0 * math.cos(mean_lat)
+            dx = (end["longitude"] - start["longitude"]) * lon_scale
+            dy = (end["latitude"] - start["latitude"]) * 60.0
+            px = (lon - start["longitude"]) * lon_scale
+            py = (lat - start["latitude"]) * 60.0
+            length_sq = dx * dx + dy * dy
+            fraction = (
+                0.0
+                if length_sq == 0
+                else max(0.0, min(1.0, (px * dx + py * dy) / length_sq))
+            )
+            distance_sq = (px - fraction * dx) ** 2 + (py - fraction * dy) ** 2
+            segment_nm = math.sqrt(length_sq)
+
+            if distance_sq < best_distance_sq:
+                best_distance_sq = distance_sq
+                best_progress = progress + fraction * segment_nm
+
+            progress += segment_nm
+
+        return best_progress
+
+    def _position_on_arrival_route(self, aircraft, route, distance_nm):
+
+        if not isinstance(route, dict):
+            return
+
+        points = route.get("waypoints", [])
+        if len(points) < 2:
+            return
+
+        remaining = max(0.0, distance_nm)
+        for index, (start, end) in enumerate(zip(points, points[1:])):
+            segment_nm = self._route_segment_length_nm(start, end)
+            if remaining <= segment_nm or index == len(points) - 2:
+                fraction = 0.0 if segment_nm == 0 else min(1.0, remaining / segment_nm)
+                aircraft.lat = start["latitude"] + fraction * (
+                    end["latitude"] - start["latitude"]
+                )
+                aircraft.lon = start["longitude"] + fraction * (
+                    end["longitude"] - start["longitude"]
+                )
+                aircraft.route_index = index
+                aircraft.assigned_node = aircraft.route[index]
+                aircraft.target_node = aircraft.route[index + 1]
+                return
+            remaining -= segment_nm
+
+    def _arrival_route_for(self, callsign):
+
+        route_ids = list(self.arrival_routes)
+        if not route_ids:
+            return None
+
+        route_loads = {
+            route_id: sum(
+                1
+                for aircraft in self.manager.all()
+                if getattr(aircraft, "arrival_route_id", None) == route_id
+            )
+            for route_id in route_ids
+        }
+        return min(route_ids, key=lambda route_id: route_loads[route_id])
+
+    def _arrival_has_spacing(self, candidate):
+
+        route_id = self._arrival_route_for(candidate["callsign"])
+        if route_id is None:
+            return True
+
+        route = self.arrival_routes[route_id]
+        for aircraft in self.manager.all():
+            if getattr(aircraft, "arrival_route_id", None) != route_id:
+                continue
+
+            progress = self._route_progress_nm(aircraft, route)
+            if progress is not None and progress < 4.5:
+                return False
+
+        return True
 
     def process_due_departures(self):
 
