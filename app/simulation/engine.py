@@ -151,7 +151,6 @@ class SimulationEngine:
 
     def spawn_due_arrivals(self, dt=1.0):
 
-        initial_batch = not self.traffic_manager.initial_arrivals_spawned
         arrivals = self.traffic_manager.update(
             dt,
             can_release_arrival=self._arrival_has_spacing
@@ -161,6 +160,7 @@ class SimulationEngine:
             aircraft.callsign
             for aircraft in self.manager.all()
         }
+        spawned_this_update = []
 
         if not self.arrival_routes:
             return
@@ -172,9 +172,23 @@ class SimulationEngine:
             if callsign in active_callsigns:
                 continue
 
-            route_id = self._arrival_route_for(callsign)
+            route_id = self._arrival_route_for(
+                callsign,
+                additional_aircraft=spawned_this_update
+            )
 
             if route_id is None:
+                continue
+
+            # The traffic manager releases the initial batch together and does
+            # not consult its spacing callback for that batch. Recheck here so
+            # an initial arrival cannot occupy an already-used route entry.
+            if not self._arrival_has_spacing(
+                aircraft_data,
+                route_id=route_id,
+                additional_aircraft=spawned_this_update
+            ):
+                self.traffic_manager.mark_arrival_available(callsign)
                 continue
 
             try:
@@ -186,22 +200,7 @@ class SimulationEngine:
                 )
 
                 aircraft.arrival_route_id = route_id
-                if initial_batch:
-                    route = self.arrival_routes[route_id]
-                    distance_nm = 0.0
-                    route_length_nm = sum(
-                        self._route_segment_length_nm(start, end)
-                        for start, end in zip(
-                            route.get("waypoints", []),
-                            route.get("waypoints", [])[1:]
-                        )
-                    )
-                    if route_length_nm >= distance_nm:
-                        self._position_on_arrival_route(
-                            aircraft,
-                            route,
-                            distance_nm
-                        )
+                spawned_this_update.append(aircraft)
 
                 print(
                     f"TRAFFIC SPAWNED: "
@@ -295,38 +294,326 @@ class SimulationEngine:
                 return
             remaining -= segment_nm
 
-    def _arrival_route_for(self, callsign):
+    def _arrival_route_for(self, callsign, additional_aircraft=()):
 
         route_ids = list(self.arrival_routes)
         if not route_ids:
             return None
 
+        active_aircraft = list(self.manager.all())
+        active_ids = {id(aircraft) for aircraft in active_aircraft}
+        active_aircraft.extend(
+            aircraft
+            for aircraft in additional_aircraft
+            if id(aircraft) not in active_ids
+        )
+
         route_loads = {
             route_id: sum(
                 1
-                for aircraft in self.manager.all()
+                for aircraft in active_aircraft
                 if getattr(aircraft, "arrival_route_id", None) == route_id
             )
             for route_id in route_ids
         }
         return min(route_ids, key=lambda route_id: route_loads[route_id])
 
-    def _arrival_has_spacing(self, candidate):
+    def _arrival_entry(self, route_id):
 
-        route_id = self._arrival_route_for(candidate["callsign"])
+        route = self.arrival_routes.get(route_id)
+        if not isinstance(route, dict):
+            return None, None
+
+        waypoints = route.get("waypoints", [])
+        if not waypoints or not isinstance(waypoints[0], dict):
+            return None, None
+
+        first_waypoint = waypoints[0]
+        name = first_waypoint.get("name")
+        try:
+            coordinates = (
+                float(first_waypoint["latitude"]),
+                float(first_waypoint["longitude"])
+            )
+        except (KeyError, TypeError, ValueError):
+            coordinates = None
+
+        if isinstance(name, str) and name.strip():
+            return ("name", name.strip().upper()), coordinates
+        if coordinates is None or not all(math.isfinite(value) for value in coordinates):
+            return None, None
+        return ("coordinates", round(coordinates[0], 6), round(coordinates[1], 6)), coordinates
+
+    def _arrival_has_spacing(
+        self,
+        candidate,
+        route_id=None,
+        additional_aircraft=()
+    ):
+
+        if route_id is None:
+            route_id = getattr(candidate, "arrival_route_id", None)
+        if route_id is None:
+            callsign = candidate.get("callsign") if isinstance(candidate, dict) else candidate
+            route_id = self._arrival_route_for(callsign)
         if route_id is None:
             return True
 
-        route = self.arrival_routes[route_id]
-        for aircraft in self.manager.all():
-            if getattr(aircraft, "arrival_route_id", None) != route_id:
+        entry_key, entry_coordinates = self._arrival_entry(route_id)
+        if entry_key is None or entry_coordinates is None:
+            return True
+
+        aircraft_on_route = list(self.manager.all())
+        active_ids = {id(aircraft) for aircraft in aircraft_on_route}
+        aircraft_on_route.extend(
+            aircraft
+            for aircraft in additional_aircraft
+            if id(aircraft) not in active_ids
+        )
+
+        entry_point = {
+            "latitude": entry_coordinates[0],
+            "longitude": entry_coordinates[1]
+        }
+        for aircraft in aircraft_on_route:
+            aircraft_route_id = getattr(aircraft, "arrival_route_id", None)
+            if aircraft_route_id not in self.arrival_routes:
                 continue
 
-            progress = self._route_progress_nm(aircraft, route)
-            if progress is not None and progress < 4.5:
+            aircraft_entry_key, _ = self._arrival_entry(aircraft_route_id)
+            if aircraft_entry_key != entry_key:
+                continue
+
+            distance_nm = self._route_segment_length_nm(
+                entry_point,
+                {"latitude": aircraft.lat, "longitude": aircraft.lon}
+            )
+            if distance_nm < 4.5:
                 return False
 
         return True
+
+    def _shared_arrival_waypoint_groups(self):
+
+        occurrences = []
+        for route_id, route in self.arrival_routes.items():
+            if not isinstance(route, dict):
+                continue
+
+            points = route.get("waypoints", [])
+            if not isinstance(points, list) or len(points) < 2:
+                continue
+
+            try:
+                coordinates = [
+                    (float(point["latitude"]), float(point["longitude"]))
+                    for point in points
+                ]
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if not all(
+                math.isfinite(value)
+                for coordinate in coordinates
+                for value in coordinate
+            ):
+                continue
+
+            progress = 0.0
+            for index, waypoint in enumerate(points):
+                if index:
+                    progress += self._route_segment_length_nm(
+                        {
+                            "latitude": coordinates[index - 1][0],
+                            "longitude": coordinates[index - 1][1]
+                        },
+                        {
+                            "latitude": coordinates[index][0],
+                            "longitude": coordinates[index][1]
+                        }
+                    )
+                occurrences.append((
+                    route_id,
+                    waypoint,
+                    progress,
+                    coordinates[index]
+                ))
+
+        parents = list(range(len(occurrences)))
+
+        def find(index):
+            while parents[index] != index:
+                parents[index] = parents[parents[index]]
+                index = parents[index]
+            return index
+
+        def union(first, second):
+            first_root = find(first)
+            second_root = find(second)
+            if first_root != second_root:
+                parents[second_root] = first_root
+
+        for first in range(len(occurrences)):
+            first_route, first_point, _, first_coordinates = occurrences[first]
+            for second in range(first + 1, len(occurrences)):
+                second_route, second_point, _, second_coordinates = occurrences[second]
+                if first_route == second_route:
+                    continue
+
+                first_name = first_point.get("name")
+                second_name = second_point.get("name")
+                same_name = (
+                    isinstance(first_name, str)
+                    and isinstance(second_name, str)
+                    and first_name.strip().upper() == second_name.strip().upper()
+                )
+                same_position = self._route_segment_length_nm(
+                    {
+                        "latitude": first_coordinates[0],
+                        "longitude": first_coordinates[1]
+                    },
+                    {
+                        "latitude": second_coordinates[0],
+                        "longitude": second_coordinates[1]
+                    }
+                ) <= 0.05
+                if same_name or same_position:
+                    union(first, second)
+
+        grouped = {}
+        for index, occurrence in enumerate(occurrences):
+            grouped.setdefault(find(index), []).append(occurrence)
+
+        return [
+            group
+            for group in grouped.values()
+            if len({occurrence[0] for occurrence in group}) > 1
+        ]
+
+    def _restore_shared_waypoint_speeds(self, aircraft_list):
+
+        for aircraft in aircraft_list:
+            applied_target = getattr(
+                aircraft,
+                "_engine_shared_waypoint_applied_target_speed",
+                None
+            )
+            if applied_target is None:
+                continue
+
+            if getattr(aircraft, "target_speed_kts", None) == applied_target:
+                aircraft.target_speed_kts = aircraft._engine_shared_waypoint_original_target_speed
+
+            del aircraft._engine_shared_waypoint_applied_target_speed
+            del aircraft._engine_shared_waypoint_original_target_speed
+
+    def _apply_shared_waypoint_separation(self, aircraft_list):
+
+        shared_waypoint_groups = self._shared_arrival_waypoint_groups()
+        if not shared_waypoint_groups:
+            return
+
+        arrivals = []
+        for aircraft in aircraft_list:
+            route_id = getattr(aircraft, "arrival_route_id", None)
+            if (
+                getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
+                or route_id not in self.arrival_routes
+            ):
+                continue
+
+            route = self.arrival_routes[route_id]
+            if not isinstance(route, dict):
+                continue
+
+            try:
+                progress = self._route_progress_nm(aircraft, route)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+
+            speed = getattr(aircraft, "speed_kts", None)
+            target = getattr(aircraft, "target_speed_kts", None)
+            if (
+                progress is not None
+                and speed is not None
+                and speed > 0
+                and target is not None
+                and route.get("waypoints")
+            ):
+                arrivals.append((aircraft, route_id, route, progress, speed, target))
+
+        if len(arrivals) < 2:
+            return
+
+        desired_targets = {}
+        for group in shared_waypoint_groups:
+            for first_index in range(len(arrivals)):
+                first = arrivals[first_index]
+                first_occurrences = [
+                    occurrence
+                    for occurrence in group
+                    if occurrence[0] == first[1]
+                    and occurrence[2] - first[3] >= -4.5
+                ]
+                if not first_occurrences:
+                    continue
+
+                first_occurrence = min(
+                    first_occurrences,
+                    key=lambda occurrence: occurrence[2] - first[3]
+                )
+                first_remaining = first_occurrence[2] - first[3]
+
+                for second_index in range(first_index + 1, len(arrivals)):
+                    second = arrivals[second_index]
+                    if first[1] == second[1]:
+                        continue
+
+                    second_occurrences = [
+                        occurrence
+                        for occurrence in group
+                        if occurrence[0] == second[1]
+                        and occurrence[2] - second[3] >= -4.5
+                    ]
+                    if not second_occurrences:
+                        continue
+
+                    second_occurrence = min(
+                        second_occurrences,
+                        key=lambda occurrence: occurrence[2] - second[3]
+                    )
+                    second_remaining = second_occurrence[2] - second[3]
+
+                    if first_remaining <= second_remaining:
+                        leader, leader_remaining = first, first_remaining
+                        follower, follower_remaining = second, second_remaining
+                    else:
+                        leader, leader_remaining = second, second_remaining
+                        follower, follower_remaining = first, first_remaining
+
+                    if leader_remaining < -4.5 or follower_remaining <= 0:
+                        continue
+
+                    gap = follower_remaining - leader_remaining
+                    if gap >= 4.5 or follower[5] <= 140:
+                        continue
+
+                    adjusted = max(
+                        140.0,
+                        leader[4] - (4.5 - gap) * 12.0
+                    )
+                    current_target = desired_targets.get(id(follower[0]), follower[5])
+                    desired_targets[id(follower[0])] = min(
+                        current_target,
+                        adjusted
+                    )
+
+        for aircraft, _, _, _, _, target in arrivals:
+            adjusted = desired_targets.get(id(aircraft), target)
+            if adjusted < target:
+                aircraft._engine_shared_waypoint_original_target_speed = target
+                aircraft.target_speed_kts = max(140.0, adjusted)
+                aircraft._engine_shared_waypoint_applied_target_speed = aircraft.target_speed_kts
 
     def process_due_departures(self):
 
@@ -388,6 +675,8 @@ class SimulationEngine:
         for aircraft in traffic:
 
             try:
+
+                self._restore_shared_waypoint_speeds(traffic)
 
                 if aircraft.phase == "DEPARTURE":
                     self.guidance.update(aircraft)
@@ -482,6 +771,7 @@ class SimulationEngine:
                 )
 
                 apply_arrival_separation(traffic, self.graph)
+                self._apply_shared_waypoint_separation(traffic)
 
                 move_aircraft(
                     aircraft,
