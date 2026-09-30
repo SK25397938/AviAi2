@@ -1,0 +1,70 @@
+{
+    "holding_routes": [
+        {
+            "id": "EMROS_DELAY_SHORT",
+            "trigger_waypoint": "EMROS",
+            "source_routes": ["001", "003"],
+            "waypoints": [
+                {
+                    "name": "MB765",
+                    "latitude": 19.208922,
+                    "longitude": 73.031950
+                },
+                {
+                    "name": "MB382",
+                    "latitude": 19.259147,
+                    "longitude": 73.113181
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                }
+            ]
+        },
+        {
+            "id": "EMROS_DELAY_LONG",
+            "trigger_waypoint": "EMROS",
+            "source_routes": ["001", "003"],
+            "waypoints": [
+                {
+                    "name": "MB765",
+                    "latitude": 19.208922,
+                    "longitude": 73.031950
+                },
+                {
+                    "name": "MB382",
+                    "latitude": 19.259147,
+                    "longitude": 73.113181
+                },
+                {
+                    "name": "MB402",
+                    "latitude": 19.344589,
+                    "longitude": 73.029311
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                }
+            ]
+        },
+        {
+            "id": "EMROS_MB392_DELAY",
+            "trigger_waypoint": "EMROS",
+            "source_routes": ["004"],
+            "waypoints": [
+                {
+                    "name": "ALBAP",
+                    "latitude": 19.366058,
+                    "longitude": 73.026681
+                },
+                {
+                    "name": "EMROS",
+                    "latitude": 19.211667,
+                    "longitude": 73.143333
+                }
+            ]
+        }
+    ]
+}
