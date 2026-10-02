@@ -72,6 +72,32 @@
                 }
             ],
             "approach_trigger": "OLGUS"
+        },
+        {
+            "id": "004",
+            "waypoints": [
+                {
+                    "name": "MOLGO",
+                    "latitude": 18.160433,
+                    "longitude": 73.385072
+                },
+                {
+                    "name": "DUGED",
+                    "latitude": 18.665919,
+                    "longitude": 73.158719
+                },
+                {
+                    "name": "LIKTA",
+                    "latitude": 18.926667,
+                    "longitude": 73.151667
+                },
+                {
+                    "name": "MB395",
+                    "latitude": 18.936667,
+                    "longitude": 73.380000
+                }
+            ],
+            "approach_trigger": "MB395"
         }
     ]
 }

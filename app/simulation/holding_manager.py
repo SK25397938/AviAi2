@@ -49,7 +49,7 @@ class HoldingManager:
             return []
 
         fix_name, lat0, lon0 = fix
-        sign = 1.0 if direction == "L" else -1.0
+        sign = -1.0 if direction == "L" else 1.0
         outbound = math.radians((course + 180.0) % 360.0)
         ux, uy = math.sin(outbound), math.cos(outbound)
         lx, ly = -uy * sign, ux * sign
