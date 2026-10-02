@@ -459,6 +459,7 @@ let atisMessage="";
 let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false};
 let semanticMode=false;
 let holdingMode=false;
+let configuredHoldingPatterns=[];
 let hoveredNode=null;
 
 const inspectorMap={
@@ -980,7 +981,11 @@ map.addLayer({
     id:"holding-pattern-lines",
     type:"line",
     source:"holding-patterns",
-    paint:{"line-color":"#d34332","line-width":3,"line-opacity":0.92}
+    paint:{
+        "line-color":["case",["get","active"],"#d34332","#607783"],
+        "line-width":["case",["get","active"],3,2],
+        "line-opacity":["case",["get","active"],0.92,0.55]
+    }
 });
 map.addSource("configured-holding-fixes",{
     type:"geojson",
@@ -1000,6 +1005,7 @@ map.addLayer({
     paint:{"text-color":["case",["get","active"],"#b51f1a","#40565f"],"text-halo-color":"#ffffff","text-halo-width":2}
 });
 
+    await loadHoldingPatternGeometry();
 loadRouteVisualization();
 loadApproachVisualization();
     loadAircraft();
@@ -1159,14 +1165,25 @@ function renderDecisionLog(entries){
     });
 }
 
+async function loadHoldingPatternGeometry(){
+    try{
+        const response=await fetch("/simulation/holding-patterns");
+        if(!response.ok) throw new Error("Holding pattern geometry request failed");
+        const data=await response.json();
+        configuredHoldingPatterns=Array.isArray(data.patterns)?data.patterns:[];
+    }catch(error){
+        console.error("Failed to load holding pattern geometry:",error);
+        configuredHoldingPatterns=[];
+    }
+}
+
 function updateHoldingVisualization(holds, configuredPoints){
-    const features=[];
-    holds.forEach(function(hold){
-        if(!hold.active || !Array.isArray(hold.waypoints) || hold.waypoints.length<2) return;
-        const coordinates=hold.waypoints.map(function(point){return [Number(point.longitude),Number(point.latitude)];});
-        if(coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return;
-        features.push({type:"Feature",properties:{fix:hold.fix,holding_route_id:hold.holding_route_id},geometry:{type:"LineString",coordinates:coordinates}});
-    });
+    const activeIds=new Set((holds||[]).map(function(hold){return String(hold.holding_route_id);}));
+    const features=configuredHoldingPatterns.map(function(pattern){
+        const coordinates=Array.isArray(pattern.coordinates)?pattern.coordinates.map(function(point){return [Number(point[0]),Number(point[1])];}):[];
+        if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return null;
+        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:activeIds.has(String(pattern.holding_route_id))},geometry:{type:"LineString",coordinates:coordinates}};
+    }).filter(Boolean);
     const source=map.getSource("holding-patterns");
     if(source) source.setData({type:"FeatureCollection",features:features});
     const pointFeatures=(configuredPoints||[]).map(function(point){

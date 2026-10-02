@@ -15,6 +15,21 @@ async def simulation_status():
 async def simulation_state():
     return simulation_world.get_state()
 
+@router.get("/holding-patterns")
+async def holding_pattern_visualization():
+    manager = simulation_world.engine.holding_manager
+    patterns = []
+    for route in manager.holding_routes:
+        waypoints = manager.racetrack_waypoints(route)
+        if not waypoints:
+            continue
+        patterns.append({
+            "holding_route_id": route.get("id"),
+            "fix": route.get("fix", route.get("trigger_waypoint")),
+            "coordinates": [[point["longitude"], point["latitude"]] for point in waypoints],
+        })
+    return {"patterns": patterns}
+
 @router.get("/airport")
 async def simulation_airport():
     airport = airport_loader.load()
