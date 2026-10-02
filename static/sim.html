@@ -757,7 +757,7 @@ function makeLabel(ac){
 }
 
 function initMap(){
-  map=new maplibregl.Map({container:"simMap",style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",center:VABB,zoom:11.5,pitch:0,antialias:false});
+  map=new maplibregl.Map({container:"simMap",style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",center:VABB,zoom:11.5,scrollZoom:{around:"center"},pitch:0,antialias:false});
   map.addControl(new maplibregl.NavigationControl(),"top-left");
   map.on("load",async()=>{
     await loadAirport();
@@ -1266,42 +1266,24 @@ function drawGraph(){
 
 function addAircraftMarkers(){
 
-    Object.values(markers).forEach(function(m){
-
-        m.marker.remove();
-
+    const activeCallsigns = new Set(acData.map(ac => ac.callsign));
+    Object.keys(markers).forEach(function(callsign){
+        markers[callsign].el.style.display = activeCallsigns.has(callsign) ? "" : "none";
+        if(!activeCallsigns.has(callsign)) delete guidanceFeatures[callsign];
     });
-
-    markers = {};
 
     acData.forEach(function(ac){
+        if(markers[ac.callsign]) return;
 
-        const el = makeIcon(
-            ac,
-            selectedCs === ac.callsign
-        );
-        console.log("Creating marker", ac.callsign, ac.lat, ac.lon);
-        const marker = new maplibregl.Marker(el)
-
-            .setLngLat([
-                ac.lon,
-                ac.lat
-            ])
-
+        const el = makeIcon(ac, selectedCs === ac.callsign);
+        const marker = new maplibregl.Marker({element:el, anchor:"center"})
+            .setLngLat([ac.lon, ac.lat])
             .addTo(map);
 
-        markers[ac.callsign] = {
-
-            marker: marker,
-
-            el: el,
-
-            data: ac
-
-        };
-        updateGuidance(ac);
-
+        markers[ac.callsign] = {marker:marker, el:el, data:ac};
     });
+
+    updateAircraftMarkers();
 
 }
 
@@ -1427,6 +1409,7 @@ function updateAircraftMarkers(){
         }
 
         m.data = ac;
+        m.el.style.display = "";
 
         const marker = m.marker;
         const selected = selectedCs === ac.callsign;
@@ -1463,27 +1446,6 @@ function updateAircraftMarkers(){
         updateGuidance(
             ac
         );
-
-        if(selected){
-
-            map.flyTo({
-
-                center:[
-                    ac.lon,
-                    ac.lat
-                ],
-
-                duration:800,
-
-                easing:function(t){
-
-                    return t*(2-t);
-
-                }
-
-            });
-
-        }
 
     });
 

@@ -215,13 +215,28 @@ class HoldingManager:
             "scheduled_circuits": circuits, "completed_circuits": 0,
         }
         aircraft.route = active_route
-        aircraft.target_node = active_route[route_index + 1]
+        # Keep the navigation cursor anchored to the aircraft's current fix,
+        # then point guidance at the next node in the spliced route.
+        assigned_index = next(
+            (i for i, node in enumerate(active_route[:rejoin_index + 1])
+             if str(node).upper() == str(getattr(aircraft, "assigned_node", "")).upper()),
+            route_index,
+        )
+        aircraft.route_index = assigned_index
+        aircraft.assigned_node = active_route[assigned_index]
+        aircraft.target_node = active_route[assigned_index + 1]
+        if getattr(aircraft, "clearance", None) is not None:
+            aircraft.clearance.direct_node = aircraft.target_node
         aircraft.state = "HOLDING"
         aircraft.controller = "Arrival"
         aircraft.holding_fix = trigger
         aircraft.holding_route_id = holding.get("id")
         aircraft.holding_rejoin_node = rejoin_node
         aircraft.holding_circuits_completed = 0
+        print(f"HOLD ACTIVATION | callsign={aircraft.callsign} "
+              f"holding_route={holding.get('id')} hold_fix={trigger} hold_active=true")
+        print(f"AIRCRAFT ROUTE | callsign={aircraft.callsign} "
+              f"old_route={original_route} new_route={active_route}")
         return self._result(True, f"Holding route {holding.get('id')} applied", rejoin_node=rejoin_node)
 
     def has_active_holding_route(self, aircraft):
@@ -311,6 +326,9 @@ class HoldingManager:
                 delattr(aircraft, name)
         self._release_holding_nodes(state.get("holding_node_ids", []))
         del self._active_holds[id(aircraft)]
+        print(f"HOLD RELEASE | callsign={aircraft.callsign} "
+              f"holding_route={state['holding_route_id']} hold_fix={state['rejoin_waypoint']} "
+              f"rejoin_node={state['rejoin_node']}")
         return self._result(True, f"Original route restored at {state['rejoin_waypoint']}",
                             rejoin_waypoint=state["rejoin_waypoint"], rejoin_node=state["rejoin_node"])
 

@@ -692,6 +692,21 @@ class SimulationEngine:
                                     "second_seconds_to_waypoint": round(second_eta_seconds, 1),
                                     "predicted_separation_nm": round(arrival_gap_nm, 2),
                                 },
+                                "required_separation_nm": 4.5,
+                                "aircraft_timing": {
+                                    str(first[0].callsign): {
+                                        "route_id": first[1],
+                                        "current_waypoint": getattr(first[0], "target_node", None),
+                                        "distance_to_fix_nm": round(first_remaining, 2),
+                                        "eta_to_fix_seconds": round(first_eta_seconds, 1),
+                                    },
+                                    str(second[0].callsign): {
+                                        "route_id": second[1],
+                                        "current_waypoint": getattr(second[0], "target_node", None),
+                                        "distance_to_fix_nm": round(second_remaining, 2),
+                                        "eta_to_fix_seconds": round(second_eta_seconds, 1),
+                                    },
+                                },
                                 "traffic_context": [
                                     {
                                         "callsign": other.callsign,
@@ -724,11 +739,22 @@ class SimulationEngine:
         }
         mistral_controller.clear_conflicts(set(unique_conflicts), active_holds)
         for conflict in unique_conflicts.values():
-            mistral_controller.request_conflict(
+            requested = mistral_controller.request_conflict(
                 conflict,
                 self.holding_manager,
                 self._record_ai_conflict_decision,
             )
+            if requested:
+                timing = conflict.get("aircraft_timing", {})
+                print(f"CONFLICT CHECK | fix={conflict['waypoint']} | "
+                      f"predicted_separation={conflict['predicted_timing']['predicted_separation_nm']} NM | "
+                      f"required={conflict.get('required_separation_nm', 4.5)} NM | conflict=true")
+                for aircraft in conflict["aircraft"]:
+                    values = timing.get(str(aircraft.callsign), {})
+                    print(f"  callsign={aircraft.callsign} route={values.get('route_id')} "
+                          f"current_waypoint={values.get('current_waypoint')} "
+                          f"distance_to_fix={values.get('distance_to_fix_nm')} NM "
+                          f"ETA_to_fix={values.get('eta_to_fix_seconds')} s")
 
     def _record_ai_conflict_decision(self, result):
         decision = result["decision"]
@@ -753,6 +779,7 @@ class SimulationEngine:
             "hold_circuits": decision.get("hold_circuits"),
             "rejoin_node": decision.get("rejoin_node"),
             "reason": decision["reason"],
+            "decision_source": result.get("decision_source", "Mistral"),
         })
         del self.ai_decision_log[50:]
 
@@ -1072,6 +1099,12 @@ class SimulationEngine:
                         if speed.get("knots") is not None:
                             aircraft.assign_speed(speed["knots"])
                     move_aircraft(aircraft, dt)
+                    continue
+
+                # Keep the conflicting pair at their current positions while the
+                # asynchronous decision is pending. This guarantees a fallback
+                # can still insert its hold before either aircraft passes the fix.
+                if mistral_controller.has_pending_conflict_for(aircraft.callsign):
                     continue
 
                 self.arrival_ai.update(
