@@ -13,10 +13,14 @@ class GuidanceAI:
 
     def __init__(
         self,
-        graph
+        graph,
+        holding_manager=None,
+        arrival_routes=None
     ):
 
         self.graph = graph
+        self.holding_manager = holding_manager
+        self.arrival_routes = arrival_routes or {}
 
         self.navigator = GraphNavigator(
             graph
@@ -43,23 +47,11 @@ class GuidanceAI:
 
             return
 
-        clearance = aircraft.active_clearance
-
-        if clearance.altitude_ft is not None:
-
-            aircraft.assign_altitude(
-                clearance.altitude_ft
-            )
-
-        if clearance.speed_kts is not None:
-
-            aircraft.assign_speed(
-                clearance.speed_kts
-            )
-
         if aircraft.target_node is None:
 
             return
+
+        self.apply_route_constraints(aircraft)
 
         node = self.graph.get_node(
             aircraft.target_node
@@ -81,6 +73,12 @@ class GuidanceAI:
             )
 
             aircraft.advance_route()
+
+            if (
+                self.holding_manager is not None
+                and self.holding_manager.has_active_holding_route(aircraft)
+            ):
+                self.holding_manager.restore_original_route(aircraft)
 
             if aircraft.target_node is None:
 
@@ -116,6 +114,28 @@ class GuidanceAI:
         aircraft.clearance.direct_node = (
             aircraft.target_node
         )
+
+    def apply_route_constraints(self, aircraft):
+        if not aircraft.route or aircraft.target_node is None or aircraft.phase == "FINAL":
+            return
+        if not (
+            self.holding_manager is not None
+            and self.holding_manager.has_active_holding_route(aircraft)
+        ):
+            route_definition = self.arrival_routes.get(
+                getattr(aircraft, "arrival_route_id", None), {}
+            )
+            for point in route_definition.get("waypoints", []):
+                if str(point.get("name", "")).upper() != str(aircraft.target_node).upper():
+                    continue
+                altitude = point.get("altitude")
+                speed = point.get("speed")
+                altitude = altitude.get("feet") if isinstance(altitude, dict) else altitude
+                speed = speed.get("knots") if isinstance(speed, dict) else speed
+                if isinstance(altitude, (int, float)) and not isinstance(altitude, bool) and altitude > 0:
+                    aircraft.assign_altitude(altitude)
+                if isinstance(speed, (int, float)) and not isinstance(speed, bool) and speed > 0:
+                    aircraft.assign_speed(speed)
 
     def _taxi(
         self,

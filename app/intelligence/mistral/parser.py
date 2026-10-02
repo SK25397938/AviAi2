@@ -1,32 +1,44 @@
 import json
 
 
-def parse(
-    response
-):
+REQUIRED_FIELDS = {
+    "controller", "decision", "callsign", "instruction",
+    "holding_route_id", "holding_fix", "altitude", "speed", "reason"
+}
 
-    if response is None:
+
+def parse(response):
+    if not isinstance(response, str):
         return None
-
-    response = response.strip()
-
-    if response.startswith("```"):
-
-        response = (
-            response
-            .replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
-
+    text = response.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
     try:
-
-        return json.loads(response)
-
-    except Exception:
-
-        print("INVALID MISTRAL RESPONSE")
-
-        print(response)
-
+        data = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
         return None
+    if not isinstance(data, dict) or set(data) != REQUIRED_FIELDS:
+        return None
+    if data.get("controller") != "Arrival" or data.get("decision") not in {"HOLD", "NONE"}:
+        return None
+    if not isinstance(data.get("instruction"), str) or not isinstance(data.get("reason"), str):
+        return None
+    if data["decision"] == "NONE":
+        if any(data.get(key) is not None for key in ("callsign", "holding_route_id", "holding_fix", "altitude", "speed")):
+            return None
+        if data["instruction"] or data["reason"]:
+            return None
+        return data
+    if any(not isinstance(data.get(key), str) or not data[key].strip()
+           for key in ("callsign", "holding_route_id", "holding_fix", "instruction")):
+        return None
+    for key, low, high in (("altitude", 0, 60000), ("speed", 0, 500)):
+        value = data.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not low < value <= high):
+            return None
+    return data

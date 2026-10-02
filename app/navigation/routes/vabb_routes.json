@@ -4,6 +4,11 @@
             "id": "001",
             "waypoints": [
                 {
+                    "name": "POKON",
+                    "latitude": 19.771964,
+                    "longitude": 72.077078
+                },
+                {
                     "name": "MB379",
                     "latitude": 19.216667,
                     "longitude": 72.603333
@@ -24,6 +29,11 @@
         {
             "id": "002",
             "waypoints": [
+                {
+                    "name": "KETOR",
+                    "latitude": 18.427686,
+                    "longitude": 72.074039
+                },
                 {
                     "name": "MB393",
                     "latitude": 18.906667,

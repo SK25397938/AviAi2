@@ -1,6 +1,10 @@
+import json
 import math
+from pathlib import Path
+from datetime import datetime
 
 from app.simulation.manager import AircraftManager
+from app.simulation.holding_manager import HoldingManager
 from app.simulation.spawn import spawn_aircraft
 from app.simulation.physics import move_aircraft
 from app.simulation.aircraft_db import AircraftDatabase
@@ -24,6 +28,13 @@ from app.navigation.loader import load_arrival_routes, load_departure_routes
 
 
 class SimulationEngine:
+
+    ARRIVAL_ROUTE_CAPACITIES = {
+        "001": 5,
+        "002": 4,
+        "003": 4,
+        "004": 5
+    }
 
     def __init__(
         self,
@@ -67,6 +78,23 @@ class SimulationEngine:
         self.departure_routes = load_departure_routes()
         self.departure_waypoints = {}
 
+        holding_routes_path = Path(__file__).resolve().parents[2] / "holding_routes.json"
+        try:
+            with holding_routes_path.open("r", encoding="utf-8") as holding_routes_file:
+                holding_routes_data = json.load(holding_routes_file)
+            if isinstance(holding_routes_data, dict):
+                holding_routes_data = holding_routes_data.get("holding_routes", [])
+            self.holding_routes = (
+                holding_routes_data
+                if isinstance(holding_routes_data, list)
+                else []
+            )
+        except (OSError, json.JSONDecodeError):
+            self.holding_routes = []
+
+        self.holding_manager = HoldingManager(self.holding_routes, self.graph)
+        self.ai_decision_log = []
+
         for route in self.departure_routes.values():
             for waypoint in route["waypoints"]:
                 self.departure_waypoints[waypoint["name"]] = waypoint
@@ -89,7 +117,9 @@ class SimulationEngine:
         self.arrival_ai = ArrivalAI()
 
         self.guidance = GuidanceAI(
-            self.graph
+            self.graph,
+            self.holding_manager,
+            self.arrival_routes
         )
 
         self.approach_ai = ApproachAI(
@@ -316,6 +346,23 @@ class SimulationEngine:
             )
             for route_id in route_ids
         }
+
+        configured_routes = [
+            route_id
+            for route_id in route_ids
+            if route_id in self.ARRIVAL_ROUTE_CAPACITIES
+        ]
+        eligible_routes = [
+            route_id
+            for route_id in configured_routes
+            if route_loads[route_id] < self.ARRIVAL_ROUTE_CAPACITIES[route_id]
+        ]
+        if eligible_routes:
+            return min(eligible_routes, key=lambda route_id: route_loads[route_id])
+
+        if configured_routes:
+            return None
+
         return min(route_ids, key=lambda route_id: route_loads[route_id])
 
     def _arrival_entry(self, route_id):
@@ -489,6 +536,196 @@ class SimulationEngine:
             for group in grouped.values()
             if len({occurrence[0] for occurrence in group}) > 1
         ]
+
+    def _detect_shared_waypoint_conflicts(self, aircraft_list):
+
+        shared_waypoint_groups = self._shared_arrival_waypoint_groups()
+        if not shared_waypoint_groups:
+            active_holds = {
+                aircraft.callsign for aircraft in aircraft_list
+                if self.holding_manager.has_active_holding_route(aircraft)
+            }
+            mistral_controller.clear_conflicts(set(), active_holds)
+            return
+
+        detected_conflicts = []
+
+        arrivals = []
+        for aircraft in aircraft_list:
+            route_id = getattr(aircraft, "arrival_route_id", None)
+            if (
+                getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
+                or route_id not in self.arrival_routes
+                or self.holding_manager.has_active_holding_route(aircraft)
+            ):
+                continue
+
+            route = self.arrival_routes[route_id]
+            try:
+                progress = self._route_progress_nm(aircraft, route)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+            speed = getattr(aircraft, "speed_kts", None)
+            if (
+                progress is None
+                or not isinstance(speed, (int, float))
+                or not math.isfinite(speed)
+                or speed <= 0
+            ):
+                continue
+
+            arrivals.append((aircraft, route_id, progress, float(speed)))
+
+        arrivals.sort(key=lambda arrival: str(arrival[0].callsign))
+        held_this_update = set()
+
+        for group in shared_waypoint_groups:
+            for first_index in range(len(arrivals)):
+                first = arrivals[first_index]
+                if id(first[0]) in held_this_update:
+                    continue
+
+                for second_index in range(first_index + 1, len(arrivals)):
+                    second = arrivals[second_index]
+                    if (
+                        first[1] == second[1]
+                        or id(second[0]) in held_this_update
+                        or self.holding_manager.has_active_holding_route(first[0])
+                        or self.holding_manager.has_active_holding_route(second[0])
+                    ):
+                        continue
+
+                    first_occurrences = sorted(
+                        (
+                            occurrence
+                            for occurrence in group
+                            if occurrence[0] == first[1]
+                            and occurrence[2] - first[2] > 0
+                        ),
+                        key=lambda occurrence: occurrence[2] - first[2]
+                    )
+                    second_occurrences = sorted(
+                        (
+                            occurrence
+                            for occurrence in group
+                            if occurrence[0] == second[1]
+                            and occurrence[2] - second[2] > 0
+                        ),
+                        key=lambda occurrence: occurrence[2] - second[2]
+                    )
+                    if not first_occurrences or not second_occurrences:
+                        continue
+
+                    for first_occurrence in first_occurrences:
+                        first_remaining = first_occurrence[2] - first[2]
+                        first_eta_seconds = first_remaining * 3600.0 / first[3]
+
+                        for second_occurrence in second_occurrences:
+                            first_name = first_occurrence[1].get("name")
+                            second_name = second_occurrence[1].get("name")
+                            same_name = (
+                                isinstance(first_name, str)
+                                and isinstance(second_name, str)
+                                and first_name.strip().upper() == second_name.strip().upper()
+                            )
+                            same_position = self._route_segment_length_nm(
+                                {
+                                    "latitude": first_occurrence[3][0],
+                                    "longitude": first_occurrence[3][1]
+                                },
+                                {
+                                    "latitude": second_occurrence[3][0],
+                                    "longitude": second_occurrence[3][1]
+                                }
+                            ) <= 0.05
+                            if not (same_name or same_position):
+                                continue
+
+                            second_remaining = second_occurrence[2] - second[2]
+                            second_eta_seconds = second_remaining * 3600.0 / second[3]
+                            fastest_speed = max(first[3], second[3])
+                            arrival_gap_nm = (
+                                abs(first_eta_seconds - second_eta_seconds)
+                                * fastest_speed
+                                / 3600.0
+                            )
+                            if arrival_gap_nm >= 4.5:
+                                continue
+
+                            first_waypoint = first_name
+                            second_waypoint = second_name
+                            if not first_waypoint or not second_waypoint:
+                                continue
+
+                            first_timing = (
+                                first_eta_seconds,
+                                first_remaining,
+                                str(first[1]),
+                                str(first[0].callsign)
+                            )
+                            second_timing = (
+                                second_eta_seconds,
+                                second_remaining,
+                                str(second[1]),
+                                str(second[0].callsign)
+                            )
+                            delayed, delayed_waypoint = (
+                                (first, first_waypoint)
+                                if first_timing > second_timing
+                                else (second, second_waypoint)
+                            )
+                            detected_conflicts.append({
+                                "waypoint": delayed_waypoint,
+                                "aircraft": (first[0], second[0]),
+                                "routes": self.arrival_routes,
+                                "holding_routes": self.holding_routes,
+                                "active_runway": self.runway.ident,
+                            })
+                            held_this_update.update((id(first[0]), id(second[0])))
+                            break
+
+                        if id(first[0]) in held_this_update or id(second[0]) in held_this_update:
+                            break
+
+        unique_conflicts = {}
+        for conflict in detected_conflicts:
+            key = mistral_controller.conflict_key(conflict)
+            unique_conflicts.setdefault(key, conflict)
+        active_holds = {
+            aircraft.callsign for aircraft in aircraft_list
+            if self.holding_manager.has_active_holding_route(aircraft)
+        }
+        mistral_controller.clear_conflicts(set(unique_conflicts), active_holds)
+        for conflict in unique_conflicts.values():
+            mistral_controller.request_conflict(
+                conflict,
+                self.holding_manager,
+                self._record_ai_conflict_decision,
+            )
+
+    def _record_ai_conflict_decision(self, result):
+        decision = result["decision"]
+        conflict = result["conflict"]
+        if not hasattr(self, "ai_decision_log"):
+            self.ai_decision_log = []
+        selected = decision.get("callsign")
+        self.ai_decision_log.insert(0, {
+            "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "callsign": selected,
+            "controller": decision["controller"],
+            "decision": decision["decision"],
+            "instruction": decision["instruction"],
+            "conflict_waypoint": conflict["waypoint"],
+            "other_aircraft": next(
+                (aircraft.callsign for aircraft in conflict["aircraft"]
+                 if aircraft.callsign != selected), None
+            ),
+            "altitude": decision.get("altitude"),
+            "speed": decision.get("speed"),
+            "holding_route_id": decision.get("holding_route_id"),
+            "reason": decision["reason"],
+        })
+        del self.ai_decision_log[50:]
 
     def _restore_shared_waypoint_speeds(self, aircraft_list):
 
@@ -671,12 +908,12 @@ class SimulationEngine:
         self.process_due_departures()
 
         traffic = self.manager.all()
+        self._restore_shared_waypoint_speeds(traffic)
+        self._detect_shared_waypoint_conflicts(traffic)
 
         for aircraft in traffic:
 
             try:
-
-                self._restore_shared_waypoint_speeds(traffic)
 
                 if aircraft.phase == "DEPARTURE":
                     self.guidance.update(aircraft)
@@ -701,22 +938,6 @@ class SimulationEngine:
                 self.arrival_ai.update(
                     aircraft
                 )
-
-                try:
-
-                    mistral_controller.update(
-                        aircraft,
-                        traffic
-                    )
-
-                except Exception as error:
-
-                    if "429" not in str(error):
-
-                        print(
-                            f"MISTRAL ERROR "
-                            f"{aircraft.callsign}: {error}"
-                        )
 
                 self.guidance.update(
                     aircraft
@@ -772,6 +993,8 @@ class SimulationEngine:
 
                 apply_arrival_separation(traffic, self.graph)
                 self._apply_shared_waypoint_separation(traffic)
+                for arrival_aircraft in traffic:
+                    self.guidance.apply_route_constraints(arrival_aircraft)
 
                 move_aircraft(
                     aircraft,

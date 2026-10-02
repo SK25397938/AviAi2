@@ -970,6 +970,33 @@ map.addLayer({
     }
 });
 
+map.addSource("active-holds",{
+    type:"geojson",
+    data:{type:"FeatureCollection",features:[]}
+});
+map.addLayer({
+    id:"active-hold-lines",
+    type:"line",
+    source:"active-holds",
+    filter:["==",["get","kind"],"path"],
+    paint:{"line-color":"#ff3b30","line-width":3,"line-dasharray":[2,1]}
+});
+map.addLayer({
+    id:"active-hold-fixes",
+    type:"circle",
+    source:"active-holds",
+    filter:["==",["get","kind"],"fix"],
+    paint:{"circle-radius":6,"circle-color":"#ff3b30","circle-stroke-color":"#ffffff","circle-stroke-width":2}
+});
+map.addLayer({
+    id:"active-hold-labels",
+    type:"symbol",
+    source:"active-holds",
+    filter:["==",["get","kind"],"fix"],
+    layout:{"text-field":["get","label"],"text-size":11,"text-offset":[0,1.3]},
+    paint:{"text-color":"#b51f1a","text-halo-color":"#ffffff","text-halo-width":2}
+});
+
 loadRouteVisualization();
 loadApproachVisualization();
     loadAircraft();
@@ -1013,6 +1040,9 @@ function loadAircraft(){
             );
 
         }
+
+        renderDecisionLog(state.ai_decision_log || []);
+        updateHoldingVisualization(state.holding_routes || []);
 
         addAircraftMarkers();
 
@@ -1091,6 +1121,49 @@ function renderInstructionLog(log){
 
     });
 
+}
+
+function escapeLogText(value){
+    return String(value == null ? "" : value).replace(/[&<>"']/g,function(ch){
+        return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[ch];
+    });
+}
+
+function renderDecisionLog(entries){
+    const body=document.getElementById("logBody");
+    body.innerHTML="";
+    entries.forEach(function(entry){
+        const involved=[entry.other_aircraft,entry.callsign].filter(Boolean).join(" ↔ ");
+        const lines=[
+            "["+(entry.controller||"Arrival").toUpperCase()+"]",
+            "Conflict: "+(involved||"—"),
+            "Waypoint: "+(entry.conflict_waypoint||"—"),
+            "Decision: "+(entry.decision==="HOLD" ? "HOLD "+(entry.callsign||"") : "NONE"),
+            "Instruction: "+(entry.instruction||"No intervention"),
+            entry.holding_route_id ? "Holding: "+entry.holding_route_id : "",
+            entry.altitude != null ? "Altitude: "+entry.altitude+" ft" : "",
+            entry.speed != null ? "Speed: "+entry.speed+" kt" : "",
+            entry.reason ? "Reason: "+entry.reason : ""
+        ].filter(Boolean);
+        const item=document.createElement("div");
+        item.className="log-entry";
+        item.innerHTML='<span class="log-time">'+escapeLogText(entry.timestamp)+'</span><span class="log-src log-src--approach">AI ATC</span><span class="log-text">'+lines.map(escapeLogText).join("<br>")+'</span>';
+        body.appendChild(item);
+    });
+}
+
+function updateHoldingVisualization(holds){
+    const features=[];
+    holds.forEach(function(hold){
+        if(!hold.active || !Array.isArray(hold.waypoints) || hold.waypoints.length<2) return;
+        const coordinates=hold.waypoints.map(function(point){return [Number(point.longitude),Number(point.latitude)];});
+        if(coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return;
+        features.push({type:"Feature",properties:{kind:"path",callsign:hold.callsign},geometry:{type:"LineString",coordinates:coordinates}});
+        const fix=hold.waypoints.find(function(point){return point.name===hold.fix;})||hold.waypoints[0];
+        features.push({type:"Feature",properties:{kind:"fix",callsign:hold.callsign,label:hold.callsign+" HOLD"},geometry:{type:"Point",coordinates:[Number(fix.longitude),Number(fix.latitude)]}});
+    });
+    const source=map.getSource("active-holds");
+    if(source) source.setData({type:"FeatureCollection",features:features});
 }
 
 async function loadAirport(){

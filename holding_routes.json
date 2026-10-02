@@ -1,70 +1,67 @@
 {
-    "holding_routes": [
-        {
-            "id": "EMROS_DELAY_SHORT",
-            "trigger_waypoint": "EMROS",
-            "source_routes": ["001", "003"],
-            "waypoints": [
-                {
-                    "name": "MB765",
-                    "latitude": 19.208922,
-                    "longitude": 73.031950
-                },
-                {
-                    "name": "MB382",
-                    "latitude": 19.259147,
-                    "longitude": 73.113181
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333
-                }
-            ]
-        },
-        {
-            "id": "EMROS_DELAY_LONG",
-            "trigger_waypoint": "EMROS",
-            "source_routes": ["001", "003"],
-            "waypoints": [
-                {
-                    "name": "MB765",
-                    "latitude": 19.208922,
-                    "longitude": 73.031950
-                },
-                {
-                    "name": "MB382",
-                    "latitude": 19.259147,
-                    "longitude": 73.113181
-                },
-                {
-                    "name": "MB402",
-                    "latitude": 19.344589,
-                    "longitude": 73.029311
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333
-                }
-            ]
-        },
-        {
-            "id": "EMROS_MB392_DELAY",
-            "trigger_waypoint": "EMROS",
-            "source_routes": ["004"],
-            "waypoints": [
-                {
-                    "name": "ALBAP",
-                    "latitude": 19.366058,
-                    "longitude": 73.026681
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333
-                }
-            ]
-        }
-    ]
+  "holding_routes": [
+    {
+      "id": "H-EMROS",
+      "fix": "EMROS",
+      "trigger_waypoint": "EMROS",
+      "source_routes": ["001", "003", "004"],
+      "inbound_course_true": 181.25,
+      "inbound_course_mag": 182.0,
+      "turn_direction": "L",
+      "leg_length_nm": 7,
+      "upper_limit": "FL110",
+      "lower_limit": "FL80",
+      "max_speed_kt": 230,
+      "turn_radius_nm": 3.66,
+      "waypoints": [
+        {"name": "EMROS", "latitude": 19.211667, "longitude": 73.143333},
+        {"name": "EMROS_OUTBOUND_START", "latitude": 19.209005, "longitude": 73.272517},
+        {"name": "EMROS_OUTBOUND_END", "latitude": 19.325644, "longitude": 73.275304},
+        {"name": "EMROS_INBOUND_START", "latitude": 19.328306, "longitude": 73.146028},
+        {"name": "EMROS", "latitude": 19.211667, "longitude": 73.143333}
+      ]
+    },
+    {
+      "id": "H-OLGUS",
+      "fix": "OLGUS",
+      "trigger_waypoint": "OLGUS",
+      "source_routes": ["001", "003", "004"],
+      "inbound_course_true": 241.43,
+      "inbound_course_mag": 242.18,
+      "turn_direction": "L",
+      "leg_length_nm": 7,
+      "upper_limit": "FL110",
+      "lower_limit": "FL80",
+      "max_speed_kt": 230,
+      "turn_radius_nm": 3.66,
+      "waypoints": [
+        {"name": "OLGUS", "latitude": 19.215, "longitude": 73.473333},
+        {"name": "OLGUS_OUTBOUND_START", "latitude": 19.107839, "longitude": 73.535129},
+        {"name": "OLGUS_OUTBOUND_END", "latitude": 19.163633, "longitude": 73.643655},
+        {"name": "OLGUS_INBOUND_START", "latitude": 19.270794, "longitude": 73.581838},
+        {"name": "OLGUS", "latitude": 19.215, "longitude": 73.473333}
+      ]
+    },
+    {
+      "id": "H-LIKTA",
+      "fix": "LIKTA",
+      "trigger_waypoint": "LIKTA",
+      "source_routes": ["002"],
+      "inbound_course_true": 358.57,
+      "inbound_course_mag": 359.32,
+      "turn_direction": "R",
+      "leg_length_nm": 7,
+      "upper_limit": "FL110",
+      "lower_limit": "FL70",
+      "max_speed_kt": 230,
+      "turn_radius_nm": 3.66,
+      "waypoints": [
+        {"name": "LIKTA", "latitude": 18.926667, "longitude": 73.151667},
+        {"name": "LIKTA_OUTBOUND_START", "latitude": 18.929712, "longitude": 73.28062},
+        {"name": "LIKTA_OUTBOUND_END", "latitude": 18.813082, "longitude": 73.283608},
+        {"name": "LIKTA_INBOUND_START", "latitude": 18.810037, "longitude": 73.154745},
+        {"name": "LIKTA", "latitude": 18.926667, "longitude": 73.151667}
+      ]
+    }
+  ]
 }

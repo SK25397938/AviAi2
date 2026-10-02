@@ -42,6 +42,10 @@ class SimulationWorld:
 
             "instruction_log": instruction_manager.latest(),
 
+            "ai_decision_log": list(self.engine.ai_decision_log),
+
+            "holding_routes": self.engine.holding_manager.active_holding_routes(),
+
             "aircraft": [
 
                 {
@@ -81,6 +85,10 @@ class SimulationWorld:
                     "assigned_node": ac.assigned_node,
 
                     "target_node": ac.target_node,
+
+                    "route": list(ac.route),
+
+                    "route_index": ac.route_index,
 
                     "destination": ac.destination,
 
