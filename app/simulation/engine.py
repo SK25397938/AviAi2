@@ -119,7 +119,9 @@ class SimulationEngine:
         self.guidance = GuidanceAI(
             self.graph,
             self.holding_manager,
-            self.arrival_routes
+            self.arrival_routes,
+            self._can_release_holding,
+            self._record_hold_release,
         )
 
         self.approach_ai = ApproachAI(
@@ -435,7 +437,7 @@ class SimulationEngine:
                 entry_point,
                 {"latitude": aircraft.lat, "longitude": aircraft.lon}
             )
-            if distance_nm < 4.5:
+            if distance_nm + 1e-9 < 4.5:
                 return False
 
         return True
@@ -679,7 +681,32 @@ class SimulationEngine:
                                 "aircraft": (first[0], second[0]),
                                 "routes": self.arrival_routes,
                                 "holding_routes": self.holding_routes,
+                                "holding_geometries": {
+                                    str(pattern.get("id")): self.holding_manager.racetrack_waypoints(pattern)
+                                    for pattern in self.holding_routes
+                                    if isinstance(pattern, dict)
+                                },
                                 "active_runway": self.runway.ident,
+                                "predicted_timing": {
+                                    "first_seconds_to_waypoint": round(first_eta_seconds, 1),
+                                    "second_seconds_to_waypoint": round(second_eta_seconds, 1),
+                                    "predicted_separation_nm": round(arrival_gap_nm, 2),
+                                },
+                                "traffic_context": [
+                                    {
+                                        "callsign": other.callsign,
+                                        "position": {"latitude": other.lat, "longitude": other.lon},
+                                        "altitude": other.altitude_ft,
+                                        "speed": other.speed_kts,
+                                        "heading": other.heading_deg,
+                                        "route_id": getattr(other, "arrival_route_id", None),
+                                        "route": list(getattr(other, "route", [])),
+                                        "target_waypoint": getattr(other, "target_node", None),
+                                    }
+                                    for other in aircraft_list
+                                    if other not in (first[0], second[0])
+                                    and getattr(other, "phase", "") in ("ARRIVAL", "FINAL")
+                                ],
                             })
                             held_this_update.update((id(first[0]), id(second[0])))
                             break
@@ -723,7 +750,119 @@ class SimulationEngine:
             "altitude": decision.get("altitude"),
             "speed": decision.get("speed"),
             "holding_route_id": decision.get("holding_route_id"),
+            "hold_circuits": decision.get("hold_circuits"),
+            "rejoin_node": decision.get("rejoin_node"),
             "reason": decision["reason"],
+        })
+        del self.ai_decision_log[50:]
+
+    def _can_release_holding(self, aircraft):
+        hold = self.holding_manager.state_for(aircraft)
+        if hold is None:
+            return {"safe": False, "reason": "Active holding state is missing"}
+        if mistral_controller.has_pending_conflict_for(aircraft.callsign):
+            return {"safe": False, "reason": "A traffic-conflict decision is still pending"}
+        route_id = getattr(aircraft, "arrival_route_id", None)
+        route_definition = self.arrival_routes.get(route_id, {})
+        route_points = route_definition.get("waypoints", [])
+        route_names = hold["original_route"]
+        fix_name = str(hold["rejoin_waypoint"]).upper()
+        fix_index = next((i for i, name in enumerate(route_names) if str(name).upper() == fix_name), None)
+        if fix_index is None:
+            return {"safe": False, "reason": "Holding fix is not on the permanent route"}
+
+        def cumulative(points):
+            values = [0.0]
+            for previous, current in zip(points, points[1:]):
+                values.append(values[-1] + self._route_segment_length_nm(
+                    {"latitude": previous["latitude"], "longitude": previous["longitude"]},
+                    {"latitude": current["latitude"], "longitude": current["longitude"]},
+                ))
+            return values
+
+        by_name = {str(point.get("name", "")).upper(): point for point in route_points if isinstance(point, dict)}
+        try:
+            held_points = [by_name[str(name).upper()] for name in route_names]
+            held_progress = cumulative(held_points)
+        except (KeyError, TypeError, ValueError):
+            return {"safe": False, "reason": "Permanent route coordinates are incomplete"}
+        own_speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", 0)
+        own_altitude = getattr(aircraft, "altitude_ft", 0)
+        if not isinstance(own_speed, (int, float)) or own_speed <= 0:
+            return {"safe": False, "reason": "No valid speed for rejoin prediction"}
+
+        downstream = []
+        for index in range(fix_index + 1, len(route_names)):
+            downstream.append((route_names[index], held_points[index],
+                               (held_progress[index] - held_progress[fix_index]) * 3600.0 / own_speed))
+        traffic = self.manager.all()
+        for other in traffic:
+            if other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}:
+                continue
+            other_route_id = getattr(other, "arrival_route_id", None)
+            other_definition = self.arrival_routes.get(other_route_id)
+            if not isinstance(other_definition, dict):
+                continue
+            other_state = self.holding_manager.state_for(other)
+            other_route_points = other_definition.get("waypoints", [])
+            try:
+                other_progress = self._route_progress_nm(other, other_definition)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                other_progress = None
+            if other_progress is None:
+                continue
+            other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
+            if not isinstance(other_speed, (int, float)) or other_speed <= 0:
+                continue
+            try:
+                other_cumulative = cumulative(other_route_points)
+            except (KeyError, TypeError, ValueError):
+                return {"safe": False, "reason": f"{other.callsign} route coordinates are unavailable"}
+            for name, held_point, held_eta in downstream:
+                for other_index, other_point in enumerate(other_route_points):
+                    same_name = str(other_point.get("name", "")).upper() == str(name).upper()
+                    try:
+                        same_position = self._route_segment_length_nm(held_point, other_point) <= 0.05
+                    except (KeyError, TypeError, ValueError):
+                        same_position = False
+                    if not (same_name or same_position) or other_cumulative[other_index] < other_progress - 0.1:
+                        continue
+                    if other_state is not None:
+                        if other_state["completed_circuits"] < other_state["requested_circuits"]:
+                            continue
+                        if str(aircraft.callsign) < str(other.callsign):
+                            continue
+                        return {"safe": False, "reason": f"{other.callsign} is also ready to rejoin the downstream route",
+                                "other_aircraft": other.callsign, "conflict_waypoint": name}
+                    time_gap = abs(held_eta - (other_cumulative[other_index] - other_progress) * 3600.0 / other_speed)
+                    other_altitude = getattr(other, "altitude_ft", 0)
+                    if abs(own_altitude - other_altitude) >= 1000:
+                        continue
+                    predicted_gap_nm = time_gap * max(float(own_speed), float(other_speed)) / 3600.0
+                    if predicted_gap_nm < 4.5:
+                        return {"safe": False,
+                                "reason": f"{other.callsign} is predicted to merge at {name}",
+                                "other_aircraft": other.callsign,
+                                "conflict_waypoint": name,
+                                "predicted_separation_nm": round(predicted_gap_nm, 2)}
+        return {"safe": True, "reason": "Downstream route clear and required separation available"}
+
+    def _record_hold_release(self, aircraft, release):
+        safety = release.get("safety", {})
+        route_id = aircraft.arrival_route_id
+        route = self.arrival_routes.get(route_id, {}).get("waypoints", [])
+        rejoin = release.get("rejoin_waypoint")
+        rejoin_index = next((i for i, point in enumerate(route)
+                             if str(point.get("name", "")).upper() == str(rejoin).upper()), None)
+        next_node = route[rejoin_index + 1]["name"] if rejoin_index is not None and rejoin_index + 1 < len(route) else None
+        self.ai_decision_log.insert(0, {
+            "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "callsign": aircraft.callsign, "controller": "Arrival", "decision": "RELEASE HOLD",
+            "instruction": "Resume the permanent arrival route", "conflict_waypoint": rejoin,
+            "other_aircraft": safety.get("other_aircraft"), "altitude": aircraft.altitude_ft,
+            "speed": aircraft.speed_kts, "holding_route_id": release.get("holding_route_id"),
+            "hold_circuits": release.get("completed_circuits"), "rejoin_node": next_node,
+            "reason": safety.get("reason", "Downstream route clear and required separation available"),
         })
         del self.ai_decision_log[50:]
 
@@ -1007,3 +1146,4 @@ class SimulationEngine:
                     f"AIRCRAFT UPDATE ERROR "
                     f"{aircraft.callsign}: {error}"
                 )
+

@@ -2,12 +2,12 @@ import json
 
 
 SYSTEM_PROMPT = """You make one Arrival ATC decision for an already detected shared arrival waypoint conflict.
-Normal route guidance is deterministic. Decide only whether to intervene for this detected conflict.
-Do not discover conflicts, invent routes or holding waypoints, modify permanent routes, sequence approaches, or decide runway order.
-If separation is adequate, return decision NONE. Otherwise select exactly one of the two involved aircraft and a holding route supplied for that aircraft and conflict fix. Preserve route/procedure altitude and speed constraints unless a valid temporary value is required.
-Return only a JSON object with exactly: controller, decision, callsign, instruction, holding_route_id, holding_fix, altitude, speed, reason.
-For HOLD, controller is Arrival, callsign is one of the involved callsigns, holding_route_id is one of that aircraft's supplied compatible routes, and holding_fix is the conflict waypoint. altitude and speed may be null.
-For NONE, use controller Arrival, decision NONE, callsign/holding_route_id/holding_fix/altitude/speed null, and instruction/reason empty strings."""
+Normal route following, waypoint constraints, aircraft movement, holding geometry, and route topology are deterministic. Intervene only for this detected merge or a predicted unsafe hold release.
+Do not invent aircraft, waypoints, routes, holding routes, or holding fixes. Do not modify permanent routes, sequence approaches, or decide runway order. Consider the supplied downstream traffic, relative timing, altitude separation, and the risk of a merge after release.
+If separation is adequate, return decision NONE. Otherwise select one involved aircraft and one configured compatible holding route; select valid temporary altitude/speed if needed and a count of 1 to 10 circuits. The deterministic simulator rechecks separation before release and may extend the hold.
+Return only JSON with exactly: controller, decision, callsign, instruction, holding_route_id, holding_fix, altitude, speed, hold_circuits, rejoin_node, reason.
+For HOLD, controller is Arrival, callsign is one of the involved callsigns, holding_route_id is supplied for that aircraft and conflict fix, holding_fix is the conflict waypoint, hold_circuits is an integer from 1 to 10, and rejoin_node is the original route's next node after the holding fix or null at route end.
+For NONE, use controller Arrival, decision NONE, callsign/holding_route_id/holding_fix/altitude/speed/hold_circuits/rejoin_node null, and instruction/reason empty strings."""
 
 
 def _waypoint_constraints(route, waypoint_name):
@@ -27,14 +27,23 @@ def build_conflict_prompt(conflict):
     def aircraft_state(aircraft, route, holding_routes):
         compatible = []
         for holding in holding_routes:
-            if str(route.get("id")) not in {str(item) for item in holding.get("source_routes", [])}:
+            sources = holding.get("source_routes", [])
+            if sources and str(route.get("id")) not in {str(item) for item in sources}:
                 continue
             if str(holding.get("trigger_waypoint", "")).upper() != str(conflict["waypoint"]).upper():
                 continue
             compatible.append({
                 "id": holding.get("id"),
                 "fix": holding.get("fix", holding.get("trigger_waypoint")),
-                "waypoints": holding.get("waypoints", []),
+                "lower_limit": holding.get("lower_limit"),
+                "upper_limit": holding.get("upper_limit"),
+                "max_speed_kt": holding.get("max_speed_kt"),
+                "turn_direction": holding.get("turn_direction"),
+                "inbound_course_true": holding.get("inbound_course_true"),
+                "leg_length_nm": holding.get("leg_length_nm"),
+                "waypoints": conflict.get("holding_geometries", {}).get(
+                    holding.get("id"), holding.get("waypoints", [])
+                ),
             })
         return {
             "callsign": aircraft.callsign,
@@ -67,6 +76,8 @@ def build_conflict_prompt(conflict):
         "situation": "A deterministic detector has confirmed predicted traffic conflict at a shared arrival waypoint.",
         "conflict_waypoint": conflict["waypoint"],
         "active_runway": conflict.get("active_runway", "27"),
+        "downstream_traffic": conflict.get("traffic_context", []),
+        "predicted_timing": conflict.get("predicted_timing", {}),
         "aircraft": [
             aircraft_state(first, routes[getattr(first, "arrival_route_id")], conflict["holding_routes"]),
             aircraft_state(second, routes[getattr(second, "arrival_route_id")], conflict["holding_routes"]),

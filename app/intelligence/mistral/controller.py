@@ -49,6 +49,9 @@ class MistralController:
             compatible = holding_manager.compatible_holding_route_ids(selected, conflict["waypoint"])
             if decision["holding_route_id"] not in compatible:
                 raise ValueError("Mistral selected a nonexistent or incompatible holding route")
+            expected_rejoin = holding_manager.expected_rejoin_node(selected, decision["holding_route_id"])
+            if decision.get("rejoin_node") != expected_rejoin:
+                raise ValueError("Mistral selected a rejoin node other than the permanent route's next node")
 
             holding_route = holding_manager._holding_route_by_id(decision["holding_route_id"])
             altitude = decision.get("altitude")
@@ -56,13 +59,15 @@ class MistralController:
             if altitude is not None:
                 lower = self._flight_level(holding_route.get("lower_limit"))
                 upper = self._flight_level(holding_route.get("upper_limit"))
-                if (lower is not None and altitude < lower) or (upper is not None and altitude > upper):
-                    altitude = None
+                if ((lower is not None and altitude < lower) or (upper is not None and altitude > upper)):
+                    raise ValueError("Mistral selected an altitude outside the configured holding limits")
             maximum_speed = holding_route.get("max_speed_kt")
             if speed is not None and maximum_speed is not None and speed > maximum_speed:
-                speed = None
+                raise ValueError("Mistral selected a speed above the configured holding limit")
 
-            applied = holding_manager.apply_holding_route(selected, decision["holding_route_id"])
+            applied = holding_manager.apply_holding_route(
+                selected, decision["holding_route_id"], decision["hold_circuits"]
+            )
             if not applied.get("success"):
                 raise ValueError(applied.get("message", "Holding route could not be applied"))
             decision["altitude"] = altitude
@@ -71,6 +76,7 @@ class MistralController:
                 selected.assign_altitude(altitude)
             if speed is not None:
                 selected.assign_speed(speed)
+            selected.last_instruction = decision["instruction"]
             result = {"decision": decision, "conflict": conflict, "holding": True,
                       "selected_aircraft": selected}
         except Exception as exc:
@@ -102,6 +108,13 @@ class MistralController:
             for key, state in list(self._conflict_state.items()):
                 if callsign in key[1:] or state.get("held_callsign") == callsign:
                     del self._conflict_state[key]
+
+    def has_pending_conflict_for(self, callsign):
+        with self._lock:
+            return any(
+                state.get("status") == "pending" and callsign in state.get("callsigns", set())
+                for state in self._conflict_state.values()
+            )
 
     @staticmethod
     def _flight_level(value):

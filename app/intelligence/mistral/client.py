@@ -49,7 +49,8 @@ def _clean_response(content):
 
     required_fields = {
         "controller", "decision", "callsign", "instruction",
-        "holding_route_id", "holding_fix", "altitude", "speed", "reason"
+        "holding_route_id", "holding_fix", "altitude", "speed",
+        "hold_circuits", "rejoin_node", "reason"
     }
 
     if not required_fields.issubset(data.keys()):

@@ -15,12 +15,16 @@ class GuidanceAI:
         self,
         graph,
         holding_manager=None,
-        arrival_routes=None
+        arrival_routes=None,
+        holding_release_validator=None,
+        holding_release_callback=None
     ):
 
         self.graph = graph
         self.holding_manager = holding_manager
         self.arrival_routes = arrival_routes or {}
+        self.holding_release_validator = holding_release_validator
+        self.holding_release_callback = holding_release_callback
 
         self.navigator = GraphNavigator(
             graph
@@ -77,8 +81,14 @@ class GuidanceAI:
             if (
                 self.holding_manager is not None
                 and self.holding_manager.has_active_holding_route(aircraft)
+                and self.holding_manager.is_holding_circuit_boundary(aircraft)
             ):
-                self.holding_manager.restore_original_route(aircraft)
+                release = self.holding_manager.complete_holding_circuit(
+                    aircraft,
+                    self.holding_release_validator,
+                )
+                if release.get("released") and self.holding_release_callback is not None:
+                    self.holding_release_callback(aircraft, release)
 
             if aircraft.target_node is None:
 

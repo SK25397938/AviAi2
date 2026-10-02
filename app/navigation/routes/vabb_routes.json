@@ -56,27 +56,6 @@
             "id": "003",
             "waypoints": [
                 {
-                    "name": "MB379",
-                    "latitude": 19.216667,
-                    "longitude": 72.603333
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333
-                },
-                {
-                    "name": "OLGUS",
-                    "latitude": 19.215000,
-                    "longitude": 73.473333
-                }
-            ],
-            "approach_trigger": "OLGUS"
-        },
-        {
-            "id": "004",
-            "waypoints": [
-                {
                     "name": "MB392",
                     "latitude": 19.518333,
                     "longitude": 73.150000

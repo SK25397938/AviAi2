@@ -3,7 +3,8 @@ import json
 
 REQUIRED_FIELDS = {
     "controller", "decision", "callsign", "instruction",
-    "holding_route_id", "holding_fix", "altitude", "speed", "reason"
+    "holding_route_id", "holding_fix", "altitude", "speed",
+    "hold_circuits", "rejoin_node", "reason"
 }
 
 
@@ -29,7 +30,9 @@ def parse(response):
     if not isinstance(data.get("instruction"), str) or not isinstance(data.get("reason"), str):
         return None
     if data["decision"] == "NONE":
-        if any(data.get(key) is not None for key in ("callsign", "holding_route_id", "holding_fix", "altitude", "speed")):
+        if any(data.get(key) is not None for key in (
+            "callsign", "holding_route_id", "holding_fix", "altitude", "speed", "hold_circuits", "rejoin_node"
+        )):
             return None
         if data["instruction"] or data["reason"]:
             return None
@@ -41,4 +44,9 @@ def parse(response):
         value = data.get(key)
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not low < value <= high):
             return None
+    circuits = data.get("hold_circuits")
+    if isinstance(circuits, bool) or not isinstance(circuits, int) or not 1 <= circuits <= 10:
+        return None
+    if data.get("rejoin_node") is not None and not isinstance(data["rejoin_node"], str):
+        return None
     return data

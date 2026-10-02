@@ -95,6 +95,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .tq-cs{font-family:var(--font-mono);font-weight:500;font-size:11px;color:var(--fg);min-width:62px}
 .tq-type{font-family:var(--font-mono);font-size:10px;color:var(--muted);min-width:36px}
 .tq-info{font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-left:auto}
+.ac-callsign{position:absolute;left:16px;top:-9px;padding:1px 4px;background:rgba(22,20,18,.88);border:1px solid var(--border-light);border-radius:2px;color:var(--fg);font:500 10px var(--font-mono);white-space:nowrap;pointer-events:none}
+.ac-marker{width:24px;height:24px}
+.ac-icon,.ac-icon svg{display:block;width:24px;height:24px}
 .ad-detail{padding:14px}
 .ad-cs{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--fg);letter-spacing:-.5px}
 .ad-type{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px}
@@ -744,7 +747,6 @@ function makeLabel(ac){
 
     return `
     <div class="ac-label ${selectedCs===ac.callsign?'ac-label--selected':''}">
-        <div class="ac-label__cs">${ac.callsign}</div>
         <div>${ac.type}</div>
         <div>${phase}</div>
         <div>${alt} ft</div>
@@ -970,31 +972,32 @@ map.addLayer({
     }
 });
 
-map.addSource("active-holds",{
+map.addSource("holding-patterns",{
     type:"geojson",
     data:{type:"FeatureCollection",features:[]}
 });
 map.addLayer({
-    id:"active-hold-lines",
+    id:"holding-pattern-lines",
     type:"line",
-    source:"active-holds",
-    filter:["==",["get","kind"],"path"],
-    paint:{"line-color":"#ff3b30","line-width":3,"line-dasharray":[2,1]}
+    source:"holding-patterns",
+    paint:{"line-color":"#d34332","line-width":3,"line-opacity":0.92}
+});
+map.addSource("configured-holding-fixes",{
+    type:"geojson",
+    data:{type:"FeatureCollection",features:[]}
 });
 map.addLayer({
-    id:"active-hold-fixes",
+    id:"configured-holding-fix-markers",
     type:"circle",
-    source:"active-holds",
-    filter:["==",["get","kind"],"fix"],
-    paint:{"circle-radius":6,"circle-color":"#ff3b30","circle-stroke-color":"#ffffff","circle-stroke-width":2}
+    source:"configured-holding-fixes",
+    paint:{"circle-radius":["case",["get","active"],7,5],"circle-color":["case",["get","active"],"#d34332","#607783"],"circle-stroke-color":"#ffffff","circle-stroke-width":2}
 });
 map.addLayer({
-    id:"active-hold-labels",
+    id:"configured-holding-fix-labels",
     type:"symbol",
-    source:"active-holds",
-    filter:["==",["get","kind"],"fix"],
-    layout:{"text-field":["get","label"],"text-size":11,"text-offset":[0,1.3]},
-    paint:{"text-color":"#b51f1a","text-halo-color":"#ffffff","text-halo-width":2}
+    source:"configured-holding-fixes",
+    layout:{"text-field":["get","fix"],"text-size":10,"text-offset":[0,1.2]},
+    paint:{"text-color":["case",["get","active"],"#b51f1a","#40565f"],"text-halo-color":"#ffffff","text-halo-width":2}
 });
 
 loadRouteVisualization();
@@ -1042,7 +1045,7 @@ function loadAircraft(){
         }
 
         renderDecisionLog(state.ai_decision_log || []);
-        updateHoldingVisualization(state.holding_routes || []);
+        updateHoldingVisualization(state.holding_routes || [], state.holding_points || []);
 
         addAircraftMarkers();
 
@@ -1134,15 +1137,19 @@ function renderDecisionLog(entries){
     body.innerHTML="";
     entries.forEach(function(entry){
         const involved=[entry.other_aircraft,entry.callsign].filter(Boolean).join(" ↔ ");
+        const decisionText=entry.decision==="HOLD" ? "HOLD "+(entry.callsign||"") :
+            entry.decision==="RELEASE HOLD" ? "RELEASE HOLD" : "NONE";
         const lines=[
             "["+(entry.controller||"Arrival").toUpperCase()+"]",
-            "Conflict: "+(involved||"—"),
+            entry.other_aircraft ? "Conflict: "+involved : "Aircraft: "+(entry.callsign||"—"),
             "Waypoint: "+(entry.conflict_waypoint||"—"),
-            "Decision: "+(entry.decision==="HOLD" ? "HOLD "+(entry.callsign||"") : "NONE"),
+            "Decision: "+decisionText,
             "Instruction: "+(entry.instruction||"No intervention"),
             entry.holding_route_id ? "Holding: "+entry.holding_route_id : "",
             entry.altitude != null ? "Altitude: "+entry.altitude+" ft" : "",
             entry.speed != null ? "Speed: "+entry.speed+" kt" : "",
+            entry.hold_circuits != null ? "Expected Hold: "+entry.hold_circuits+" circuit(s)" : "",
+            entry.rejoin_node ? "Rejoin: "+(entry.conflict_waypoint||"")+" → "+entry.rejoin_node : "",
             entry.reason ? "Reason: "+entry.reason : ""
         ].filter(Boolean);
         const item=document.createElement("div");
@@ -1152,18 +1159,21 @@ function renderDecisionLog(entries){
     });
 }
 
-function updateHoldingVisualization(holds){
+function updateHoldingVisualization(holds, configuredPoints){
     const features=[];
     holds.forEach(function(hold){
         if(!hold.active || !Array.isArray(hold.waypoints) || hold.waypoints.length<2) return;
         const coordinates=hold.waypoints.map(function(point){return [Number(point.longitude),Number(point.latitude)];});
         if(coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return;
-        features.push({type:"Feature",properties:{kind:"path",callsign:hold.callsign},geometry:{type:"LineString",coordinates:coordinates}});
-        const fix=hold.waypoints.find(function(point){return point.name===hold.fix;})||hold.waypoints[0];
-        features.push({type:"Feature",properties:{kind:"fix",callsign:hold.callsign,label:hold.callsign+" HOLD"},geometry:{type:"Point",coordinates:[Number(fix.longitude),Number(fix.latitude)]}});
+        features.push({type:"Feature",properties:{fix:hold.fix,holding_route_id:hold.holding_route_id},geometry:{type:"LineString",coordinates:coordinates}});
     });
-    const source=map.getSource("active-holds");
+    const source=map.getSource("holding-patterns");
     if(source) source.setData({type:"FeatureCollection",features:features});
+    const pointFeatures=(configuredPoints||[]).map(function(point){
+        return {type:"Feature",properties:{fix:point.fix,holding_route_id:point.holding_route_id,active:!!point.active},geometry:{type:"Point",coordinates:[Number(point.longitude),Number(point.latitude)]}};
+    }).filter(function(feature){return Number.isFinite(feature.geometry.coordinates[0])&&Number.isFinite(feature.geometry.coordinates[1]);});
+    const fixSource=map.getSource("configured-holding-fixes");
+    if(fixSource) fixSource.setData({type:"FeatureCollection",features:pointFeatures});
 }
 
 async function loadAirport(){
@@ -1291,7 +1301,7 @@ function makeIcon(ac, selected) {
         `<div class="ac-icon" style="color:${color};transform:rotate(${ac.heading || 0}deg)">
             ${planeSVG(color)}
         </div>
-
+        <div class="ac-callsign">${ac.callsign}</div>
         ${layers.labels ? makeLabel(ac) : ""}`;
 
     element.addEventListener("click", function(event) {
@@ -1635,6 +1645,11 @@ function selectAircraft(cs){
 
 '<div class="ad-gitem"><span class="ad-glabel">STATE</span><span class="ad-gval">'+ac.state+'</span></div>'+
 
+(ac.holding ? '<div class="ad-gitem"><span class="ad-glabel">HOLDING FIX</span><span class="ad-gval">'+ac.holding.fix+'</span></div>'+
+'<div class="ad-gitem"><span class="ad-glabel">HOLDING ROUTE</span><span class="ad-gval">'+ac.holding.route_id+'</span></div>'+
+'<div class="ad-gitem"><span class="ad-glabel">REJOIN NODE</span><span class="ad-gval">'+(ac.holding.rejoin_node||"Route end")+'</span></div>'+
+'<div class="ad-gitem"><span class="ad-glabel">HOLD CIRCUITS</span><span class="ad-gval">'+ac.holding.circuits_completed+' / '+ac.holding.requested_circuits+'</span></div>' : '')+
+
 '<div class="ad-gitem"><span class="ad-glabel">PHASE</span><span class="ad-gval">'+ac.phase+'</span></div>'+
 
 '<div class="ad-gitem"><span class="ad-glabel">APPROACH</span><span class="ad-gval">'+(ac.approach_phase||"-")+'</span></div>'+
@@ -1741,6 +1756,9 @@ function toggleLayer(cb){
   if(layer==='holdpts'){
     if(map.getLayer('holding')) map.setLayoutProperty('holding','visibility',cb.checked?'visible':'none');
     if(map.getLayer('holding-labels')) map.setLayoutProperty('holding-labels','visibility',cb.checked?'visible':'none');
+    ['holding-pattern-lines'].forEach(function(id){
+      if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',cb.checked?'visible':'none');
+    });
   }
   if(layer==='labels'){
     updateAircraftMarkers();

@@ -46,6 +46,8 @@ class SimulationWorld:
 
             "holding_routes": self.engine.holding_manager.active_holding_routes(),
 
+            "holding_points": self.engine.holding_manager.configured_holding_points(),
+
             "aircraft": [
 
                 {
@@ -89,6 +91,8 @@ class SimulationWorld:
                     "route": list(ac.route),
 
                     "route_index": ac.route_index,
+
+                    "holding": self.engine.holding_manager.holding_status(ac),
 
                     "destination": ac.destination,
 
