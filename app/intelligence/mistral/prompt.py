@@ -1,9 +1,9 @@
 import json
 
 
-SYSTEM_PROMPT = """You make one Arrival ATC decision for an already detected shared arrival waypoint conflict.
-Normal route following, waypoint constraints, aircraft movement, holding geometry, and route topology are deterministic. Intervene only for this detected merge or a predicted unsafe hold release.
-Do not invent aircraft, waypoints, routes, holding routes, or holding fixes. Do not modify permanent routes, sequence approaches, or decide runway order. Consider the supplied downstream traffic, relative timing, altitude separation, and the risk of a merge after release.
+SYSTEM_PROMPT = """You make one Arrival ATC decision for an already detected near-field arrival merge conflict.
+Normal route following, waypoint constraints, aircraft movement, holding geometry, and route topology are deterministic. The detector monitors traffic early but activates a conflict only near the sequencing fix; APP38 on the OLGUS stream and APP32 on the MB395 stream feed the APP32 merge prediction. Intervene only for this detected merge or a predicted unsafe hold release.
+Do not invent aircraft, waypoints, routes, holding routes, or holding fixes. Do not modify permanent routes or decide runway order. Consider the supplied downstream traffic, relative timing, altitude separation, and the risk of a merge after release.
 If separation is adequate, return decision NONE. Otherwise select one involved aircraft and one configured compatible holding route; select valid temporary altitude/speed if needed and a count of 1 to 10 circuits. The deterministic simulator rechecks separation before release and may extend the hold.
 Return only JSON with exactly: controller, decision, callsign, instruction, holding_route_id, holding_fix, altitude, speed, hold_circuits, rejoin_node, reason.
 For HOLD, controller is Arrival, callsign is one of the involved callsigns, holding_route_id is supplied for that aircraft and conflict fix, holding_fix is the conflict waypoint, hold_circuits is an integer from 1 to 10, and rejoin_node is the original route's next node after the holding fix or null at route end.
@@ -39,6 +39,7 @@ def build_conflict_prompt(conflict):
                 "upper_limit": holding.get("upper_limit"),
                 "max_speed_kt": holding.get("max_speed_kt"),
                 "turn_direction": holding.get("turn_direction"),
+                "entry_turn_direction": holding.get("entry_turn_direction"),
                 "inbound_course_true": holding.get("inbound_course_true"),
                 "leg_length_nm": holding.get("leg_length_nm"),
                 "waypoints": conflict.get("holding_geometries", {}).get(
@@ -73,7 +74,7 @@ def build_conflict_prompt(conflict):
     first, second = conflict["aircraft"]
     routes = conflict["routes"]
     state = {
-        "situation": "A deterministic detector has confirmed predicted traffic conflict at a shared arrival waypoint.",
+        "situation": "A deterministic detector has confirmed predicted traffic conflict near an arrival merge or sequencing fix.",
         "conflict_waypoint": conflict["waypoint"],
         "active_runway": conflict.get("active_runway", "27"),
         "downstream_traffic": conflict.get("traffic_context", []),

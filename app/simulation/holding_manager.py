@@ -91,6 +91,56 @@ class HoldingManager:
             })
         return result
 
+    @staticmethod
+    def _bearing(start, end):
+        lat1, lat2 = math.radians(start["latitude"]), math.radians(end["latitude"])
+        delta_lon = math.radians(end["longitude"] - start["longitude"])
+        y = math.sin(delta_lon) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon)
+        return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
+
+    def _entry_transition(self, aircraft, route, rejoin_index, holding):
+        route_id = str(getattr(aircraft, "arrival_route_id", ""))
+        route_directions = holding.get("entry_turn_directions", {})
+        direction = str(route_directions.get(route_id, holding.get("entry_turn_direction", ""))).upper()
+        if direction not in {"L", "R"} or rejoin_index <= 0:
+            return None
+        graph_nodes = getattr(self.graph, "nodes", {})
+        previous = graph_nodes.get(route[rejoin_index - 1]) if isinstance(graph_nodes, dict) else None
+        trigger = graph_nodes.get(route[rejoin_index]) if isinstance(graph_nodes, dict) else None
+        if not isinstance(previous, dict) or not isinstance(trigger, dict):
+            return None
+        try:
+            inbound = self._bearing(
+                {"latitude": float(previous["lat"]), "longitude": float(previous["lon"])},
+                {"latitude": float(trigger["lat"]), "longitude": float(trigger["lon"])},
+            )
+            radius = float(holding["turn_radius_nm"])
+            latitude, longitude = float(trigger["lat"]), float(trigger["lon"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        if not math.isfinite(radius) or radius <= 0:
+            return None
+
+        bearing = math.radians((inbound + (-90.0 if direction == "L" else 90.0)) % 360.0)
+        angular_distance = radius / 3440.065
+        lat1 = math.radians(latitude)
+        lon1 = math.radians(longitude)
+        lat2 = math.asin(
+            math.sin(lat1) * math.cos(angular_distance)
+            + math.cos(lat1) * math.sin(angular_distance) * math.cos(bearing)
+        )
+        lon2 = lon1 + math.atan2(
+            math.sin(bearing) * math.sin(angular_distance) * math.cos(lat1),
+            math.cos(angular_distance) - math.sin(lat1) * math.sin(lat2),
+        )
+        fix_name = str(holding.get("trigger_waypoint", "HOLD"))
+        return {
+            "name": f"{fix_name}_{route_id}_ENTRY_{direction}",
+            "latitude": math.degrees(lat2),
+            "longitude": (math.degrees(lon2) + 540.0) % 360.0 - 180.0,
+        }
+
     def configured_holding_points(self):
         points = []
         for route in self.holding_routes:
@@ -195,10 +245,17 @@ class HoldingManager:
         if len(hold_points) < 5 or hold_points[0]["name"].upper() != trigger.upper() or hold_points[-1]["name"].upper() != trigger.upper():
             return self._result(False, "Configured holding pattern geometry is invalid")
         hold_names = [point["name"] for point in hold_points]
-        holding_nodes = self._activate_holding_nodes(hold_points)
-        active_route = list(original_route[:rejoin_index]) + hold_names * circuits + list(original_route[rejoin_index + 1:])
-        hold_start = rejoin_index
-        suffix_start = hold_start + len(hold_names) * circuits
+        entry_point = self._entry_transition(aircraft, original_route, rejoin_index, holding)
+        entry_names = [entry_point["name"]] if entry_point else []
+        direct_join_routes = {str(route_id) for route_id in holding.get("entry_direct_join_routes", [])}
+        direct_join = bool(entry_point and str(getattr(aircraft, "arrival_route_id", "")) in direct_join_routes)
+        circuit_names = hold_names[1:] if direct_join else hold_names
+        circuit_points = hold_points[1:] if direct_join else hold_points
+        holding_nodes = self._activate_holding_nodes(hold_points + ([entry_point] if entry_point else []))
+        active_route = (list(original_route[:rejoin_index + 1]) + entry_names
+                        + circuit_names * circuits + list(original_route[rejoin_index + 1:]))
+        hold_start = rejoin_index + 1 + len(entry_names)
+        suffix_start = hold_start + len(circuit_names) * circuits
         rejoin_node = original_route[rejoin_index + 1] if rejoin_index + 1 < len(original_route) else None
         self._active_holds[aircraft_key] = {
             "aircraft": aircraft, "original_route": list(original_route),
@@ -211,7 +268,8 @@ class HoldingManager:
             "holding_rejoin_index": suffix_start - 1, "rejoin_waypoint": trigger,
             "rejoin_node": rejoin_node, "holding_route_id": holding.get("id"),
             "holding_node_ids": holding_nodes, "holding_waypoints": hold_points,
-            "circuit_length": len(hold_names), "requested_circuits": circuits,
+            "holding_circuit_waypoints": circuit_points,
+            "circuit_length": len(circuit_names), "requested_circuits": circuits,
             "scheduled_circuits": circuits, "completed_circuits": 0,
         }
         aircraft.route = active_route
@@ -283,7 +341,7 @@ class HoldingManager:
                              "holding_route_id": state["holding_route_id"]})
             return released
 
-        hold_points = state["holding_waypoints"]
+        hold_points = state.get("holding_circuit_waypoints", state["holding_waypoints"])
         suffix_start = state["holding_start_index"] + state["circuit_length"] * state["scheduled_circuits"]
         aircraft.route[suffix_start:suffix_start] = [point["name"] for point in hold_points]
         state["scheduled_circuits"] += 1

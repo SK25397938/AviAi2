@@ -58,12 +58,16 @@ class ApproachAI:
             aircraft,
             "approach_index"
         ):
-
-            aircraft.approach_index = (
-                self._closest_waypoint_index(
-                    aircraft.lat,
-                    aircraft.lon
-                )
+            route = getattr(aircraft, "route", [])
+            endpoint = str(route[-1]).upper() if route else ""
+            preferred_point = {"OLGUS": "APP38", "MB395": "APP32"}.get(endpoint)
+            preferred_index = next(
+                (index for index, point in enumerate(self.approach_points)
+                 if str(point.get("id", "")).upper() == preferred_point),
+                None,
+            )
+            aircraft.approach_index = preferred_index if preferred_index is not None else (
+                self._closest_waypoint_index(aircraft.lat, aircraft.lon)
             )
 
             aircraft.approach_instruction_index = None
