@@ -2,11 +2,11 @@ import json
 
 
 SYSTEM_PROMPT = """You make one Arrival ATC decision for an already detected near-field arrival merge conflict.
-Normal route following, waypoint constraints, aircraft movement, holding geometry, and route topology are deterministic. The detector monitors traffic early but activates a conflict only near the sequencing fix; APP38 on the OLGUS stream and APP32 on the MB395 stream feed the APP32 merge prediction. Intervene only for this detected merge or a predicted unsafe hold release.
-Do not invent aircraft, waypoints, routes, holding routes, or holding fixes. Do not modify permanent routes or decide runway order. Consider the supplied downstream traffic, relative timing, altitude separation, and the risk of a merge after release.
-If separation is adequate, return decision NONE. Otherwise select one involved aircraft and one configured compatible holding route; select valid temporary altitude/speed if needed and a count of 1 to 10 circuits. The deterministic simulator rechecks separation before release and may extend the hold.
-Return only JSON with exactly: controller, decision, callsign, instruction, holding_route_id, holding_fix, altitude, speed, hold_circuits, rejoin_node, reason.
-For HOLD, controller is Arrival, callsign is one of the involved callsigns, holding_route_id is supplied for that aircraft and conflict fix, holding_fix is the conflict waypoint, hold_circuits is an integer from 1 to 10, and rejoin_node is the original route's next node after the holding fix or null at route end.
+Normal route following, waypoint constraints, aircraft movement, holding geometry, and route topology are deterministic. The detector derives shared fixes from loaded arrival routes and checks downstream approach timing against the configured approach path. Intervene only for a detected merge conflict or a predicted unsafe hold release.
+Do not invent aircraft, waypoints, routes, holding routes, or holding fixes. Select a hold only from that aircraft's compatible_holding_patterns list. The selected holding_fix may be upstream of the conflict fix when the provided option says so. Do not modify permanent routes or decide runway order.
+If separation is adequate, return decision NONE. Otherwise select one involved aircraft and one provided holding option; select valid temporary altitude/speed if needed and hold_circuits as an integer from 1 to 10. The deterministic simulator rechecks separation at each completed circuit and may extend the hold.
+Return only JSON with exactly: controller, decision, callsign, instruction, holding_route_id, holding_fix, altitude, speed, hold_circuits, rejoin_node, reason. decision must be HOLD or NONE.
+For HOLD, copy callsign, holding_route_id, holding_fix, and rejoin_node exactly from the selected aircraft's compatible_holding_patterns list. controller is Arrival. hold_circuits is an integer from 1 to 10. altitude/speed are null or usable numeric values.
 For NONE, use controller Arrival, decision NONE, callsign/holding_route_id/holding_fix/altitude/speed/hold_circuits/rejoin_node null, and instruction/reason empty strings."""
 
 
@@ -26,15 +26,25 @@ def _waypoint_constraints(route, waypoint_name):
 def build_conflict_prompt(conflict):
     def aircraft_state(aircraft, route, holding_routes):
         compatible = []
+        route_names = [str(node).upper() for node in getattr(aircraft, "route", [])]
+        route_index = getattr(aircraft, "route_index", 0)
+        conflict_index = next((i for i in range(route_index, len(route_names))
+                               if route_names[i] == str(conflict["waypoint"]).upper()), None)
         for holding in holding_routes:
-            sources = holding.get("source_routes", [])
-            if sources and str(route.get("id")) not in {str(item) for item in sources}:
+            fix = str(holding.get("trigger_waypoint", ""))
+            try:
+                fix_index = next(i for i in range(route_index, len(route_names))
+                                 if route_names[i] == fix.upper())
+            except StopIteration:
                 continue
-            if str(holding.get("trigger_waypoint", "")).upper() != str(conflict["waypoint"]).upper():
+            if conflict_index is None or fix_index > conflict_index:
                 continue
             compatible.append({
                 "id": holding.get("id"),
-                "fix": holding.get("fix", holding.get("trigger_waypoint")),
+                "holding_route_id": holding.get("id"),
+                "holding_fix": fix,
+                "rejoin_node": route_names[fix_index + 1] if fix_index + 1 < len(route_names) else None,
+                "fix": holding.get("fix", fix),
                 "lower_limit": holding.get("lower_limit"),
                 "upper_limit": holding.get("upper_limit"),
                 "max_speed_kt": holding.get("max_speed_kt"),

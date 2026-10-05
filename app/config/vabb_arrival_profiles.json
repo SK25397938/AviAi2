@@ -1,0 +1,97 @@
+{
+  "routes": {
+    "001": {
+      "POKON": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "MB379": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 12000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 33 }
+      },
+      "EMROS": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 33 }
+      },
+      "OLGUS": {
+        "altitude": { "type": "AT", "feet": 8100 },
+        "speed": { "type": "MAX", "knots": 210 },
+        "vertical_profile": { "descent_ft_per_nm": 155 }
+      }
+    },
+    "002": {
+      "KETOR": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "MB393": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "LIKTA": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 33 }
+      },
+      "MB395": {
+        "altitude": { "type": "AT", "feet": 7700 },
+        "speed": { "type": "MAX", "knots": 210 },
+        "vertical_profile": { "descent_ft_per_nm": 177 }
+      }
+    },
+    "003": {
+      "MB392": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "EMROS": {
+        "altitude": { "type": "AT", "feet": 8000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 109 }
+      },
+      "OLGUS": {
+        "altitude": { "type": "AT", "feet": 7300 },
+        "speed": { "type": "MAX", "knots": 210 },
+        "vertical_profile": { "descent_ft_per_nm": 37 }
+      }
+    },
+    "004": {
+      "MOLGO": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "DUGED": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "LIKTA": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 33 }
+      },
+      "MB395": {
+        "altitude": { "type": "AT", "feet": 7700 },
+        "speed": { "type": "MAX", "knots": 210 },
+        "vertical_profile": { "descent_ft_per_nm": 177 }
+      }
+    },
+    "005": {
+  "OPAKA": {
+    "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
+    "speed": { "type": "MAX", "knots": 250 }
+  },
+  "EMARK": {
+    "altitude": { "type": "AT", "feet": 10000 },
+    "speed": { "type": "MAX", "knots": 230 },
+    "vertical_profile": { "descent_ft_per_nm": 33 }
+  },
+  "OLGUS": {
+    "altitude": { "type": "AT", "feet": 7300 },
+    "speed": { "type": "MAX", "knots": 210 },
+    "vertical_profile": { "descent_ft_per_nm": 37 }
+  }
+}
+  }
+}

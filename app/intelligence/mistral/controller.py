@@ -20,12 +20,31 @@ class MistralController:
             str(aircraft.callsign) for aircraft in conflict["aircraft"]
         ))
 
+    @staticmethod
+    def _priority_and_trailing_callsigns(conflict):
+        timing = conflict.get("aircraft_timing", {})
+        ordered = sorted(
+            conflict["aircraft"],
+            key=lambda aircraft: (
+                float(timing.get(str(aircraft.callsign), {}).get("eta_to_fix_seconds", float("inf"))),
+                str(aircraft.callsign),
+            ),
+        )
+        return str(ordered[0].callsign), str(ordered[-1].callsign)
+
     def request_conflict(self, conflict, holding_manager, on_result):
         key = self.conflict_key(conflict)
+        priority_callsign, trailing_callsign = self._priority_and_trailing_callsigns(conflict)
+        conflict["priority_callsign"] = priority_callsign
+        conflict["trailing_callsign"] = trailing_callsign
         with self._lock:
             if key in self._conflict_state:
                 return False
-            self._conflict_state[key] = {"status": "pending", "callsigns": set(key[1:])}
+            self._conflict_state[key] = {
+                "status": "pending", "callsigns": {trailing_callsign},
+                "priority_callsign": priority_callsign,
+                "trailing_callsign": trailing_callsign,
+            }
         self.executor.submit(self._decide_conflict, key, conflict, holding_manager, on_result)
         return True
 
@@ -43,7 +62,7 @@ class MistralController:
             else:
                 result = self._apply_model_hold(decision, conflict, holding_manager)
         except Exception as exc:
-            print(f"MISTRAL CONFLICT DECISION FAILED at {conflict.get('waypoint')}: {exc}")
+            print(f"MISTRAL DECISION INVALID | reason={exc} | fallback=deterministic")
             result = self._apply_deterministic_hold(conflict, holding_manager)
             decision_source = "deterministic_fallback"
 
@@ -63,6 +82,10 @@ class MistralController:
                 state["status"] = "holding" if result["holding"] else "decided"
                 if result["holding"]:
                     state["held_callsign"] = result["selected_aircraft"].callsign
+                    hold = holding_manager.state_for(result["selected_aircraft"])
+                    if hold is not None:
+                        hold["priority_callsign"] = conflict["priority_callsign"]
+                        hold["protected_merge_point"] = conflict["waypoint"]
         if on_result is not None:
             on_result(result)
 
@@ -72,13 +95,17 @@ class MistralController:
         selected = involved.get(decision["callsign"])
         if selected is None:
             raise ValueError("Mistral selected an aircraft outside the detected conflict")
-        if decision["holding_fix"].strip().upper() != str(conflict["waypoint"]).upper():
-            raise ValueError("Mistral selected a holding fix other than the conflict waypoint")
-        compatible = holding_manager.compatible_holding_route_ids(selected, conflict["waypoint"])
-        if decision["holding_route_id"] not in compatible:
+        if str(selected.callsign) != str(conflict.get("trailing_callsign")):
+            raise ValueError("Only the trailing aircraft may be delayed for this merge conflict")
+        options = holding_manager.compatible_holding_options(selected, conflict["waypoint"])
+        option = next((item for item in options
+                       if str(item["holding_route_id"]) == decision["holding_route_id"]
+                       and str(item["holding_fix"]).upper() == decision["holding_fix"].upper()), None)
+        if option is None:
             raise ValueError("Mistral selected a nonexistent or incompatible holding route")
         expected_rejoin = holding_manager.expected_rejoin_node(selected, decision["holding_route_id"])
-        if decision.get("rejoin_node") != expected_rejoin:
+        if (decision.get("rejoin_node") != expected_rejoin
+                or (expected_rejoin is not None and expected_rejoin not in selected.route)):
             raise ValueError("Mistral selected a rejoin node other than the permanent route's next node")
 
         holding_route = holding_manager._holding_route_by_id(decision["holding_route_id"])
@@ -96,10 +123,14 @@ class MistralController:
         )
         if not applied.get("success"):
             raise ValueError(applied.get("message", "Holding route could not be applied"))
-        if altitude is not None:
-            selected.assign_altitude(altitude)
-        if speed is not None:
-            selected.assign_speed(speed)
+        # HoldingManager assigns a conflict-free vertical level and the
+        # configured speed cap; retain those deterministic values.
+        decision["altitude"] = getattr(selected, "holding_altitude_ft", altitude)
+        decision["speed"] = getattr(selected, "holding_speed_kts", speed)
+        decision["instruction"] = (
+            f"Hold at {option['holding_fix']}, maintain {decision['altitude']} feet "
+            f"and {float(decision['speed']):g} knots"
+        )
         selected.last_instruction = decision["instruction"]
         return {"decision": decision, "conflict": conflict, "holding": True,
                 "selected_aircraft": selected}
@@ -109,32 +140,34 @@ class MistralController:
         fix = str(conflict.get("waypoint", ""))
         timing = conflict.get("aircraft_timing", {})
         candidates = sorted(
-            conflict.get("aircraft", ()),
-            key=lambda aircraft: (
-                -float(timing.get(str(aircraft.callsign), {}).get("eta_to_fix_seconds", 0)),
-                str(aircraft.callsign),
+            ((aircraft, option) for aircraft in conflict.get("aircraft", ())
+             if str(aircraft.callsign) == str(conflict.get("trailing_callsign"))
+             for option in holding_manager.compatible_holding_options(aircraft, fix)),
+            key=lambda candidate: (
+                -float(timing.get(str(candidate[0].callsign), {}).get("eta_to_fix_seconds", 0)),
+                str(candidate[0].callsign),
             ),
         )
 
-        for selected in candidates:
-            compatible = holding_manager.compatible_holding_route_ids(selected, fix)
-            if not compatible:
-                continue
-            holding_route_id = compatible[0]
-            rejoin_node = holding_manager.expected_rejoin_node(selected, holding_route_id)
+        for selected, option in candidates:
+            holding_route_id = option["holding_route_id"]
+            holding_fix = option["holding_fix"]
+            rejoin_node = option["rejoin_node"]
             applied = holding_manager.apply_holding_route(selected, holding_route_id, circuits=1)
             if not applied.get("success"):
                 print(f"HOLD ACTIVATION FAILED | callsign={selected.callsign} "
-                      f"holding_route={holding_route_id} hold_fix={fix} "
+                      f"holding_route={holding_route_id} hold_fix={holding_fix} "
                       f"reason={applied.get('message')}")
                 continue
 
-            instruction = f"Hold at {fix}"
+            altitude = getattr(selected, "holding_altitude_ft", None)
+            speed = getattr(selected, "holding_speed_kts", None)
+            instruction = f"Hold at {holding_fix}, maintain {altitude} feet and {float(speed):g} knots"
             selected.last_instruction = instruction
             decision = {
                 "controller": "Arrival", "decision": "HOLD", "callsign": selected.callsign,
                 "instruction": instruction, "holding_route_id": holding_route_id,
-                "holding_fix": fix, "altitude": None, "speed": None,
+                "holding_fix": holding_fix, "altitude": altitude, "speed": speed,
                 "hold_circuits": 1, "rejoin_node": rejoin_node,
                 "reason": "Predicted separation at the shared fix is below the required threshold; deterministic fallback applied.",
             }

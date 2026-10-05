@@ -24,19 +24,18 @@ from app.navigation.runway import Runway
 from app.navigation.centerline import build_centerline
 from app.navigation.grid_builder import build_grid
 from app.navigation.graph_builder import build_graph
-from app.navigation.loader import load_arrival_routes, load_departure_routes
+from app.navigation.loader import load_arrival_profiles, load_arrival_routes, load_departure_routes
 
 
 class SimulationEngine:
 
-    ARRIVAL_ROUTE_CAPACITIES = {
-        "001": 5,
-        "002": 4,
-        "003": 4,
-        "004": 5
-    }
     SEQUENCING_WINDOW_NM = 12.0
     MIN_MERGE_SEPARATION_NM = 4.5
+    MIN_VERTICAL_SEPARATION_FT = 1000
+    MIN_ARRIVAL_SPEED_KTS = 140.0
+    CONFLICT_WARNING_DISTANCE_NM = 6.0
+    PREDICTION_LOOKAHEAD_SECONDS = 90.0
+    CRITICAL_SEPARATION_NM = 1.0
 
     def __init__(
         self,
@@ -77,8 +76,16 @@ class SimulationEngine:
         )
 
         self.arrival_routes = load_arrival_routes()
+        self.arrival_profiles = load_arrival_profiles()
         self.departure_routes = load_departure_routes()
         self.departure_waypoints = {}
+        self.shared_arrival_waypoint_groups = self._shared_arrival_waypoint_groups()
+        self.shared_arrival_waypoints = {
+            next((str(item[1].get("name")).strip() for item in group
+                  if isinstance(item[1].get("name"), str) and item[1].get("name").strip()),
+                 f"{group[0][3][0]:.6f},{group[0][3][1]:.6f}"): sorted({item[0] for item in group}, key=str)
+            for group in self.shared_arrival_waypoint_groups
+        }
 
         holding_routes_path = Path(__file__).resolve().parents[2] / "holding_routes.json"
         try:
@@ -96,6 +103,7 @@ class SimulationEngine:
 
         self.holding_manager = HoldingManager(self.holding_routes, self.graph)
         self.ai_decision_log = []
+        self._last_separation_event_at = {}
 
         for route in self.departure_routes.values():
             for waypoint in route["waypoints"]:
@@ -124,6 +132,9 @@ class SimulationEngine:
             self.arrival_routes,
             self._can_release_holding,
             self._record_hold_release,
+            self.arrival_profiles,
+            self._record_guidance_event,
+            self._can_approach_handoff,
         )
 
         self.approach_ai = ApproachAI(
@@ -165,17 +176,10 @@ class SimulationEngine:
             first_waypoint["longitude"]
         )
 
-        aircraft.assign_route(
-            [
-                waypoint["name"]
-                for waypoint in waypoints
-            ]
-        )
-
-        print(
-            f"ROUTE ASSIGNED: {callsign} -> {route_id} "
-            f"at {first_waypoint['name']}"
-        )
+        route_nodes = [waypoint["name"] for waypoint in waypoints]
+        aircraft.assign_route(route_nodes)
+        aircraft.arrival_route_id = route_id
+        self._initialize_arrival_route(aircraft, route_definition)
 
         self.manager.add(
             aircraft
@@ -322,32 +326,18 @@ class SimulationEngine:
     def _approach_merge_eta_seconds(self, aircraft, route, progress, speed):
         points = route.get("waypoints", []) if isinstance(route, dict) else []
         approach_points = getattr(self.approach_ai, "approach_points", [])
-        app32_index = next((i for i, point in enumerate(approach_points)
-                            if str(point.get("id", "")).upper() == "APP32"), None)
-        if len(points) < 2 or app32_index is None or speed <= 0:
+        if len(points) < 2 or not approach_points or speed <= 0:
             return None
 
         if getattr(aircraft, "phase", "") == "FINAL":
             index = getattr(aircraft, "approach_index", None)
-            if not isinstance(index, int) or index > app32_index:
+            if not isinstance(index, int) or index >= len(approach_points):
                 return None
             current = {"latitude": aircraft.lat, "longitude": aircraft.lon}
             distance = self._route_segment_length_nm(current, approach_points[index])
-            for previous, following in zip(approach_points[index:app32_index],
-                                           approach_points[index + 1:app32_index + 1]):
+            for previous, following in zip(approach_points[index:], approach_points[index + 1:]):
                 distance += self._route_segment_length_nm(previous, following)
             return distance * 3600.0 / speed
-
-        endpoint_name = str(points[-1].get("name", "")).upper()
-        if endpoint_name == "OLGUS":
-            intercept_index = next((i for i, point in enumerate(approach_points)
-                                    if str(point.get("id", "")).upper() == "APP38"), None)
-        elif endpoint_name == "MB395":
-            intercept_index = app32_index
-        else:
-            return None
-        if intercept_index is None:
-            return None
 
         total_route_distance = sum(
             self._route_segment_length_nm(first, second)
@@ -355,21 +345,58 @@ class SimulationEngine:
         )
         remaining = max(0.0, total_route_distance - progress)
         endpoint = points[-1]
+        intercept_index = min(
+            range(len(approach_points)),
+            key=lambda index: self._route_segment_length_nm(endpoint, approach_points[index]),
+        )
         remaining += self._route_segment_length_nm(endpoint, approach_points[intercept_index])
-        for index in range(intercept_index, app32_index):
+        for index in range(intercept_index, len(approach_points) - 1):
             remaining += self._route_segment_length_nm(approach_points[index], approach_points[index + 1])
         return remaining * 3600.0 / speed
 
+    def _approach_point_etas(self, aircraft, route, progress, speed):
+        """Estimate arrival time at each downstream fix on the shared approach path."""
+        route_points = route.get("waypoints", []) if isinstance(route, dict) else []
+        approach_points = getattr(self.approach_ai, "approach_points", [])
+        if not route_points or not approach_points or speed <= 0:
+            return {}
+        if getattr(aircraft, "phase", "") == "FINAL":
+            start_index = getattr(aircraft, "approach_index", None)
+            if not isinstance(start_index, int) or start_index >= len(approach_points):
+                return {}
+            start = {"latitude": aircraft.lat, "longitude": aircraft.lon}
+            distance = self._route_segment_length_nm(start, approach_points[start_index])
+            result = {}
+            for index in range(start_index, len(approach_points)):
+                if index > start_index:
+                    distance += self._route_segment_length_nm(approach_points[index - 1], approach_points[index])
+                result[index] = distance * 3600.0 / speed
+            return result
+
+        travelled_to_end = sum(self._route_segment_length_nm(a, b)
+                               for a, b in zip(route_points, route_points[1:]))
+        endpoint = route_points[-1]
+        start_index = min(range(len(approach_points)),
+                          key=lambda index: self._route_segment_length_nm(endpoint, approach_points[index]))
+        distance = max(0.0, travelled_to_end - progress)
+        distance += self._route_segment_length_nm(endpoint, approach_points[start_index])
+        result = {}
+        for index in range(start_index, len(approach_points)):
+            if index > start_index:
+                distance += self._route_segment_length_nm(approach_points[index - 1], approach_points[index])
+            result[index] = distance * 3600.0 / speed
+        return result
+
     def _apply_merge_speed_delay(self, aircraft, distance_to_merge_nm, leader_eta_seconds, max_speed):
         target = getattr(aircraft, "target_speed_kts", None)
-        if not isinstance(target, (int, float)) or target <= 140 or distance_to_merge_nm <= 0:
+        if not isinstance(target, (int, float)) or target <= self.MIN_ARRIVAL_SPEED_KTS or distance_to_merge_nm <= 0:
             return False
         safe_gap_seconds = self.MIN_MERGE_SEPARATION_NM * 3600.0 / max_speed
         desired_eta = leader_eta_seconds + safe_gap_seconds
         if desired_eta <= 0:
             return False
         required_speed = distance_to_merge_nm * 3600.0 / desired_eta
-        if required_speed < 140.0 or required_speed >= target:
+        if required_speed < self.MIN_ARRIVAL_SPEED_KTS or required_speed >= target:
             return False
         if not hasattr(aircraft, "_engine_shared_waypoint_original_target_speed"):
             aircraft._engine_shared_waypoint_original_target_speed = target
@@ -377,31 +404,41 @@ class SimulationEngine:
         aircraft._engine_shared_waypoint_applied_target_speed = required_speed
         return True
 
-    def _position_on_arrival_route(self, aircraft, route, distance_nm):
+    def _initialize_arrival_route(self, aircraft, route):
+        """Initialize an arrival at route.waypoints[0], preserving route order."""
+        waypoints = route.get("waypoints", [])
+        if not waypoints:
+            raise ValueError("Arrival route has no waypoints")
 
-        if not isinstance(route, dict):
-            return
+        first = waypoints[0]
+        aircraft.lat = float(first["latitude"])
+        aircraft.lon = float(first["longitude"])
+        aircraft.route = [point["name"] for point in waypoints]
+        aircraft.route_index = 0
+        aircraft.assigned_node = aircraft.route[0]
+        # The first waypoint is the initial target and is captured by normal
+        # navigation on the first update before the aircraft heads to waypoint 1.
+        aircraft.target_node = aircraft.route[0]
+        aircraft._arrival_start_fix_pending = True
 
-        points = route.get("waypoints", [])
-        if len(points) < 2:
-            return
+        route_profiles = self.arrival_profiles.get(str(aircraft.arrival_route_id), {})
+        first_profile = (route_profiles.get(str(first.get("name", "")).upper(), {})
+                         if isinstance(route_profiles, dict) else {})
+        altitude = first_profile.get("altitude")
+        altitude_ft = altitude.get("feet") if isinstance(altitude, dict) else altitude
+        if isinstance(altitude_ft, (int, float)) and not isinstance(altitude_ft, bool):
+            aircraft.altitude_ft = altitude_ft
+            aircraft.target_altitude_ft = altitude_ft
 
-        remaining = max(0.0, distance_nm)
-        for index, (start, end) in enumerate(zip(points, points[1:])):
-            segment_nm = self._route_segment_length_nm(start, end)
-            if remaining <= segment_nm or index == len(points) - 2:
-                fraction = 0.0 if segment_nm == 0 else min(1.0, remaining / segment_nm)
-                aircraft.lat = start["latitude"] + fraction * (
-                    end["latitude"] - start["latitude"]
-                )
-                aircraft.lon = start["longitude"] + fraction * (
-                    end["longitude"] - start["longitude"]
-                )
-                aircraft.route_index = index
-                aircraft.assigned_node = aircraft.route[index]
-                aircraft.target_node = aircraft.route[index + 1]
-                return
-            remaining -= segment_nm
+        speed = first_profile.get("speed")
+        speed_kts = speed.get("knots") if isinstance(speed, dict) else speed
+        if isinstance(speed_kts, (int, float)) and not isinstance(speed_kts, bool):
+            aircraft.speed_kts = speed_kts
+            aircraft.target_speed_kts = speed_kts
+
+        print(f"ARRIVAL SPAWN: {aircraft.callsign} route={aircraft.arrival_route_id} "
+              f"spawn={first['name']} index=0 lat={aircraft.lat} lon={aircraft.lon} "
+              f"alt={aircraft.altitude_ft}")
 
     def _arrival_route_for(self, callsign, additional_aircraft=()):
 
@@ -426,23 +463,7 @@ class SimulationEngine:
             for route_id in route_ids
         }
 
-        configured_routes = [
-            route_id
-            for route_id in route_ids
-            if route_id in self.ARRIVAL_ROUTE_CAPACITIES
-        ]
-        eligible_routes = [
-            route_id
-            for route_id in configured_routes
-            if route_loads[route_id] < self.ARRIVAL_ROUTE_CAPACITIES[route_id]
-        ]
-        if eligible_routes:
-            return min(eligible_routes, key=lambda route_id: route_loads[route_id])
-
-        if configured_routes:
-            return None
-
-        return min(route_ids, key=lambda route_id: route_loads[route_id])
+        return min(route_ids, key=lambda route_id: (route_loads[route_id], str(route_id)))
 
     def _arrival_entry(self, route_id):
 
@@ -617,67 +638,79 @@ class SimulationEngine:
         ]
 
     def _detect_approach_merge_conflicts(self, aircraft_list):
-        streams = {"OLGUS": [], "MB395": []}
+        arrivals = []
         for aircraft in aircraft_list:
             route_id = getattr(aircraft, "arrival_route_id", None)
             route = self.arrival_routes.get(route_id)
             if (not isinstance(route, dict)
                     or getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
-                    or self.holding_manager.has_active_holding_route(aircraft)):
-                continue
-            points = route.get("waypoints", [])
-            endpoint = str(points[-1].get("name", "")).upper() if points else ""
-            if endpoint not in streams:
+                    or self.holding_manager.has_active_holding_route(aircraft)
+                    or getattr(aircraft, "separation_status", None) == "APPROACH DELAYED"
+                    or mistral_controller.has_pending_conflict_for(aircraft.callsign)):
                 continue
             progress = self._route_progress_nm(aircraft, route)
             speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", None)
             if progress is None or not isinstance(speed, (int, float)) or speed <= 0:
                 continue
-            eta = self._approach_merge_eta_seconds(aircraft, route, progress, float(speed))
-            if eta is not None:
-                remaining_to_stream_fix = self._route_distance_to_waypoint_nm(
-                    aircraft, route, points[-1].get("name"), progress
-                )
-                streams[endpoint].append((aircraft, route_id, route, progress,
-                                          float(speed), eta, remaining_to_stream_fix))
-
+            point_etas = self._approach_point_etas(aircraft, route, progress, float(speed))
+            if point_etas:
+                arrivals.append((aircraft, route_id, route, progress, float(speed), point_etas))
         conflicts = []
-        for olgus in streams["OLGUS"]:
-            for mb395 in streams["MB395"]:
-                if (olgus[6] is None or mb395[6] is None
-                        or max(olgus[6], mb395[6]) > self.SEQUENCING_WINDOW_NM * 1.5):
+        for first_index, first in enumerate(arrivals):
+            for second in arrivals[first_index + 1:]:
+                if abs(getattr(first[0], "altitude_ft", 0) - getattr(second[0], "altitude_ft", 0)) >= self.MIN_VERTICAL_SEPARATION_FT:
                     continue
-                if abs(olgus[5] - mb395[5]) * max(olgus[4], mb395[4]) / 3600.0 >= self.MIN_MERGE_SEPARATION_NM:
-                    continue
-                delayed = olgus if olgus[5] >= mb395[5] else mb395
-                leader = mb395 if delayed is olgus else olgus
-                delayed_distance_to_merge = delayed[5] * delayed[4] / 3600.0
-                if self._apply_merge_speed_delay(
-                    delayed[0], delayed_distance_to_merge, leader[5], max(olgus[4], mb395[4])
-                ):
-                    continue
-                delayed_aircraft, delayed_route_id, delayed_route, delayed_progress, delayed_speed, _ = delayed[:6]
-
-                compatible = []
-                for holding in self.holding_routes:
-                    trigger = holding.get("trigger_waypoint") if isinstance(holding, dict) else None
-                    if not trigger:
+                common_points = set(first[5]).intersection(second[5])
+                candidates = []
+                for point_index in common_points:
+                    first_eta, second_eta = first[5][point_index], second[5][point_index]
+                    if max(first_eta * first[4] / 3600.0,
+                           second_eta * second[4] / 3600.0) > self.SEQUENCING_WINDOW_NM * 1.5:
                         continue
-                    route_ids = self.holding_manager.compatible_holding_route_ids(delayed_aircraft, trigger)
-                    if not route_ids:
-                        continue
-                    distance = self._route_distance_to_waypoint_nm(
-                        delayed_aircraft, delayed_route, trigger, delayed_progress
+                    gap_nm = abs(first_eta - second_eta) * max(first[4], second[4]) / 3600.0
+                    if gap_nm < self.MIN_MERGE_SEPARATION_NM:
+                        candidates.append((max(first_eta, second_eta), point_index,
+                                           first_eta, second_eta, gap_nm))
+                if not candidates:
+                    continue
+                _, approach_index, first_eta, second_eta, gap_nm = min(candidates)
+                delayed = first if first_eta >= second_eta else second
+                leader_eta = second_eta if delayed is first else first_eta
+                delayed_eta = first_eta if delayed is first else second_eta
+                delayed_route = delayed[2]
+                route_points = delayed_route.get("waypoints", [])
+                endpoint_name = route_points[-1].get("name") if route_points else None
+                to_endpoint = self._route_distance_to_waypoint_nm(
+                    delayed[0], delayed_route, endpoint_name, delayed[3]
+                ) if endpoint_name else None
+                leader = second if delayed is first else first
+                if (to_endpoint is not None and to_endpoint > 0 and
+                        self._apply_merge_speed_delay(delayed[0], delayed_eta * delayed[4] / 3600.0,
+                                                      leader_eta, max(first[4], second[4]))):
+                    self._record_separation_event(
+                        delayed[0], leader[0], self.approach_ai.approach_points[approach_index].get("id"),
+                        "SPEED REDUCTION", "Predicted downstream approach spacing was below minimum",
                     )
-                    if distance is not None and distance <= self.SEQUENCING_WINDOW_NM:
-                        compatible.append((distance, trigger, route_ids))
-                if not compatible:
                     continue
-                distance_to_fix, hold_fix, _ = min(compatible, key=lambda item: item[0])
-
-                first, second = olgus, mb395
+                if not endpoint_name:
+                    continue
+                timing = {
+                    str(item[0].callsign): {
+                        "route_id": item[1], "route_index": getattr(item[0], "route_index", None),
+                        "current_waypoint": getattr(item[0], "target_node", None),
+                        "distance_to_fix_nm": self._route_distance_to_waypoint_nm(
+                            item[0], item[2], item[2].get("waypoints", [{}])[-1].get("name"), item[3]
+                        ),
+                        "eta_to_fix_seconds": first_eta if item is first else second_eta,
+                        "altitude_ft": getattr(item[0], "altitude_ft", None),
+                        "target_altitude_ft": getattr(item[0], "target_altitude_ft", None),
+                        "speed_kts": getattr(item[0], "speed_kts", None),
+                        "target_speed_kts": getattr(item[0], "target_speed_kts", None),
+                        "heading_deg": getattr(item[0], "heading_deg", None),
+                    } for item in (first, second)
+                }
                 conflicts.append({
-                    "waypoint": hold_fix,
+                    "waypoint": endpoint_name,
                     "aircraft": (first[0], second[0]),
                     "routes": self.arrival_routes,
                     "holding_routes": self.holding_routes,
@@ -687,26 +720,13 @@ class SimulationEngine:
                     },
                     "active_runway": self.runway.ident,
                     "predicted_timing": {
-                        "first_seconds_to_waypoint": round(first[5], 1),
-                        "second_seconds_to_waypoint": round(second[5], 1),
-                        "predicted_separation_nm": round(
-                            abs(first[5] - second[5]) * max(first[4], second[4]) / 3600.0, 2
-                        ),
-                        "merge_waypoint": "APP32",
+                        "first_seconds_to_waypoint": round(first_eta, 1),
+                        "second_seconds_to_waypoint": round(second_eta, 1),
+                        "predicted_separation_nm": round(gap_nm, 2),
+                        "merge_waypoint": self.approach_ai.approach_points[approach_index].get("id"),
                     },
                     "required_separation_nm": self.MIN_MERGE_SEPARATION_NM,
-                    "aircraft_timing": {
-                        str(first[0].callsign): {
-                            "route_id": first[1], "current_waypoint": getattr(first[0], "target_node", None),
-                            "distance_to_fix_nm": distance_to_fix if first[0] is delayed_aircraft else None,
-                            "eta_to_fix_seconds": first[5],
-                        },
-                        str(second[0].callsign): {
-                            "route_id": second[1], "current_waypoint": getattr(second[0], "target_node", None),
-                            "distance_to_fix_nm": distance_to_fix if second[0] is delayed_aircraft else None,
-                            "eta_to_fix_seconds": second[5],
-                        },
-                    },
+                    "aircraft_timing": timing,
                     "traffic_context": [
                         {"callsign": other.callsign,
                          "position": {"latitude": other.lat, "longitude": other.lon},
@@ -723,7 +743,7 @@ class SimulationEngine:
 
     def _detect_shared_waypoint_conflicts(self, aircraft_list):
 
-        shared_waypoint_groups = self._shared_arrival_waypoint_groups()
+        shared_waypoint_groups = self.shared_arrival_waypoint_groups
         detected_conflicts = []
 
         arrivals = []
@@ -733,6 +753,7 @@ class SimulationEngine:
                 getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
                 or route_id not in self.arrival_routes
                 or self.holding_manager.has_active_holding_route(aircraft)
+                or mistral_controller.has_pending_conflict_for(aircraft.callsign)
             ):
                 continue
 
@@ -742,6 +763,7 @@ class SimulationEngine:
             except (AttributeError, KeyError, TypeError, ValueError):
                 continue
             speed = getattr(aircraft, "speed_kts", None)
+            target_speed = getattr(aircraft, "target_speed_kts", speed)
             if (
                 progress is None
                 or not isinstance(speed, (int, float))
@@ -750,7 +772,8 @@ class SimulationEngine:
             ):
                 continue
 
-            arrivals.append((aircraft, route_id, progress, float(speed)))
+            effective_speed = (float(speed) + float(target_speed)) / 2.0 if isinstance(target_speed, (int, float)) and target_speed > 0 else float(speed)
+            arrivals.append((aircraft, route_id, progress, effective_speed))
 
         arrivals.sort(key=lambda arrival: str(arrival[0].callsign))
         held_this_update = set()
@@ -764,8 +787,7 @@ class SimulationEngine:
                 for second_index in range(first_index + 1, len(arrivals)):
                     second = arrivals[second_index]
                     if (
-                        first[1] == second[1]
-                        or id(second[0]) in held_this_update
+                        id(second[0]) in held_this_update
                         or self.holding_manager.has_active_holding_route(first[0])
                         or self.holding_manager.has_active_holding_route(second[0])
                     ):
@@ -821,6 +843,14 @@ class SimulationEngine:
                             if max(first_remaining, second_remaining) > self.SEQUENCING_WINDOW_NM:
                                 continue
                             second_eta_seconds = second_remaining * 3600.0 / second[3]
+                            prediction_time = max(first_eta_seconds, second_eta_seconds)
+                            first_altitude = (float(getattr(first[0], "altitude_ft", 0))
+                                              + float(getattr(first[0], "vertical_speed_fpm", 0)) * prediction_time / 60.0)
+                            second_altitude = (float(getattr(second[0], "altitude_ft", 0))
+                                               + float(getattr(second[0], "vertical_speed_fpm", 0)) * prediction_time / 60.0)
+                            vertical_separation = abs(first_altitude - second_altitude)
+                            if vertical_separation >= self.MIN_VERTICAL_SEPARATION_FT:
+                                continue
                             fastest_speed = max(first[3], second[3])
                             arrival_gap_nm = (
                                 abs(first_eta_seconds - second_eta_seconds)
@@ -858,6 +888,11 @@ class SimulationEngine:
                                 delayed[0], delayed_eta * delayed[3] / 3600.0,
                                 leader_eta, fastest_speed
                             ):
+                                self._record_separation_event(
+                                    delayed[0], first[0] if delayed is second else second[0],
+                                    delayed_waypoint, "SPEED REDUCTION",
+                                    "Predicted merge spacing was below the configured minimum",
+                                )
                                 held_this_update.update((id(first[0]), id(second[0])))
                                 break
                             detected_conflicts.append({
@@ -883,12 +918,26 @@ class SimulationEngine:
                                         "current_waypoint": getattr(first[0], "target_node", None),
                                         "distance_to_fix_nm": round(first_remaining, 2),
                                         "eta_to_fix_seconds": round(first_eta_seconds, 1),
+                                        "route_index": getattr(first[0], "route_index", None),
+                                        "altitude_ft": getattr(first[0], "altitude_ft", None),
+                                        "target_altitude_ft": getattr(first[0], "target_altitude_ft", None),
+                                        "speed_kts": getattr(first[0], "speed_kts", None),
+                                        "target_speed_kts": getattr(first[0], "target_speed_kts", None),
+                                        "heading_deg": getattr(first[0], "heading_deg", None),
+                                        "predicted_vertical_separation_ft": round(vertical_separation),
                                     },
                                     str(second[0].callsign): {
                                         "route_id": second[1],
                                         "current_waypoint": getattr(second[0], "target_node", None),
                                         "distance_to_fix_nm": round(second_remaining, 2),
                                         "eta_to_fix_seconds": round(second_eta_seconds, 1),
+                                        "route_index": getattr(second[0], "route_index", None),
+                                        "altitude_ft": getattr(second[0], "altitude_ft", None),
+                                        "target_altitude_ft": getattr(second[0], "target_altitude_ft", None),
+                                        "speed_kts": getattr(second[0], "speed_kts", None),
+                                        "target_speed_kts": getattr(second[0], "target_speed_kts", None),
+                                        "heading_deg": getattr(second[0], "heading_deg", None),
+                                        "predicted_vertical_separation_ft": round(vertical_separation),
                                     },
                                 },
                                 "traffic_context": [
@@ -931,6 +980,12 @@ class SimulationEngine:
                 self._record_ai_conflict_decision,
             )
             if requested:
+                first, second = conflict["aircraft"]
+                self._record_separation_event(
+                    first, second, conflict["waypoint"], "MERGE DETECTED",
+                    f"Predicted merge spacing {conflict['predicted_timing'].get('predicted_separation_nm')} NM; "
+                    f"minimum {conflict.get('required_separation_nm', self.MIN_MERGE_SEPARATION_NM)} NM",
+                )
                 timing = conflict.get("aircraft_timing", {})
                 print(f"CONFLICT CHECK | fix={conflict['waypoint']} | "
                       f"predicted_separation={conflict['predicted_timing']['predicted_separation_nm']} NM | "
@@ -969,10 +1024,223 @@ class SimulationEngine:
         })
         del self.ai_decision_log[50:]
 
+    def _record_guidance_event(self, aircraft, event, waypoint, reason):
+        event_key = (str(aircraft.callsign), str(event), str(waypoint))
+        now = datetime.now().astimezone()
+        previous = self._last_separation_event_at.get(event_key)
+        if previous is not None and (now - previous).total_seconds() < 30:
+            return
+        self._last_separation_event_at[event_key] = now
+        self.ai_decision_log.insert(0, {
+            "timestamp": now.isoformat(timespec="seconds"),
+            "callsign": aircraft.callsign,
+            "controller": "Arrival",
+            "decision": event,
+            "instruction": event.replace("_", " "),
+            "conflict_waypoint": waypoint,
+            "route_id": getattr(aircraft, "arrival_route_id", None),
+            "route_index": getattr(aircraft, "route_index", None),
+            "distance_nm": getattr(aircraft, "current_distance", None),
+            "altitude": getattr(aircraft, "altitude_ft", None),
+            "speed": getattr(aircraft, "speed_kts", None),
+            "reason": reason,
+        })
+        del self.ai_decision_log[50:]
+
+    def _record_separation_event(self, aircraft, other, waypoint, action, reason):
+        aircraft_pair = tuple(sorted((str(aircraft.callsign), str(getattr(other, "callsign", "")))))
+        event_key = (aircraft_pair, str(waypoint), str(action))
+        now = datetime.now().astimezone()
+        previous = self._last_separation_event_at.get(event_key)
+        if previous is not None and (now - previous).total_seconds() < 30:
+            return
+        self._last_separation_event_at[event_key] = now
+        self.ai_decision_log.insert(0, {
+            "timestamp": now.isoformat(timespec="seconds"),
+            "callsign": aircraft.callsign,
+            "other_aircraft": getattr(other, "callsign", None),
+            "controller": "Arrival",
+            "decision": action,
+            "instruction": f"{action} at shared waypoint {waypoint}",
+            "conflict_waypoint": waypoint,
+            "altitude": getattr(aircraft, "target_altitude_ft", None),
+            "speed": getattr(aircraft, "target_speed_kts", None),
+            "reason": reason,
+        })
+        del self.ai_decision_log[50:]
+
+    def _enforce_predictive_separation(self, aircraft_list):
+        """Apply speed control for predicted near-term conflicts before movement."""
+        arrivals = [ac for ac in aircraft_list if getattr(ac, "phase", "") in ("ARRIVAL", "FINAL")]
+        for first_index, first in enumerate(arrivals):
+            for second in arrivals[first_index + 1:]:
+                mean_latitude = math.radians((first.lat + second.lat) / 2.0)
+                east = (second.lon - first.lon) * 60.0 * math.cos(mean_latitude)
+                north = (second.lat - first.lat) * 60.0
+                first_speed = max(0.0, float(getattr(first, "speed_kts", 0) or 0)) / 3600.0
+                second_speed = max(0.0, float(getattr(second, "speed_kts", 0) or 0)) / 3600.0
+                first_heading = math.radians(float(getattr(first, "heading_deg", 0) or 0))
+                second_heading = math.radians(float(getattr(second, "heading_deg", 0) or 0))
+                relative_east = second_speed * math.sin(second_heading) - first_speed * math.sin(first_heading)
+                relative_north = second_speed * math.cos(second_heading) - first_speed * math.cos(first_heading)
+                relative_speed_sq = relative_east ** 2 + relative_north ** 2
+                if relative_speed_sq <= 1e-12:
+                    closest_time = 0.0
+                else:
+                    closest_time = max(0.0, min(self.PREDICTION_LOOKAHEAD_SECONDS,
+                        -(east * relative_east + north * relative_north) / relative_speed_sq))
+                closest_distance = math.hypot(east + relative_east * closest_time,
+                                              north + relative_north * closest_time)
+                vertical_difference = abs(
+                    (float(getattr(second, "altitude_ft", 0)) - float(getattr(first, "altitude_ft", 0)))
+                    + (float(getattr(second, "vertical_speed_fpm", 0))
+                       - float(getattr(first, "vertical_speed_fpm", 0))) * closest_time / 60.0
+                )
+                if vertical_difference >= self.MIN_VERTICAL_SEPARATION_FT:
+                    continue
+                if closest_distance < self.CONFLICT_WARNING_DISTANCE_NM:
+                    self._record_separation_event(
+                        first, second, getattr(first, "target_node", None), "SEPARATION WARNING",
+                        f"Predicted closest spacing {closest_distance:.2f} NM in {closest_time:.0f} seconds",
+                    )
+                if closest_distance <= self.CRITICAL_SEPARATION_NM:
+                    self._record_separation_event(
+                        first, second, getattr(first, "target_node", None), "CRITICAL SEPARATION CONFLICT",
+                        f"Aircraft are predicted {closest_distance:.2f} NM apart in {closest_time:.0f} seconds",
+                    )
+                if closest_distance >= self.MIN_MERGE_SEPARATION_NM:
+                    continue
+
+                first_route = self.arrival_routes.get(getattr(first, "arrival_route_id", None), {})
+                second_route = self.arrival_routes.get(getattr(second, "arrival_route_id", None), {})
+                first_progress = self._route_progress_nm(first, first_route) if first_route else None
+                second_progress = self._route_progress_nm(second, second_route) if second_route else None
+                if (getattr(first, "arrival_route_id", None) == getattr(second, "arrival_route_id", None)
+                        and first_progress is not None and second_progress is not None):
+                    yielding, leader = (first, second) if first_progress < second_progress else (second, first)
+                else:
+                    first_eta = (self._approach_merge_eta_seconds(first, first_route, first_progress, first_speed * 3600.0)
+                                 if first_progress is not None else None)
+                    second_eta = (self._approach_merge_eta_seconds(second, second_route, second_progress, second_speed * 3600.0)
+                                  if second_progress is not None else None)
+                    if first_eta is not None and second_eta is not None:
+                        yielding, leader = (first, second) if first_eta >= second_eta else (second, first)
+                    else:
+                        yielding, leader = (first, second) if first_speed <= second_speed else (second, first)
+
+                target = getattr(yielding, "target_speed_kts", None)
+                leader_speed = float(getattr(leader, "speed_kts", 0) or 0)
+                if isinstance(target, (int, float)) and target > self.MIN_ARRIVAL_SPEED_KTS:
+                    deficit = self.MIN_MERGE_SEPARATION_NM - closest_distance
+                    adjusted = max(self.MIN_ARRIVAL_SPEED_KTS,
+                                   min(float(target), leader_speed - max(0.25, deficit) * 12.0))
+                    if adjusted < target:
+                        if not hasattr(yielding, "_engine_predictive_original_target_speed"):
+                            yielding._engine_predictive_original_target_speed = target
+                        yielding.target_speed_kts = adjusted
+                        yielding._engine_predictive_applied_target_speed = adjusted
+                        self._record_separation_event(
+                            yielding, leader, getattr(yielding, "target_node", None), "SPEED REDUCTION",
+                            f"Predicted closest spacing {closest_distance:.2f} NM in {closest_time:.0f} seconds",
+                        )
+                        continue
+
+                if closest_distance <= self.CRITICAL_SEPARATION_NM:
+                    merge = self._next_common_route_waypoint(yielding, leader)
+                    options = self.holding_manager.compatible_holding_options(yielding, merge) if merge else []
+                    held = False
+                    for option in options:
+                        result = self.holding_manager.apply_holding_route(
+                            yielding, option["holding_route_id"], circuits=1
+                        )
+                        if result.get("success"):
+                            held = True
+                            self._record_separation_event(
+                                yielding, leader, merge, "HOLD",
+                                "Critical predicted separation; aircraft entered its configured hold",
+                            )
+                            break
+                    if not held and not self.holding_manager.has_active_holding_route(yielding):
+                        candidates = [float(getattr(leader, "altitude_ft", 0)) + 1000.0,
+                                      float(getattr(leader, "altitude_ft", 0)) - 1000.0]
+                        candidates = [level for level in candidates if level >= 1000.0 and all(
+                            other is yielding or other is leader
+                            or abs(float(getattr(other, "altitude_ft", 0)) - level) >= self.MIN_VERTICAL_SEPARATION_FT
+                            for other in arrivals
+                        )]
+                        if candidates:
+                            selected_altitude = min(candidates, key=lambda level: abs(level - yielding.altitude_ft))
+                            if not hasattr(yielding, "_separation_original_target_altitude"):
+                                yielding._separation_original_target_altitude = yielding.target_altitude_ft
+                            yielding.assign_altitude(selected_altitude)
+                            yielding._separation_applied_target_altitude = selected_altitude
+                            yielding.separation_status = "CRITICAL CONFLICT"
+                            self._record_separation_event(
+                                yielding, leader, merge or getattr(yielding, "target_node", None),
+                                "ALTITUDE SEPARATION",
+                                f"Emergency vertical resolution assigned {selected_altitude:.0f} ft",
+                            )
+
+    @staticmethod
+    def _next_common_route_waypoint(first, second):
+        first_route = getattr(first, "route", [])
+        second_route = getattr(second, "route", [])
+        first_index = max(0, int(getattr(first, "route_index", 0)))
+        second_index = max(0, int(getattr(second, "route_index", 0)))
+        second_names = {str(name).upper() for name in second_route[second_index:]}
+        return next((name for name in first_route[first_index:]
+                     if str(name).upper() in second_names), None)
+
+    def _record_route_following_actions(self, aircraft_list):
+        by_route = {}
+        for aircraft in aircraft_list:
+            if not hasattr(aircraft, "_separation_target_speed"):
+                continue
+            route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
+            if not route:
+                continue
+            progress = self._route_progress_nm(aircraft, route)
+            if progress is not None:
+                by_route.setdefault(aircraft.arrival_route_id, []).append((progress, aircraft))
+        for arrivals in by_route.values():
+            arrivals.sort(key=lambda item: item[0])
+            for index, (_, follower) in enumerate(arrivals):
+                if not hasattr(follower, "_separation_target_speed"):
+                    continue
+                leader = next((ac for _, ac in arrivals[index + 1:]), None)
+                self._record_separation_event(
+                    follower, leader, getattr(follower, "target_node", None), "SPEED REDUCTION",
+                    f"Same-route following spacing applied at {getattr(follower, 'target_speed_kts', 0):.0f} knots",
+                )
+
     def _can_release_holding(self, aircraft):
         hold = self.holding_manager.state_for(aircraft)
         if hold is None:
             return {"safe": False, "reason": "Active holding state is missing"}
+        priority_callsign = hold.get("priority_callsign")
+        protected_merge_point = hold.get("protected_merge_point")
+        if priority_callsign and protected_merge_point:
+            priority = next((item for item in self.manager.all()
+                             if str(item.callsign) == str(priority_callsign)), None)
+            if priority is None:
+                return {"safe": True, "reason": "Priority aircraft has cleared the protected merge point"}
+            priority_route = self.arrival_routes.get(getattr(priority, "arrival_route_id", None), {})
+            priority_points = priority_route.get("waypoints", []) if isinstance(priority_route, dict) else []
+            merge_index = next((index for index, point in enumerate(priority_points)
+                                if str(point.get("name", "")).upper()
+                                == str(protected_merge_point).upper()), None)
+            priority_index = getattr(priority, "route_index", None)
+            if (merge_index is not None and isinstance(priority_index, int)
+                    and priority_index > merge_index
+                    and not self.holding_manager.has_active_holding_route(priority)):
+                return {"safe": True,
+                        "reason": f"Priority aircraft cleared protected merge point {protected_merge_point}",
+                        "other_aircraft": priority_callsign,
+                        "conflict_waypoint": protected_merge_point}
+            return {"safe": False,
+                    "reason": f"Waiting for priority aircraft {priority_callsign} to clear {protected_merge_point}",
+                    "other_aircraft": priority_callsign,
+                    "conflict_waypoint": protected_merge_point}
         if mistral_controller.has_pending_conflict_for(aircraft.callsign):
             return {"safe": False, "reason": "A traffic-conflict decision is still pending"}
         route_id = getattr(aircraft, "arrival_route_id", None)
@@ -1017,6 +1285,9 @@ class SimulationEngine:
             if not isinstance(other_definition, dict):
                 continue
             other_state = self.holding_manager.state_for(other)
+            if (other_state is not None
+                    and other_state.get("holding_route_id") == hold.get("holding_route_id")):
+                continue
             other_route_points = other_definition.get("waypoints", [])
             try:
                 other_progress = self._route_progress_nm(other, other_definition)
@@ -1066,6 +1337,10 @@ class SimulationEngine:
             for other in traffic:
                 if other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}:
                     continue
+                other_state = self.holding_manager.state_for(other)
+                if (other_state is not None
+                        and other_state.get("holding_route_id") == hold.get("holding_route_id")):
+                    continue
                 other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
                 other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
                 if not isinstance(other_route, dict) or not isinstance(other_speed, (int, float)) or other_speed <= 0:
@@ -1078,16 +1353,54 @@ class SimulationEngine:
                 )
                 if other_eta is None or abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0 >= self.MIN_MERGE_SEPARATION_NM:
                     continue
-                if abs(own_altitude - getattr(other, "altitude_ft", 0)) >= 1000:
+                if abs(own_altitude - getattr(other, "altitude_ft", 0)) >= self.MIN_VERTICAL_SEPARATION_FT:
                     continue
+                final_approach_fix = (self.approach_ai.approach_points[-1].get("id")
+                                      if self.approach_ai.approach_points else "downstream approach")
                 return {"safe": False,
-                        "reason": f"{other.callsign} is predicted to merge at APP32",
+                        "reason": f"{other.callsign} is predicted to converge on the downstream approach at {final_approach_fix}",
                         "other_aircraft": other.callsign,
-                        "conflict_waypoint": "APP32",
+                        "conflict_waypoint": final_approach_fix,
                         "predicted_separation_nm": round(
                             abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0, 2
                         )}
         return {"safe": True, "reason": "Downstream route clear and required separation available"}
+
+    def _can_approach_handoff(self, aircraft):
+        route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
+        if not isinstance(route, dict):
+            return {"safe": False, "reason": "Arrival route is unavailable for approach sequencing"}
+        own_speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", 0)
+        own_progress = self._route_progress_nm(aircraft, route)
+        if own_progress is None or own_speed <= 0:
+            return {"safe": False, "reason": "Approach trajectory cannot be predicted"}
+        own_etas = self._approach_point_etas(aircraft, route, own_progress, float(own_speed))
+        traffic = self.manager.all()
+        for other in traffic:
+            if (other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}
+                    or self.holding_manager.has_active_holding_route(other)):
+                continue
+            other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
+            other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
+            if not isinstance(other_route, dict) or other_speed <= 0:
+                continue
+            other_progress = self._route_progress_nm(other, other_route)
+            if other_progress is None:
+                continue
+            other_etas = self._approach_point_etas(other, other_route, other_progress, float(other_speed))
+            for point_index in set(own_etas).intersection(other_etas):
+                own_eta, other_eta = own_etas[point_index], other_etas[point_index]
+                own_altitude = aircraft.altitude_ft + aircraft.vertical_speed_fpm * own_eta / 60.0
+                other_altitude = other.altitude_ft + other.vertical_speed_fpm * other_eta / 60.0
+                if abs(own_altitude - other_altitude) >= self.MIN_VERTICAL_SEPARATION_FT:
+                    continue
+                separation = abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0
+                if separation < self.MIN_MERGE_SEPARATION_NM:
+                    point_name = self.approach_ai.approach_points[point_index].get("id", "approach fix")
+                    return {"safe": False, "reason": f"{other.callsign} is predicted {separation:.2f} NM away at downstream fix {point_name}",
+                            "other_aircraft": other.callsign, "conflict_waypoint": point_name,
+                            "predicted_separation_nm": round(separation, 2)}
+        return {"safe": True, "reason": "Downstream approach separation available"}
 
     def _record_hold_release(self, aircraft, release):
         safety = release.get("safety", {})
@@ -1111,6 +1424,25 @@ class SimulationEngine:
     def _restore_shared_waypoint_speeds(self, aircraft_list):
 
         for aircraft in aircraft_list:
+            applied_altitude = getattr(aircraft, "_separation_applied_target_altitude", None)
+            if applied_altitude is not None:
+                if getattr(aircraft, "target_altitude_ft", None) == applied_altitude:
+                    original_altitude = getattr(aircraft, "_separation_original_target_altitude", None)
+                    if original_altitude is not None:
+                        aircraft.assign_altitude(original_altitude)
+                del aircraft._separation_applied_target_altitude
+                if hasattr(aircraft, "_separation_original_target_altitude"):
+                    del aircraft._separation_original_target_altitude
+                if getattr(aircraft, "separation_status", None) == "CRITICAL CONFLICT":
+                    del aircraft.separation_status
+
+            predictive_target = getattr(aircraft, "_engine_predictive_applied_target_speed", None)
+            if predictive_target is not None:
+                if getattr(aircraft, "target_speed_kts", None) == predictive_target:
+                    aircraft.target_speed_kts = aircraft._engine_predictive_original_target_speed
+                del aircraft._engine_predictive_applied_target_speed
+                del aircraft._engine_predictive_original_target_speed
+
             applied_target = getattr(
                 aircraft,
                 "_engine_shared_waypoint_applied_target_speed",
@@ -1127,7 +1459,7 @@ class SimulationEngine:
 
     def _apply_shared_waypoint_separation(self, aircraft_list):
 
-        shared_waypoint_groups = self._shared_arrival_waypoint_groups()
+        shared_waypoint_groups = self.shared_arrival_waypoint_groups
         if not shared_waypoint_groups:
             return
 
@@ -1137,6 +1469,7 @@ class SimulationEngine:
             if (
                 getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
                 or route_id not in self.arrival_routes
+                or self.holding_manager.has_active_holding_route(aircraft)
             ):
                 continue
 
@@ -1233,7 +1566,7 @@ class SimulationEngine:
             if adjusted < target:
                 if not hasattr(aircraft, "_engine_shared_waypoint_original_target_speed"):
                     aircraft._engine_shared_waypoint_original_target_speed = target
-                aircraft.target_speed_kts = max(140.0, adjusted)
+                aircraft.target_speed_kts = max(self.MIN_ARRIVAL_SPEED_KTS, adjusted)
                 aircraft._engine_shared_waypoint_applied_target_speed = aircraft.target_speed_kts
 
     def process_due_departures(self):
@@ -1263,6 +1596,10 @@ class SimulationEngine:
             first = points[0]
             aircraft = spawn_aircraft(callsign, aircraft_data["aircraft_type"], first["latitude"], first["longitude"])
             aircraft.phase = "DEPARTURE"
+            initial_altitude = first.get("altitude", {}).get("feet")
+            if isinstance(initial_altitude, (int, float)):
+                aircraft.altitude_ft = int(initial_altitude)
+                aircraft.target_altitude_ft = int(initial_altitude)
             aircraft.destination = aircraft_data["destination"]
             aircraft.assign_route([p["name"] for p in points])
             aircraft.departure_waypoints = points
@@ -1294,6 +1631,10 @@ class SimulationEngine:
         traffic = self.manager.all()
         self._restore_shared_waypoint_speeds(traffic)
         self._detect_shared_waypoint_conflicts(traffic)
+        self._enforce_predictive_separation(traffic)
+        apply_arrival_separation(traffic, self.graph)
+        self._record_route_following_actions(traffic)
+        self._apply_shared_waypoint_separation(traffic)
 
         for aircraft in traffic:
 
@@ -1381,10 +1722,13 @@ class SimulationEngine:
                     aircraft
                 )
 
-                apply_arrival_separation(traffic, self.graph)
-                self._apply_shared_waypoint_separation(traffic)
                 for arrival_aircraft in traffic:
                     self.guidance.apply_route_constraints(arrival_aircraft)
+
+                if (aircraft.phase == "ARRIVAL"
+                        and getattr(aircraft, "separation_status", None) == "APPROACH DELAYED"
+                        and aircraft.target_node == aircraft.assigned_node):
+                    continue
 
                 move_aircraft(
                     aircraft,

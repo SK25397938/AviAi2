@@ -52,25 +52,28 @@ class ApproachAI:
 
             return
 
+        # The arrival route JSON contains the ordered final approach fixes.
+        # Guidance has already flown them when it hands off at RWY27.
+        if (aircraft.route and aircraft.route_index >= len(aircraft.route) - 1
+                and str(getattr(aircraft, "assigned_node", "")).upper() == "RWY27"):
+            aircraft.state = "APPROACH_COMPLETE"
+            aircraft.phase = "APPROACH_COMPLETE"
+            aircraft.approach_complete = True
+            aircraft.target_node = None
+            aircraft.clearance.direct_node = None
+            return
+
         aircraft.state = "APPROACH"
 
         if not hasattr(
             aircraft,
             "approach_index"
         ):
-            route = getattr(aircraft, "route", [])
-            endpoint = str(route[-1]).upper() if route else ""
-            preferred_point = {"OLGUS": "APP38", "MB395": "APP32"}.get(endpoint)
-            preferred_index = next(
-                (index for index, point in enumerate(self.approach_points)
-                 if str(point.get("id", "")).upper() == preferred_point),
-                None,
-            )
-            aircraft.approach_index = preferred_index if preferred_index is not None else (
-                self._closest_waypoint_index(aircraft.lat, aircraft.lon)
-            )
+            aircraft.approach_index = self._closest_waypoint_index(aircraft.lat, aircraft.lon)
 
             aircraft.approach_instruction_index = None
+            transition = self.approach_points[aircraft.approach_index]["id"]
+            print(f"APPROACH INTERCEPT | callsign={aircraft.callsign} target={transition}")
 
         if aircraft.approach_index >= len(
             self.approach_points
@@ -82,6 +85,8 @@ class ApproachAI:
             aircraft.approach_index
         ]
 
+        aircraft.target_node = point["id"]
+        aircraft.clearance.direct_node = point["id"]
         aircraft.approach_phase = point["id"]
 
         heading = self._bearing(
@@ -124,6 +129,9 @@ class ApproachAI:
             != aircraft.approach_index
         ):
 
+            if point["id"] == "FAF":
+                print(f"FINAL APPROACH | callsign={aircraft.callsign}")
+
             instruction_manager.issue(
                 aircraft,
                 "Approach",
@@ -149,6 +157,12 @@ class ApproachAI:
                 aircraft.state = "APPROACH_COMPLETE"
                 aircraft.phase = "APPROACH_COMPLETE"
                 aircraft.approach_complete = True
+                aircraft.target_node = None
+                aircraft.clearance.direct_node = None
+            else:
+                next_point = self.approach_points[aircraft.approach_index]
+                aircraft.target_node = next_point["id"]
+                aircraft.clearance.direct_node = next_point["id"]
 
     def _closest_waypoint_index(
         self,

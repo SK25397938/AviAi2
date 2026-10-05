@@ -56,6 +56,11 @@
             "id": "003",
             "waypoints": [
                 {
+                    "name": "IGBAN",
+                    "latitude": 20.046950,
+                    "longitude": 73.194617
+                }
+                ,{
                     "name": "MB392",
                     "latitude": 19.518333,
                     "longitude": 73.150000
@@ -98,6 +103,27 @@
                 }
             ],
             "approach_trigger": "MB395"
+        },
+        {
+            "id": "005",
+            "waypoints": [
+                {
+                    "name": "OPAKA",
+                    "latitude": 19.605833,
+                    "longitude": 74.549444
+                },
+                {
+                    "name": "EMARK",
+                    "latitude": 19.420442,
+                    "longitude": 73.871094
+                },
+                {
+                    "name": "OLGUS",
+                    "latitude": 19.215000,
+                    "longitude": 73.473333
+                }
+            ],
+            "approach_trigger": "OLGUS"
         }
     ]
 }

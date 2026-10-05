@@ -28,6 +28,20 @@ class SimulationWorld:
     def get_all_aircraft(self):
         return self.engine.manager.all()
 
+    def _guidance_status(self, aircraft):
+        if self.engine.holding_manager.has_active_holding_route(aircraft):
+            return "HOLDING"
+        if getattr(aircraft, "separation_status", None):
+            return aircraft.separation_status
+        if any(hasattr(aircraft, name) for name in (
+            "_engine_shared_waypoint_applied_target_speed",
+            "_engine_predictive_applied_target_speed",
+            "_separation_target_speed",
+            "_shared_waypoint_target_speed",
+        )):
+            return "SEQUENCING"
+        return "APPROACH" if aircraft.phase == "FINAL" else "ENROUTE"
+
     def get_state(self):
 
         return {
@@ -43,6 +57,26 @@ class SimulationWorld:
             "instruction_log": instruction_manager.latest(),
 
             "ai_decision_log": list(self.engine.ai_decision_log),
+
+            "arrival_guidance": [
+                {
+                    "callsign": ac.callsign,
+                    "route_id": getattr(ac, "arrival_route_id", None),
+                    "route_index": ac.route_index,
+                    "waypoint": ac.assigned_node,
+                    "target": ac.target_node,
+                    "distance_nm": ac.current_distance if ac.phase == "ARRIVAL" else None,
+                    "altitude_ft": ac.altitude_ft,
+                    "target_altitude_ft": ac.target_altitude_ft,
+                    "speed_kts": ac.speed_kts,
+                    "target_speed_kts": ac.target_speed_kts,
+                    "vertical_speed_fpm": ac.vertical_speed_fpm,
+                    "phase": ac.phase,
+                    "status": self._guidance_status(ac),
+                }
+                for ac in self.engine.manager.all()
+                if getattr(ac, "phase", "") in ("ARRIVAL", "FINAL")
+            ],
 
             "holding_routes": self.engine.holding_manager.active_holding_routes(),
 

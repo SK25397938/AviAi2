@@ -1,9 +1,10 @@
 {
     "001": {
         "route_id": "001",
-        "name": "ANOLI 1A - MB399",
+        "name": "BETKU 3A",
         "runway": "27",
         "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
         "waypoints": [
             {
                 "name": "RWY27",
@@ -11,7 +12,7 @@
                 "longitude": 72.8679,
                 "altitude": {
                     "type": "AT_OR_ABOVE",
-                    "feet": 530
+                    "feet": 540
                 },
                 "speed": {
                     "type": "MAX",
@@ -19,52 +20,59 @@
                 }
             },
             {
-                "name": "MB364",
-                "latitude": 19.0861,
-                "longitude": 72.7517,
-                "altitude": {
-                    "type": "AT_OR_ABOVE",
-                    "feet": 2600
-                },
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
                 "speed": {
                     "type": "MAX",
                     "knots": 250
                 }
             },
             {
-                "name": "ANOLI",
-                "latitude": 19.3017,
-                "longitude": 72.7400,
+                "name": "NM560",
+                "latitude": 19.326281,
+                "longitude": 72.678494,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM561",
+                "latitude": 19.534554,
+                "longitude": 72.673177,
                 "altitude": {
                     "type": "AT_OR_BELOW",
-                    "feet": 7000
-                },
-                "speed": {
-                    "type": "MAX",
-                    "knots": 250
-                }
-            },
-            {
-                "name": "MB399",
-                "latitude": 19.4933,
-                "longitude": 72.6650,
-                "altitude": {
-                    "type": "AT",
                     "feet": 10000
                 },
                 "speed": {
                     "type": "MAX",
                     "knots": 250
                 }
+            },
+            {
+                "name": "NM513",
+                "latitude": 19.954206,
+                "longitude": 72.662483,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 16000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
             }
         ]
     },
-
     "002": {
         "route_id": "002",
-        "name": "ANOLI 1A - MB361",
+        "name": "EXOLU 3A",
         "runway": "27",
         "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
         "waypoints": [
             {
                 "name": "RWY27",
@@ -72,7 +80,7 @@
                 "longitude": 72.8679,
                 "altitude": {
                     "type": "AT_OR_ABOVE",
-                    "feet": 530
+                    "feet": 540
                 },
                 "speed": {
                     "type": "MAX",
@@ -80,25 +88,32 @@
                 }
             },
             {
-                "name": "MB364",
-                "latitude": 19.0861,
-                "longitude": 72.7517,
-                "altitude": {
-                    "type": "AT_OR_ABOVE",
-                    "feet": 2600
-                },
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
                 "speed": {
                     "type": "MAX",
                     "knots": 250
                 }
             },
             {
-                "name": "ANOLI",
-                "latitude": 19.3017,
-                "longitude": 72.7400,
+                "name": "NM560",
+                "latitude": 19.326281,
+                "longitude": 72.678494,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM561",
+                "latitude": 19.534554,
+                "longitude": 72.673177,
                 "altitude": {
                     "type": "AT_OR_BELOW",
-                    "feet": 7000
+                    "feet": 10000
                 },
                 "speed": {
                     "type": "MAX",
@@ -106,10 +121,13 @@
                 }
             },
             {
-                "name": "MB361",
-                "latitude": 20.0833,
-                "longitude": 72.8600,
-                "altitude": {},
+                "name": "NM513",
+                "latitude": 19.954206,
+                "longitude": 72.662483,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 16000
+                },
                 "speed": {
                     "type": "MAX",
                     "knots": 250
@@ -117,12 +135,12 @@
             }
         ]
     },
-
     "003": {
         "route_id": "003",
-        "name": "RAXET 1A",
+        "name": "ISRIS 3A",
         "runway": "27",
         "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
         "waypoints": [
             {
                 "name": "RWY27",
@@ -130,7 +148,7 @@
                 "longitude": 72.8679,
                 "altitude": {
                     "type": "AT_OR_ABOVE",
-                    "feet": 530
+                    "feet": 540
                 },
                 "speed": {
                     "type": "MAX",
@@ -138,12 +156,32 @@
                 }
             },
             {
-                "name": "MB364",
-                "latitude": 19.0861,
-                "longitude": 72.7517,
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM560",
+                "latitude": 19.326281,
+                "longitude": 72.678494,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM561",
+                "latitude": 19.534554,
+                "longitude": 72.673177,
                 "altitude": {
-                    "type": "AT_OR_ABOVE",
-                    "feet": 2600
+                    "type": "AT_OR_BELOW",
+                    "feet": 10000
                 },
                 "speed": {
                     "type": "MAX",
@@ -151,12 +189,12 @@
                 }
             },
             {
-                "name": "RAXET",
-                "latitude": 19.1567,
-                "longitude": 72.0983,
+                "name": "NM513",
+                "latitude": 19.954206,
+                "longitude": 72.662483,
                 "altitude": {
-                    "type": "AT",
-                    "feet": 7000
+                    "type": "AT_OR_BELOW",
+                    "feet": 16000
                 },
                 "speed": {
                     "type": "MAX",
@@ -165,12 +203,12 @@
             }
         ]
     },
-
     "004": {
         "route_id": "004",
-        "name": "VEVAK 1A - ONAPA",
+        "name": "SAKUN 3A",
         "runway": "27",
         "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
         "waypoints": [
             {
                 "name": "RWY27",
@@ -178,7 +216,7 @@
                 "longitude": 72.8679,
                 "altitude": {
                     "type": "AT_OR_ABOVE",
-                    "feet": 530
+                    "feet": 540
                 },
                 "speed": {
                     "type": "MAX",
@@ -186,25 +224,22 @@
                 }
             },
             {
-                "name": "MB364",
-                "latitude": 19.0861,
-                "longitude": 72.7517,
-                "altitude": {
-                    "type": "AT_OR_ABOVE",
-                    "feet": 2600
-                },
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
                 "speed": {
                     "type": "MAX",
                     "knots": 250
                 }
             },
             {
-                "name": "VEVAK",
-                "latitude": 18.7767,
-                "longitude": 72.7433,
+                "name": "NM562",
+                "latitude": 19.220231,
+                "longitude": 72.456808,
                 "altitude": {
                     "type": "AT_OR_BELOW",
-                    "feet": 7000
+                    "feet": 9000
                 },
                 "speed": {
                     "type": "MAX",
@@ -212,10 +247,756 @@
                 }
             },
             {
-                "name": "ONAPA",
-                "latitude": 18.4650,
-                "longitude": 72.6167,
+                "name": "SAKUN",
+                "latitude": 19.607483,
+                "longitude": 71.196914,
                 "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "005": {
+        "route_id": "005",
+        "name": "BISET 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 540
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM518",
+                "latitude": 19.156675,
+                "longitude": 72.097578,
+                "altitude": {
+                    "type": "AT_OR_BELOW",
+                    "feet": 13000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM519",
+                "latitude": 19.124714,
+                "longitude": 71.390231,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 22000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "006": {
+        "route_id": "006",
+        "name": "DARMI 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM555",
+                "latitude": 18.191264,
+                "longitude": 72.43235,
+                "altitude": {
+                    "type": "BETWEEN",
+                    "min_feet": 20000,
+                    "max_feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM508",
+                "latitude": 18.11505,
+                "longitude": 72.133114,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM510",
+                "latitude": 18.067539,
+                "longitude": 71.893572,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "007": {
+        "route_id": "007",
+        "name": "ERVIS 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM555",
+                "latitude": 18.191264,
+                "longitude": 72.43235,
+                "altitude": {
+                    "type": "BETWEEN",
+                    "min_feet": 20000,
+                    "max_feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM508",
+                "latitude": 18.11505,
+                "longitude": 72.133114,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM509",
+                "latitude": 17.798444,
+                "longitude": 71.863981,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "008": {
+        "route_id": "008",
+        "name": "GUNDI 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM555",
+                "latitude": 18.191264,
+                "longitude": 72.43235,
+                "altitude": {
+                    "type": "BETWEEN",
+                    "min_feet": 20000,
+                    "max_feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM508",
+                "latitude": 18.11505,
+                "longitude": 72.133114,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM509",
+                "latitude": 17.798444,
+                "longitude": 71.863981,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 23000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "009": {
+        "route_id": "009",
+        "name": "AGELA 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB152",
+                "latitude": 18.092092,
+                "longitude": 72.75845,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "010": {
+        "route_id": "010",
+        "name": "EPKOS 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB152",
+                "latitude": 18.092092,
+                "longitude": 72.75845,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "011": {
+        "route_id": "011",
+        "name": "MABTA 3A",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB151",
+                "latitude": 18.504781,
+                "longitude": 72.697494,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 11000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM554",
+                "latitude": 18.265906,
+                "longitude": 72.731389,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 14000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB152",
+                "latitude": 18.092092,
+                "longitude": 72.75845,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            }
+        ]
+    },
+    "015": {
+        "route_id": "015",
+        "name": "NONEN 3A - KAPKO",
+        "runway": "27",
+        "type": "DEPARTURE",
+        "vertical_climb_speed_fpm": 1500,
+        "waypoints": [
+            {
+                "name": "RWY27",
+                "latitude": 19.0887,
+                "longitude": 72.8679,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 1700
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB154",
+                "latitude": 19.08705,
+                "longitude": 72.751211,
+                "altitude": {},
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB150",
+                "latitude": 18.895778,
+                "longitude": 72.6488,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 6000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "BB155",
+                "latitude": 18.720539,
+                "longitude": 72.670886,
+                "altitude": {
+                    "type": "BETWEEN",
+                    "min_feet": 11000,
+                    "max_feet": 12000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM557",
+                "latitude": 18.757989,
+                "longitude": 73.020133,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 15000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM503",
+                "latitude": 18.774561,
+                "longitude": 73.147575,
+                "altitude": {
+                    "type": "BETWEEN",
+                    "min_feet": 17000,
+                    "max_feet": 19000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "NM563",
+                "latitude": 18.992031,
+                "longitude": 73.346422,
+                "altitude": {
+                    "type": "AT_OR_ABOVE",
+                    "feet": 22000
+                },
+                "speed": {
+                    "type": "MAX",
+                    "knots": 250
+                }
+            },
+            {
+                "name": "KAPKO",
+                "latitude": 19.76,
+                "longitude": 74.015833,
+                "altitude": {
+                    "type": "AT",
+                    "feet": 25000
+                },
                 "speed": {
                     "type": "MAX",
                     "knots": 250

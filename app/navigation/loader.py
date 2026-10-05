@@ -10,6 +10,12 @@ ROUTES_FILE = (
     / "vabb_routes.json"
 )
 
+ARRIVAL_PROFILES_FILE = (
+    Path(__file__).resolve().parents[1]
+    / "config"
+    / "vabb_arrival_profiles.json"
+)
+
 DEPARTURE_ROUTES_FILE = (
     Path(__file__).resolve().parents[2]
     / "vabb_departure.json"
@@ -59,6 +65,29 @@ def load_arrival_routes():
         route["id"]: route
         for route in routes
     }
+
+
+def load_arrival_profiles():
+    """Load optional route/waypoint arrival constraints."""
+    try:
+        with ARRIVAL_PROFILES_FILE.open(encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    routes = payload.get("routes", {}) if isinstance(payload, dict) else {}
+    if not isinstance(routes, dict):
+        return {}
+    normalized = {}
+    for route_id, waypoints in routes.items():
+        if not isinstance(waypoints, dict):
+            continue
+        normalized[str(route_id)] = {
+            str(name).upper(): profile
+            for name, profile in waypoints.items()
+            if isinstance(profile, dict)
+        }
+    return normalized
 
 
 def load_departure_routes():

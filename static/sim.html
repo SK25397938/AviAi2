@@ -136,6 +136,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .log-src--safety{color:var(--danger)}
 .log-src--human{color:var(--fg)}
 .log-text{color:var(--fg);font-size:11px;line-height:1.5;padding-top:1px}
+.arrival-live{border-bottom:1px solid var(--border);padding:4px 14px;color:var(--fg);font-size:11px}
+.arrival-live summary{cursor:pointer;font-family:var(--font-mono);font-weight:600;list-style-position:inside}
+.arrival-live__detail{padding:5px 0 2px 18px;color:var(--muted);line-height:1.6}
+.decision-log-mode{font-family:var(--font-mono);font-size:9px;letter-spacing:.5px;padding:4px 6px;border:1px solid var(--border);border-radius:2px;background:var(--surface);color:var(--fg);cursor:pointer}
 .conflict-alert{position:absolute;top:56px;left:50%;transform:translateX(-50%) translateY(-120%);width:420px;max-width:calc(100vw - 20px);background:var(--surface);border:1px solid var(--danger);border-top:3px solid var(--danger);z-index:350;transition:transform .3s ease;overflow:hidden}
 .conflict-alert--visible{transform:translateX(-50%) translateY(0)}
 .ca-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--danger-dim)}
@@ -394,6 +398,10 @@ Apply Weather
 <button class="ptoggle" onclick="togglePanel('decisionLog')" aria-label="Toggle decision log"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M1 3l4 5 4-5z"/></svg></button>
 <div class="ov-panel__head">
 <span class="ov-panel__title">AI ATC Decision Log</span>
+<select id="decisionLogMode" class="decision-log-mode" aria-label="Decision log view" onchange="renderDecisionLog()">
+<option value="ATC DECISIONS" selected>ATC DECISIONS</option>
+<option value="AIRCRAFT">AIRCRAFT</option>
+</select>
 </div>
 <div class="ov-panel__body" id="logBody"></div>
 </div>
@@ -447,6 +455,7 @@ Apply Weather
 const VABB=[72.8656,19.0896];
 let acData=[];
 let airportGraph=null;
+let approachWaypoints=[];
 let startNode=null;
 let endNode=null;
 let selectedRoute=null;
@@ -454,6 +463,8 @@ let simRunning=true,simSpeed=1,selectedCs=null,lastFrame=performance.now();
 let simTime=14*3600+30*60;
 let map,markers={},atcOpen=false;
 let guidanceFeatures = {};
+const AIRCRAFT_HISTORY_LIMIT=1200;
+const aircraftPathHistory=Object.create(null);
 let atisExpanded=false;
 let atisMessage="";
 let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false};
@@ -528,6 +539,7 @@ async function loadApproachVisualization(){
         const data = await response.json();
 
         const points = data.approach || [];
+        approachWaypoints = points;
 
         const coordinates = points.map(function(point){
             return [
@@ -683,6 +695,21 @@ async function loadRouteVisualization(){
                     point.longitude,
                     point.latitude
                 ]);
+
+                waypointFeatures.push({
+                    type:"Feature",
+                    properties:{
+                        name:point.name,
+                        route_id:route.route_id || route.id || "departure-route"
+                    },
+                    geometry:{
+                        type:"Point",
+                        coordinates:[
+                            point.longitude,
+                            point.latitude
+                        ]
+                    }
+                });
 
             });
 
@@ -931,8 +958,7 @@ map.addLayer({
     paint:{
         "line-color":"#ff8c42",
         "line-width":2.5,
-        "line-opacity":0.9,
-        "line-dasharray":[2,1.5]
+        "line-opacity":0.9
     }
 });
 
@@ -1004,6 +1030,17 @@ map.addLayer({
     layout:{"text-field":["get","fix"],"text-size":10,"text-offset":[0,1.2]},
     paint:{"text-color":["case",["get","active"],"#b51f1a","#40565f"],"text-halo-color":"#ffffff","text-halo-width":2}
 });
+map.addSource("aircraft-history",{
+    type:"geojson",
+    data:{type:"FeatureCollection",features:[]}
+});
+map.addLayer({
+    id:"aircraft-history-line",
+    type:"line",
+    source:"aircraft-history",
+    paint:{"line-color":"#f5c542","line-width":3,"line-opacity":0.9},
+    layout:{"line-cap":"round","line-join":"round"}
+});
 
     await loadHoldingPatternGeometry();
 loadRouteVisualization();
@@ -1035,6 +1072,7 @@ function loadAircraft(){
         const state = JSON.parse(event.data);
 
         acData = state.aircraft;
+        recordAircraftPositions(acData);
 
         console.log(
             "Aircraft received:",
@@ -1050,7 +1088,7 @@ function loadAircraft(){
 
         }
 
-        renderDecisionLog(state.ai_decision_log || []);
+        renderDecisionLog(state.ai_decision_log || [], state.arrival_guidance || []);
         updateHoldingVisualization(state.holding_routes || [], state.holding_points || []);
 
         addAircraftMarkers();
@@ -1138,17 +1176,41 @@ function escapeLogText(value){
     });
 }
 
-function renderDecisionLog(entries){
+let latestDecisionEntries=[];
+let latestAircraftStatuses=[];
+
+function renderDecisionLog(entries, statuses){
+    if(Array.isArray(entries)) latestDecisionEntries=entries;
+    if(Array.isArray(statuses)) latestAircraftStatuses=statuses;
     const body=document.getElementById("logBody");
+    const expandedAircraft=new Set();
+    body.querySelectorAll(".arrival-live[open]").forEach(function(item){expandedAircraft.add(item.dataset.callsign);});
     body.innerHTML="";
-    entries.forEach(function(entry){
+    if(document.getElementById("decisionLogMode").value==="AIRCRAFT"){
+        latestAircraftStatuses.forEach(function(ac){
+            const callsign=String(ac.callsign||"");
+            const item=document.createElement("details");
+            item.className="arrival-live";
+            item.dataset.callsign=callsign;
+            item.open=expandedAircraft.has(callsign);
+            const distance=ac.distance_nm==null?NaN:Number(ac.distance_nm);
+            item.innerHTML='<summary>'+escapeLogText(callsign)+' <span style="color:var(--muted)">· '+escapeLogText(ac.phase)+'</span></summary>'+
+                '<div class="arrival-live__detail">Route: '+escapeLogText(ac.route_id||"—")+' · Waypoint: '+escapeLogText(ac.waypoint||"—")+' · Target: '+escapeLogText(ac.target||"—")+'<br>'+
+                'Distance: '+(Number.isFinite(distance)?distance.toFixed(2)+" NM":"—")+' · Altitude: '+escapeLogText(ac.altitude_ft)+' ft · Target altitude: '+escapeLogText(ac.target_altitude_ft)+' ft<br>'+
+                'Speed: '+escapeLogText(ac.speed_kts)+' kt · Target speed: '+escapeLogText(ac.target_speed_kts)+' kt · Vertical speed: '+escapeLogText(ac.vertical_speed_fpm)+' fpm · Phase: '+escapeLogText(ac.phase)+'</div>';
+            body.appendChild(item);
+        });
+        return;
+    }
+    latestDecisionEntries.forEach(function(entry){
         const involved=[entry.other_aircraft,entry.callsign].filter(Boolean).join(" ↔ ");
         const decisionText=entry.decision==="HOLD" ? "HOLD "+(entry.callsign||"") :
-            entry.decision==="RELEASE HOLD" ? "RELEASE HOLD" : "NONE";
+            entry.decision==="RELEASE HOLD" ? "RELEASE HOLD" : (entry.decision||"NONE");
         const lines=[
             "["+(entry.controller||"Arrival").toUpperCase()+"]",
             entry.other_aircraft ? "Conflict: "+involved : "Aircraft: "+(entry.callsign||"—"),
             "Waypoint: "+(entry.conflict_waypoint||"—"),
+            entry.route_id ? "Route: "+entry.route_id : "",
             "Decision: "+decisionText,
             "Instruction: "+(entry.instruction||"No intervention"),
             entry.holding_route_id ? "Holding: "+entry.holding_route_id : "",
@@ -1164,7 +1226,6 @@ function renderDecisionLog(entries){
         body.appendChild(item);
     });
 }
-
 async function loadHoldingPatternGeometry(){
     try{
         const response=await fetch("/simulation/holding-patterns");
@@ -1285,6 +1346,37 @@ function addAircraftMarkers(){
 
     updateAircraftMarkers();
 
+}
+
+function recordAircraftPositions(aircraft){
+    const activeCallsigns=new Set((aircraft||[]).map(function(ac){return ac.callsign;}));
+    Object.keys(aircraftPathHistory).forEach(function(callsign){
+        if(!activeCallsigns.has(callsign)) delete aircraftPathHistory[callsign];
+    });
+    (aircraft||[]).forEach(function(ac){
+        const lon=Number(ac.lon),lat=Number(ac.lat);
+        if(!Number.isFinite(lon)||!Number.isFinite(lat)) return;
+        const points=aircraftPathHistory[ac.callsign]||(aircraftPathHistory[ac.callsign]=[]);
+        const previous=points[points.length-1];
+        if(!previous||previous[0]!==lon||previous[1]!==lat){
+            points.push([lon,lat]);
+            if(points.length>AIRCRAFT_HISTORY_LIMIT)
+                points.splice(0,points.length-AIRCRAFT_HISTORY_LIMIT);
+        }
+    });
+    updateSelectedAircraftHistory();
+}
+
+function updateSelectedAircraftHistory(){
+    const source=map&&map.getSource("aircraft-history");
+    if(!source) return;
+    const points=selectedCs&&aircraftPathHistory[selectedCs];
+    const features=points&&points.length>1?[{
+        type:"Feature",
+        properties:{callsign:selectedCs},
+        geometry:{type:"LineString",coordinates:points}
+    }]:[];
+    source.setData({type:"FeatureCollection",features:features});
 }
 
 function makeIcon(ac, selected) {
@@ -1471,9 +1563,21 @@ function updateGuidance(ac){
     const node = airportGraph.nodes.find(function(n){
         return n.id === ac.target_node;
     });
+    const approachPoint = approachWaypoints.find(function(point){
+        return point.id === ac.target_node;
+    });
 
-    if(!node)
+    if(!node&&!approachPoint){
+        delete guidanceFeatures[ac.callsign];
+        map.getSource("guidance-lines").setData({
+            type:"FeatureCollection",
+            features:Object.values(guidanceFeatures)
+        });
         return;
+    }
+
+    const targetLon=node?node.lon:approachPoint.longitude;
+    const targetLat=node?node.lat:approachPoint.latitude;
 
     guidanceFeatures[ac.callsign] = {
 
@@ -1487,7 +1591,7 @@ function updateGuidance(ac){
             type:"LineString",
             coordinates:[
                 [ac.lon,ac.lat],
-                [node.lon,node.lat]
+                [targetLon,targetLat]
             ]
         }
 
@@ -1564,6 +1668,7 @@ function renderTrafficList(){
 function selectAircraft(cs){
 
     selectedCs = cs;
+    updateSelectedAircraftHistory();
 
     document.querySelectorAll(".tq-row").forEach(function(row){
 
@@ -1591,15 +1696,12 @@ function selectAircraft(cs){
 
     if(!ac){
 
-    delete guidanceFeatures[id];
+        selectedCs = null;
+        updateSelectedAircraftHistory();
+        renderTrafficList();
+        return;
 
-    map.getSource("guidance-lines").setData({
-        type:"FeatureCollection",
-        features:Object.values(guidanceFeatures)
-    });
-
-    return;
-}
+    }
 
     var altitude = Math.round(ac.altitude) + " ft";
 

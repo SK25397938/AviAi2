@@ -136,6 +136,27 @@ def update_altitude(
 
         return
 
+    target_vertical_speed = getattr(aircraft, "target_vertical_speed_fpm", None)
+    if target_vertical_speed is not None:
+        # Approach profiles request a groundspeed-dependent vertical speed;
+        # slew toward it and cap at the aircraft's existing performance limit.
+        target_vertical_speed = max(-DESCENT_RATE_FPM, min(CLIMB_RATE_FPM, target_vertical_speed))
+        rate_step = 180.0 * dt
+        if aircraft.vertical_speed_fpm < target_vertical_speed:
+            aircraft.vertical_speed_fpm = min(target_vertical_speed, aircraft.vertical_speed_fpm + rate_step)
+        else:
+            aircraft.vertical_speed_fpm = max(target_vertical_speed, aircraft.vertical_speed_fpm - rate_step)
+        change = aircraft.vertical_speed_fpm * dt / 60.0
+        if (diff > 0 and change > 0) or (diff < 0 and change < 0):
+            change = math.copysign(min(abs(change), abs(diff)), change)
+        elif diff * change < 0:
+            change = 0
+        aircraft.altitude_ft += change
+        if abs(aircraft.target_altitude_ft - aircraft.altitude_ft) < 1:
+            aircraft.altitude_ft = aircraft.target_altitude_ft
+            aircraft.vertical_speed_fpm = 0
+        return
+
     if diff > 0:
 
         climb = (
