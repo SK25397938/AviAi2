@@ -11,6 +11,7 @@ class TrafficScheduler:
 
     MIN_DEPARTURE_GAP = 55
     MAX_DEPARTURE_GAP = 115
+    MAX_ACTIVE_AIRCRAFT = 13
 
     MIN_TURNAROUND = 2700
     MAX_TURNAROUND = 7200
@@ -78,7 +79,7 @@ class TrafficScheduler:
 
         if (now < self.next_departure_release
                 or active_aircraft_count >= active_capacity
-                or active_aircraft_count >= 12):
+                or active_aircraft_count >= self.MAX_ACTIVE_AIRCRAFT):
 
             return []
 

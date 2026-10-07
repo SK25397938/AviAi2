@@ -1531,6 +1531,23 @@ function updateAircraftMarkers(){
         m.el.style.display = "";
 
         const marker = m.marker;
+        const longitude = Number(ac.lon);
+        const latitude = Number(ac.lat);
+        if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
+            const previousPosition = m.serverPosition;
+            if (ac.callsign === selectedCs && previousPosition
+                    && (previousPosition[0] !== longitude || previousPosition[1] !== latitude)) {
+                console.debug("Aircraft marker position updated", ac.callsign, {
+                    from: previousPosition,
+                    to: [longitude, latitude],
+                });
+            }
+            m.serverPosition = [longitude, latitude];
+            marker.setLngLat([longitude, latitude]);
+            m.from = [longitude, latitude];
+            m.to = [longitude, latitude];
+            m.start = performance.now();
+        }
         const selected = selectedCs === ac.callsign;
         const color = selected ? "#ddd5c8" : acColor(ac);
         const iconDiv = marker.getElement()?.querySelector(".ac-icon");
@@ -1554,11 +1571,6 @@ function updateAircraftMarkers(){
             );
 
         }
-
-        const current = marker.getLngLat();
-        m.from = [current.lng, current.lat];
-        m.to = [Number(ac.lon), Number(ac.lat)];
-        m.start = performance.now();
 
         updateGuidance(
             ac

@@ -7,9 +7,8 @@ from app.core.config import redis_client
 
 MAX_POINTS = 6
 WINDOW_SECONDS = 40
-MIN_ARRIVAL_SEPARATION_NM = 4.5
+MIN_ARRIVAL_SEPARATION_NM = 5.0
 SEPARATION_SPEED_GAIN = 12.0
-MIN_SHARED_WAYPOINT_TIME_GAP = 60.0
 
 
 def _minimum_arrival_speed(aircraft):
@@ -493,10 +492,13 @@ def apply_shared_waypoint_separation(
             ):
                 continue
 
-            required_eta = (
-                leader_eta
-                + MIN_SHARED_WAYPOINT_TIME_GAP
-            )
+            leader_speed = float(getattr(candidates[index - 1][3], "speed_kts", 0) or 0)
+            follower_speed = float(getattr(follower, "speed_kts", 0) or 0)
+            fastest_speed = max(leader_speed, follower_speed)
+            if fastest_speed <= 0:
+                continue
+
+            required_eta = leader_eta + MIN_ARRIVAL_SEPARATION_NM * 3600.0 / fastest_speed
 
             if follower_eta >= required_eta:
                 continue

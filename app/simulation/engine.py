@@ -32,7 +32,7 @@ from app.navigation.loader import load_arrival_profiles, load_arrival_routes, lo
 class SimulationEngine:
 
     SEQUENCING_WINDOW_NM = 35.0
-    MIN_MERGE_SEPARATION_NM = 4.5
+    MIN_MERGE_SEPARATION_NM = 5.0
     MIN_VERTICAL_SEPARATION_FT = 1000
     CONFLICT_WARNING_DISTANCE_NM = 6.0
     PREDICTION_LOOKAHEAD_SECONDS = 120.0
@@ -571,7 +571,7 @@ class SimulationEngine:
                 entry_point,
                 {"latitude": aircraft.lat, "longitude": aircraft.lon}
             )
-            if distance_nm + 1e-9 < 4.5:
+            if distance_nm + 1e-9 < self.MIN_MERGE_SEPARATION_NM:
                 return False
 
         return True
@@ -915,7 +915,7 @@ class SimulationEngine:
                                 * fastest_speed
                                 / 3600.0
                             )
-                            if arrival_gap_nm >= 4.5:
+                            if arrival_gap_nm >= self.MIN_MERGE_SEPARATION_NM:
                                 continue
 
                             first_waypoint = first_name
@@ -969,7 +969,7 @@ class SimulationEngine:
                                     "second_seconds_to_waypoint": round(second_eta_seconds, 1),
                                     "predicted_separation_nm": round(arrival_gap_nm, 2),
                                 },
-                                "required_separation_nm": 4.5,
+                                "required_separation_nm": self.MIN_MERGE_SEPARATION_NM,
                                 "aircraft_timing": {
                                     str(first[0].callsign): {
                                         "route_id": first[1],
@@ -1047,7 +1047,7 @@ class SimulationEngine:
                 timing = conflict.get("aircraft_timing", {})
                 print(f"CONFLICT CHECK | fix={conflict['waypoint']} | "
                       f"predicted_separation={conflict['predicted_timing']['predicted_separation_nm']} NM | "
-                      f"required={conflict.get('required_separation_nm', 4.5)} NM | conflict=true")
+                      f"required={conflict.get('required_separation_nm', self.MIN_MERGE_SEPARATION_NM)} NM | conflict=true")
                 for aircraft in conflict["aircraft"]:
                     values = timing.get(str(aircraft.callsign), {})
                     print(f"  callsign={aircraft.callsign} route={values.get('route_id')} "
@@ -1167,9 +1167,10 @@ class SimulationEngine:
 
     def _enforce_predictive_separation(self, aircraft_list):
         """Apply speed control for predicted near-term conflicts before movement."""
-        arrivals = [ac for ac in aircraft_list if getattr(ac, "phase", "") in ("ARRIVAL", "FINAL")]
-        for first_index, first in enumerate(arrivals):
-            for second in arrivals[first_index + 1:]:
+        traffic = [ac for ac in aircraft_list
+                   if getattr(ac, "phase", "") in ("ARRIVAL", "FINAL", "DEPARTURE")]
+        for first_index, first in enumerate(traffic):
+            for second in traffic[first_index + 1:]:
                 mean_latitude = math.radians((first.lat + second.lat) / 2.0)
                 east = (second.lon - first.lon) * 60.0 * math.cos(mean_latitude)
                 north = (second.lat - first.lat) * 60.0
@@ -1243,7 +1244,7 @@ class SimulationEngine:
                         )
                         continue
 
-                if closest_distance <= self.CRITICAL_SEPARATION_NM:
+                if closest_distance < self.MIN_MERGE_SEPARATION_NM:
                     merge = self._next_common_route_waypoint(yielding, leader)
                     options = self.holding_manager.compatible_holding_options(yielding, merge) if merge else []
                     held = False
@@ -1264,7 +1265,7 @@ class SimulationEngine:
                         candidates = [level for level in candidates if level >= 1000.0 and all(
                             other is yielding or other is leader
                             or abs(float(getattr(other, "altitude_ft", 0)) - level) >= self.MIN_VERTICAL_SEPARATION_FT
-                            for other in arrivals
+                            for other in traffic
                         )]
                         if candidates:
                             selected_altitude = min(candidates, key=lambda level: abs(level - yielding.altitude_ft))
@@ -1421,7 +1422,7 @@ class SimulationEngine:
                     if abs(own_altitude - other_altitude) >= 1000:
                         continue
                     predicted_gap_nm = time_gap * max(float(own_speed), float(other_speed)) / 3600.0
-                    if predicted_gap_nm < 4.5:
+                    if predicted_gap_nm < self.MIN_MERGE_SEPARATION_NM:
                         return {"safe": False,
                                 "reason": f"{other.callsign} is predicted to merge at {name}",
                                 "other_aircraft": other.callsign,
@@ -1663,12 +1664,12 @@ class SimulationEngine:
 
                     gap = follower_remaining - leader_remaining
                     minimum_speed = self._minimum_sequencing_speed(follower[0])
-                    if gap >= 4.5 or follower[5] <= minimum_speed:
+                    if gap >= self.MIN_MERGE_SEPARATION_NM or follower[5] <= minimum_speed:
                         continue
 
                     adjusted = max(
                         minimum_speed,
-                        leader[4] - (4.5 - gap) * 12.0
+                        leader[4] - (self.MIN_MERGE_SEPARATION_NM - gap) * 12.0
                     )
                     current_target = desired_targets.get(id(follower[0]), follower[5])
                     desired_targets[id(follower[0])] = min(

@@ -127,12 +127,12 @@ class TrafficManager:
     TOTAL_AIRCRAFT = 100
 
     INITIAL_ARRIVALS = 1
-    MAX_ACTIVE_AIRCRAFT = 12
+    MAX_ACTIVE_AIRCRAFT = 13
     # Each phase is (name, duration, arrival-gap range, active-aircraft cap).
     TRAFFIC_WAVES = (
-        ("LOW", 210.0, (70.0, 105.0), 4),
-        ("MEDIUM", 180.0, (42.0, 72.0), 8),
-        ("HIGH", 120.0, (28.0, 48.0), 12),
+        ("LOW", 210.0, (70.0, 105.0), 5),
+        ("MEDIUM", 180.0, (42.0, 72.0), 9),
+        ("HIGH", 120.0, (28.0, 48.0), 13),
     )
 
     def __init__(self):
