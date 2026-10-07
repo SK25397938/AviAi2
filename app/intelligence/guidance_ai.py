@@ -133,8 +133,21 @@ class GuidanceAI:
             )
             if is_approach_trigger and self.approach_handoff_validator is not None:
                 safety = self.approach_handoff_validator(aircraft)
+                speed_reduction = safety.get("speed_reduction_kts")
+                if isinstance(speed_reduction, (int, float)):
+                    aircraft.assign_speed(float(speed_reduction))
+                    aircraft._sequence_speed_ceiling = float(speed_reduction)
+                    if self.decision_event_callback is not None:
+                        self.decision_event_callback(
+                            aircraft, "SPEED REDUCTION", reached_node,
+                            safety.get("reason", "Predicted spacing requires a speed adjustment")
+                        )
                 if safety.get("safe") and hasattr(aircraft, "separation_status"):
                     del aircraft.separation_status
+                if safety.get("safe"):
+                    for name in ("_approach_extension_used", "_approach_extension_fix"):
+                        if hasattr(aircraft, name):
+                            delattr(aircraft, name)
                 if not safety.get("safe", False):
                     aircraft.approach_clearance = False
                     aircraft.assigned_node = reached_node
@@ -155,16 +168,37 @@ class GuidanceAI:
                             aircraft.assign_heading(self.navigator.heading_to_node(aircraft, aircraft.target_node))
                             break
                     if not held:
-                        aircraft.target_node = reached_node
-                        aircraft.assign_speed(min(float(getattr(aircraft, "target_speed_kts", 140) or 140), 140.0))
+                        # Keep the route cursor moving. Speed reduction was
+                        # already evaluated by the handoff predictor; this leg
+                        # provides path extension when a hold is unavailable.
                         aircraft.separation_status = "APPROACH DELAYED"
+                        extension_fix = ("DOGAP" if str(reached_node).upper() in {"MB395", "LIKTA"}
+                                         else "MB398")
+                        if not getattr(aircraft, "_approach_extension_used", False):
+                            # Add a one-time flyable dogleg to the active route.
+                            # The final trigger remains the reconnect point, so
+                            # the regular handoff and cursor logic still apply.
+                            aircraft.route[aircraft.route_index + 1:aircraft.route_index + 1] = [
+                                extension_fix, reached_node
+                            ]
+                            aircraft._approach_extension_used = True
+                            aircraft._approach_extension_fix = extension_fix
+                            aircraft.clearance.direct_node = extension_fix
+                            if self.decision_event_callback is not None:
+                                self.decision_event_callback(
+                                    aircraft, f"{extension_fix} SEQUENCING", extension_fix,
+                                    f"Downstream approach spacing insufficient; temporary path extension via {extension_fix}"
+                                )
                     if self.decision_event_callback is not None:
                         self.decision_event_callback(
                             aircraft, "APPROACH DELAYED", reached_node,
                             safety.get("reason", "Downstream approach separation is unavailable")
                         )
-                    return
-            if (is_approach_trigger
+                    if held:
+                        return
+            else:
+                safety = {"safe": True}
+            if (is_approach_trigger and safety.get("safe", True)
                     and not (self.holding_manager is not None
                              and self.holding_manager.has_active_holding_route(aircraft))):
                 aircraft.approach_clearance = True
@@ -263,6 +297,7 @@ class GuidanceAI:
                 return
             point_profile = route_profiles.get(waypoint_name, {})
             if not isinstance(point_profile, dict):
+                aircraft.target_vertical_speed_fpm = None
                 return
 
             altitude_constraint = point_profile.get("altitude")
@@ -275,14 +310,27 @@ class GuidanceAI:
 
             if (getattr(aircraft, "separation_status", None) != "CRITICAL CONFLICT"
                     and isinstance(altitude, (int, float)) and not isinstance(altitude, bool) and altitude > 0):
+                current_altitude = float(getattr(aircraft, "altitude_ft", 0))
                 if constraint_type == "AT_OR_BELOW":
-                    if aircraft.altitude_ft > altitude:
-                        aircraft.assign_altitude(altitude)
+                    commanded_altitude = min(current_altitude, float(altitude))
                 elif constraint_type == "AT_OR_ABOVE":
-                    if aircraft.altitude_ft < altitude:
-                        aircraft.assign_altitude(altitude)
+                    commanded_altitude = max(current_altitude, float(altitude))
                 else:
-                    aircraft.assign_altitude(altitude)
+                    commanded_altitude = float(altitude)
+                aircraft.assign_altitude(commanded_altitude)
+                try:
+                    fix = self.graph.get_node(aircraft.target_node)
+                    distance_nm = self._distance_nm(
+                        aircraft.lat, aircraft.lon, fix["lat"], fix["lon"]
+                    )
+                except (KeyError, TypeError, ValueError):
+                    distance_nm = 0.0
+                target_speed = float(getattr(aircraft, "target_speed_kts", 0) or
+                                     getattr(aircraft, "speed_kts", 0) or 0)
+                altitude_delta = commanded_altitude - current_altitude
+                required_rate = (altitude_delta * max(target_speed, 1.0)
+                                 / max(distance_nm * 60.0, 1.0))
+                aircraft.target_vertical_speed_fpm = max(-1500.0, min(1500.0, required_rate))
             if isinstance(speed, (int, float)) and not isinstance(speed, bool) and speed > 0:
                 if isinstance(speed_constraint, dict) and speed_constraint.get("type") == "MAX":
                     current_target = getattr(aircraft, "target_speed_kts", None)
@@ -290,12 +338,7 @@ class GuidanceAI:
                         aircraft.assign_speed(speed)
                 else:
                     aircraft.assign_speed(speed)
-            if (getattr(aircraft, "separation_status", None) != "CRITICAL CONFLICT"
-                    and isinstance(descent_rate, (int, float)) and descent_rate > 0):
-                aircraft.target_vertical_speed_fpm = -min(
-                    1500.0, float(descent_rate) * max(float(aircraft.speed_kts), 1.0) / 60.0
-                )
-            else:
+            if getattr(aircraft, "separation_status", None) == "CRITICAL CONFLICT":
                 aircraft.target_vertical_speed_fpm = None
 
     def _taxi(

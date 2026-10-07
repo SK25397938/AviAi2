@@ -27,6 +27,21 @@ class HoldingManager:
         return next((route for route in self.holding_routes
                      if isinstance(route, dict) and str(route.get("id")) == str(holding_route_id)), None)
 
+    def holding_occupancy(self, holding_route_id):
+        return sum(1 for state in self._active_holds.values()
+                   if str(state.get("holding_route_id")) == str(holding_route_id))
+
+    def has_capacity(self, holding_route_id):
+        route = self._holding_route_by_id(holding_route_id)
+        if route is None:
+            return False
+        capacity = route.get("capacity", 1)
+        try:
+            capacity = max(1, int(capacity))
+        except (TypeError, ValueError):
+            capacity = 1
+        return self.holding_occupancy(holding_route_id) < capacity
+
     @staticmethod
     def _fix_point(route):
         fix = str(route.get("fix", route.get("trigger_waypoint", ""))).upper()
@@ -242,17 +257,29 @@ class HoldingManager:
                                   if str(route[i]).upper() == trigger.upper()), None)
             if trigger_index is None or trigger_index > conflict_index:
                 continue
+            route_id = holding.get("id")
+            if not self.has_capacity(route_id):
+                continue
+            source_routes = holding.get("source_routes", [])
+            aircraft_route_id = str(getattr(aircraft, "arrival_route_id", ""))
+            if source_routes and aircraft_route_id not in {str(item) for item in source_routes}:
+                continue
             options.append({
-                "holding_route_id": holding.get("id"),
+                "holding_route_id": route_id,
                 "holding_fix": trigger,
                 "rejoin_node": route[trigger_index + 1] if trigger_index + 1 < len(route) else None,
+                "occupancy": self.holding_occupancy(route_id),
+                "distance_in_route": trigger_index - route_index,
             })
-        return options
+        return sorted(options, key=lambda option: (option["occupancy"], option["distance_in_route"],
+                                                    str(option["holding_route_id"])))
 
     def apply_holding_route(self, aircraft, holding_route_id, circuits=1):
         holding = self._holding_route_by_id(holding_route_id)
         if holding is None:
             return self._result(False, f"Unknown holding route: {holding_route_id}")
+        if not self.has_capacity(holding_route_id):
+            return self._result(False, f"Holding route {holding_route_id} is at capacity")
         if isinstance(circuits, bool) or not isinstance(circuits, int) or not 1 <= circuits <= 10:
             return self._result(False, "Holding circuits must be an integer from 1 to 10")
         aircraft_key = id(aircraft)

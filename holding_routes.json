@@ -5,6 +5,7 @@
       "fix": "EMROS",
       "trigger_waypoint": "EMROS",
       "source_routes": ["001", "003", "004"],
+      "capacity": 3,
       "inbound_course_true": 181.25,
       "inbound_course_mag": 182.0,
       "turn_direction": "L",
@@ -28,6 +29,7 @@
       "fix": "OLGUS",
       "trigger_waypoint": "OLGUS",
       "source_routes": ["001", "003", "004"],
+      "capacity": 3,
       "inbound_course_true": 241.43,
       "inbound_course_mag": 242.18,
       "turn_direction": "L",
@@ -50,6 +52,7 @@
       "fix": "LIKTA",
       "trigger_waypoint": "LIKTA",
       "source_routes": ["002"],
+      "capacity": 3,
       "inbound_course_true": 358.57,
       "inbound_course_mag": 359.32,
       "turn_direction": "R",
@@ -66,6 +69,28 @@
         {"name": "LIKTA_INBOUND_START", "latitude": 18.810037, "longitude": 73.154745},
         {"name": "LIKTA", "latitude": 18.926667, "longitude": 73.151667}
       ]
-    }
+    },
+    {
+  "id": "H-EMRAK",
+  "fix": "EMRAK",
+  "trigger_waypoint": "EMRAK",
+  "source_routes": ["005"],
+  "capacity": 3,
+  "inbound_course_true": 253.81,
+  "inbound_course_mag": 254.56,
+  "turn_direction": "L",
+  "leg_length_nm": 10,
+  "upper_limit": "FL220",
+  "lower_limit": "FL120",
+  "max_speed_kt": 230,
+  "turn_radius_nm": 3.66,
+  "waypoints": [
+    {"name": "EMRAK", "latitude": 19.420442, "longitude": 73.871094},
+    {"name": "EMRAK_OUTBOUND_START", "latitude": 19.303262, "longitude": 73.907168},
+    {"name": "EMRAK_OUTBOUND_END", "latitude": 19.349733, "longitude": 74.076892},
+    {"name": "EMRAK_INBOUND_START", "latitude": 19.466913, "longitude": 74.040807},
+    {"name": "EMRAK", "latitude": 19.420442, "longitude": 73.871094}
+  ]
+}
   ]
 }

@@ -9,8 +9,8 @@ class TrafficScheduler:
     MIN_ARRIVAL_GAP = 35
     MAX_ARRIVAL_GAP = 70
 
-    MIN_DEPARTURE_GAP = 60
-    MAX_DEPARTURE_GAP = 150
+    MIN_DEPARTURE_GAP = 55
+    MAX_DEPARTURE_GAP = 115
 
     MIN_TURNAROUND = 2700
     MAX_TURNAROUND = 7200
@@ -65,13 +65,20 @@ class TrafficScheduler:
                 departure_time
             )
 
-        self.next_departure_release = now
+        self.next_departure_release = now + self.random.randint(5, 35)
 
-    def get_due_departures(self):
+    def get_due_departures(
+        self,
+        active_aircraft_count=0,
+        active_capacity=12,
+        release_gap_range=None,
+    ):
 
         now = time.time()
 
-        if now < self.next_departure_release:
+        if (now < self.next_departure_release
+                or active_aircraft_count >= active_capacity
+                or active_aircraft_count >= 12):
 
             return []
 
@@ -93,13 +100,8 @@ class TrafficScheduler:
 
         aircraft = departures[0]
 
-        self.next_departure_release = (
-            now
-            + self.random.randint(
-                self.MIN_DEPARTURE_GAP,
-                self.MAX_DEPARTURE_GAP
-            )
-        )
+        gap_range = release_gap_range or (self.MIN_DEPARTURE_GAP, self.MAX_DEPARTURE_GAP)
+        self.next_departure_release = now + self.random.randint(*map(int, gap_range))
 
         return [aircraft]
 

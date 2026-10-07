@@ -1,5 +1,6 @@
 import json
 import math
+import random
 from pathlib import Path
 from datetime import datetime
 
@@ -10,6 +11,7 @@ from app.simulation.physics import move_aircraft
 from app.simulation.aircraft_db import AircraftDatabase
 from app.simulation.traffic_manager import TrafficManager
 from app.simulation.traffic_scheduler import TrafficScheduler
+from app.aircraft.aircraft_type import get_aircraft_performance
 
 from app.intelligence.arrival_manager import ArrivalManager
 from app.intelligence.arrival_ai import ArrivalAI
@@ -29,12 +31,11 @@ from app.navigation.loader import load_arrival_profiles, load_arrival_routes, lo
 
 class SimulationEngine:
 
-    SEQUENCING_WINDOW_NM = 12.0
+    SEQUENCING_WINDOW_NM = 35.0
     MIN_MERGE_SEPARATION_NM = 4.5
     MIN_VERTICAL_SEPARATION_FT = 1000
-    MIN_ARRIVAL_SPEED_KTS = 140.0
     CONFLICT_WARNING_DISTANCE_NM = 6.0
-    PREDICTION_LOOKAHEAD_SECONDS = 90.0
+    PREDICTION_LOOKAHEAD_SECONDS = 120.0
     CRITICAL_SEPARATION_NM = 1.0
 
     def __init__(
@@ -120,6 +121,11 @@ class SimulationEngine:
                     waypoint["longitude"]
                 )
 
+        # Temporary sequencing fixes are navigable graph nodes, but are not
+        # inserted into permanent arrival routes.
+        self.graph.add_node("DOGAP", 18.809143, 73.416653)
+        self.graph.add_node("MB398", 19.453401, 73.462572)
+
         self.arrival = ArrivalManager(
             self.graph
         )
@@ -191,7 +197,8 @@ class SimulationEngine:
 
         arrivals = self.traffic_manager.update(
             dt,
-            can_release_arrival=self._arrival_has_spacing
+            can_release_arrival=self._arrival_has_spacing,
+            active_aircraft_count=len(self.manager.all()),
         )
 
         active_callsigns = {
@@ -389,20 +396,55 @@ class SimulationEngine:
 
     def _apply_merge_speed_delay(self, aircraft, distance_to_merge_nm, leader_eta_seconds, max_speed):
         target = getattr(aircraft, "target_speed_kts", None)
-        if not isinstance(target, (int, float)) or target <= self.MIN_ARRIVAL_SPEED_KTS or distance_to_merge_nm <= 0:
+        minimum_speed = self._minimum_sequencing_speed(aircraft)
+        if not isinstance(target, (int, float)) or target <= minimum_speed or distance_to_merge_nm <= 0:
             return False
         safe_gap_seconds = self.MIN_MERGE_SEPARATION_NM * 3600.0 / max_speed
         desired_eta = leader_eta_seconds + safe_gap_seconds
         if desired_eta <= 0:
             return False
         required_speed = distance_to_merge_nm * 3600.0 / desired_eta
-        if required_speed < self.MIN_ARRIVAL_SPEED_KTS or required_speed >= target:
+        if required_speed < minimum_speed or required_speed >= target - 1.0:
             return False
         if not hasattr(aircraft, "_engine_shared_waypoint_original_target_speed"):
             aircraft._engine_shared_waypoint_original_target_speed = target
-        aircraft.target_speed_kts = required_speed
+        aircraft.assign_speed(required_speed)
+        aircraft._sequence_speed_ceiling = required_speed
         aircraft._engine_shared_waypoint_applied_target_speed = required_speed
         return True
+
+    def _minimum_sequencing_speed(self, aircraft):
+        """Return a type- and phase-appropriate speed floor for sequencing."""
+        performance = get_aircraft_performance(getattr(aircraft, "aircraft_type", ""))
+        minimum = float(performance.get("minimum_arrival_speed_kts", 170))
+        if getattr(aircraft, "phase", "") == "FINAL":
+            index = getattr(aircraft, "approach_index", None)
+            points = self.approach_ai.approach_points
+            if isinstance(index, int) and 0 <= index < len(points):
+                profile_speed = self.approach_ai._get_speed(aircraft, points[index].get("id"))
+                if isinstance(profile_speed, (int, float)):
+                    # Permit modest sequencing reduction while retaining a
+                    # floor tied to this aircraft's configured approach speed.
+                    minimum = max(135.0, min(minimum, float(profile_speed) - 10.0))
+        return minimum
+
+    @staticmethod
+    def _relative_closure(first, second):
+        """Horizontal range and positive closure rate, in NM and knots."""
+        mean_latitude = math.radians((float(first.lat) + float(second.lat)) / 2.0)
+        east = (float(second.lon) - float(first.lon)) * 60.0 * math.cos(mean_latitude)
+        north = (float(second.lat) - float(first.lat)) * 60.0
+        distance = math.hypot(east, north)
+        if distance <= 1e-6:
+            return distance, 0.0
+        first_speed = float(getattr(first, "speed_kts", 0) or 0)
+        second_speed = float(getattr(second, "speed_kts", 0) or 0)
+        first_heading = math.radians(float(getattr(first, "heading_deg", 0) or 0))
+        second_heading = math.radians(float(getattr(second, "heading_deg", 0) or 0))
+        relative_east = second_speed * math.sin(second_heading) - first_speed * math.sin(first_heading)
+        relative_north = second_speed * math.cos(second_heading) - first_speed * math.cos(first_heading)
+        closure = -(east * relative_east + north * relative_north) / distance
+        return distance, closure
 
     def _initialize_arrival_route(self, aircraft, route):
         """Initialize an arrival at route.waypoints[0], preserving route order."""
@@ -463,7 +505,9 @@ class SimulationEngine:
             for route_id in route_ids
         }
 
-        return min(route_ids, key=lambda route_id: (route_loads[route_id], str(route_id)))
+        lowest_load = min(route_loads.values())
+        least_loaded = [route_id for route_id, load in route_loads.items() if load == lowest_load]
+        return random.choice(least_loaded)
 
     def _arrival_entry(self, route_id):
 
@@ -523,14 +567,6 @@ class SimulationEngine:
             "longitude": entry_coordinates[1]
         }
         for aircraft in aircraft_on_route:
-            aircraft_route_id = getattr(aircraft, "arrival_route_id", None)
-            if aircraft_route_id not in self.arrival_routes:
-                continue
-
-            aircraft_entry_key, _ = self._arrival_entry(aircraft_route_id)
-            if aircraft_entry_key != entry_key:
-                continue
-
             distance_nm = self._route_segment_length_nm(
                 entry_point,
                 {"latitude": aircraft.lat, "longitude": aircraft.lon}
@@ -658,14 +694,18 @@ class SimulationEngine:
         conflicts = []
         for first_index, first in enumerate(arrivals):
             for second in arrivals[first_index + 1:]:
-                if abs(getattr(first[0], "altitude_ft", 0) - getattr(second[0], "altitude_ft", 0)) >= self.MIN_VERTICAL_SEPARATION_FT:
-                    continue
                 common_points = set(first[5]).intersection(second[5])
                 candidates = []
                 for point_index in common_points:
                     first_eta, second_eta = first[5][point_index], second[5][point_index]
                     if max(first_eta * first[4] / 3600.0,
-                           second_eta * second[4] / 3600.0) > self.SEQUENCING_WINDOW_NM * 1.5:
+                           second_eta * second[4] / 3600.0) > self.SEQUENCING_WINDOW_NM:
+                        continue
+                    first_altitude = (float(getattr(first[0], "altitude_ft", 0))
+                                      + float(getattr(first[0], "vertical_speed_fpm", 0)) * first_eta / 60.0)
+                    second_altitude = (float(getattr(second[0], "altitude_ft", 0))
+                                       + float(getattr(second[0], "vertical_speed_fpm", 0)) * second_eta / 60.0)
+                    if abs(first_altitude - second_altitude) >= self.MIN_VERTICAL_SEPARATION_FT:
                         continue
                     gap_nm = abs(first_eta - second_eta) * max(first[4], second[4]) / 3600.0
                     if gap_nm < self.MIN_MERGE_SEPARATION_NM:
@@ -677,19 +717,25 @@ class SimulationEngine:
                 delayed = first if first_eta >= second_eta else second
                 leader_eta = second_eta if delayed is first else first_eta
                 delayed_eta = first_eta if delayed is first else second_eta
+                leader = second if delayed is first else first
+                current_separation, closure_rate = self._relative_closure(leader[0], delayed[0])
+                horizons = (30, 60, 90, 120)
+                projected_horizons = {
+                    str(seconds): round(max(0.0, current_separation - closure_rate * seconds / 3600.0), 2)
+                    for seconds in horizons
+                }
                 delayed_route = delayed[2]
                 route_points = delayed_route.get("waypoints", [])
                 endpoint_name = route_points[-1].get("name") if route_points else None
-                to_endpoint = self._route_distance_to_waypoint_nm(
-                    delayed[0], delayed_route, endpoint_name, delayed[3]
-                ) if endpoint_name else None
-                leader = second if delayed is first else first
-                if (to_endpoint is not None and to_endpoint > 0 and
-                        self._apply_merge_speed_delay(delayed[0], delayed_eta * delayed[4] / 3600.0,
+                distance_to_merge = delayed_eta * delayed[4] / 3600.0
+                if (distance_to_merge > 0.1 and
+                        self._apply_merge_speed_delay(delayed[0], distance_to_merge,
                                                       leader_eta, max(first[4], second[4]))):
                     self._record_separation_event(
                         delayed[0], leader[0], self.approach_ai.approach_points[approach_index].get("id"),
-                        "SPEED REDUCTION", "Predicted downstream approach spacing was below minimum",
+                        "SPEED REDUCTION",
+                        f"ETA separation predicts {gap_nm:.2f} NM at downstream fix; "
+                        f"current spacing {current_separation:.2f} NM, closure {closure_rate:.1f} kt",
                     )
                     continue
                 if not endpoint_name:
@@ -724,6 +770,18 @@ class SimulationEngine:
                         "second_seconds_to_waypoint": round(second_eta, 1),
                         "predicted_separation_nm": round(gap_nm, 2),
                         "merge_waypoint": self.approach_ai.approach_points[approach_index].get("id"),
+                        "aircraft_ahead": str(leader[0].callsign),
+                        "aircraft_behind": str(delayed[0].callsign),
+                        "current_separation_nm": round(current_separation, 2),
+                        "relative_closure_rate_kts": round(closure_rate, 1),
+                        "time_to_required_separation_seconds": (
+                            round(max(0.0, current_separation - self.MIN_MERGE_SEPARATION_NM)
+                                  * 3600.0 / closure_rate, 1) if closure_rate > 0 else None
+                        ),
+                        "eta_ahead_at_merge_seconds": round(min(first_eta, second_eta), 1),
+                        "eta_behind_at_merge_seconds": round(max(first_eta, second_eta), 1),
+                        "projected_separation_nm_by_horizon": projected_horizons,
+                        "prediction_horizon_seconds": max(horizons),
                     },
                     "required_separation_nm": self.MIN_MERGE_SEPARATION_NM,
                     "aircraft_timing": timing,
@@ -1021,6 +1079,13 @@ class SimulationEngine:
             "rejoin_node": decision.get("rejoin_node"),
             "reason": decision["reason"],
             "decision_source": result.get("decision_source", "Mistral"),
+            "aircraft_ahead": conflict.get("predicted_timing", {}).get("aircraft_ahead"),
+            "aircraft_behind": conflict.get("predicted_timing", {}).get("aircraft_behind"),
+            "current_separation_nm": conflict.get("predicted_timing", {}).get("current_separation_nm"),
+            "relative_closure_rate_kts": conflict.get("predicted_timing", {}).get("relative_closure_rate_kts"),
+            "predicted_merge_separation_nm": conflict.get("predicted_timing", {}).get("predicted_separation_nm"),
+            "prediction_horizon_seconds": conflict.get("predicted_timing", {}).get("prediction_horizon_seconds"),
+            "aircraft_timing": conflict.get("aircraft_timing", {}),
         })
         del self.ai_decision_log[50:]
 
@@ -1040,9 +1105,16 @@ class SimulationEngine:
             "conflict_waypoint": waypoint,
             "route_id": getattr(aircraft, "arrival_route_id", None),
             "route_index": getattr(aircraft, "route_index", None),
+            "active_route": list(getattr(aircraft, "route", []) or []),
+            "assigned_waypoint": getattr(aircraft, "assigned_node", None),
+            "target_waypoint": getattr(aircraft, "target_node", None),
+            "clearance_direct_node": getattr(getattr(aircraft, "clearance", None), "direct_node", None),
             "distance_nm": getattr(aircraft, "current_distance", None),
             "altitude": getattr(aircraft, "altitude_ft", None),
+            "target_altitude_ft": getattr(aircraft, "target_altitude_ft", None),
             "speed": getattr(aircraft, "speed_kts", None),
+            "target_speed_kts": getattr(aircraft, "target_speed_kts", None),
+            "next_constrained_waypoint": getattr(aircraft, "target_node", None),
             "reason": reason,
         })
         del self.ai_decision_log[50:]
@@ -1055,6 +1127,22 @@ class SimulationEngine:
         if previous is not None and (now - previous).total_seconds() < 30:
             return
         self._last_separation_event_at[event_key] = now
+        separation_nm, closure_kts = self._relative_closure(aircraft, other) if other is not None else (None, None)
+        ahead, behind = None, None
+        eta_ahead, eta_behind = None, None
+        if other is not None:
+            etas = []
+            for item in (aircraft, other):
+                route = self.arrival_routes.get(getattr(item, "arrival_route_id", None))
+                speed = getattr(item, "target_speed_kts", None) or getattr(item, "speed_kts", 0)
+                progress = self._route_progress_nm(item, route) if route else None
+                eta = (self._approach_merge_eta_seconds(item, route, progress, float(speed))
+                       if route and progress is not None and speed else None)
+                etas.append(eta)
+            if etas[0] is not None and etas[1] is not None:
+                ahead, behind = ((aircraft.callsign, other.callsign) if etas[0] <= etas[1]
+                                 else (other.callsign, aircraft.callsign))
+                eta_ahead, eta_behind = sorted(etas)
         self.ai_decision_log.insert(0, {
             "timestamp": now.isoformat(timespec="seconds"),
             "callsign": aircraft.callsign,
@@ -1065,6 +1153,14 @@ class SimulationEngine:
             "conflict_waypoint": waypoint,
             "altitude": getattr(aircraft, "target_altitude_ft", None),
             "speed": getattr(aircraft, "target_speed_kts", None),
+            "current_separation_nm": round(separation_nm, 2) if separation_nm is not None else None,
+            "relative_closure_rate_kts": round(closure_kts, 1) if closure_kts is not None else None,
+            "aircraft_ahead": ahead,
+            "aircraft_behind": behind,
+            "eta_ahead_at_merge_seconds": round(eta_ahead, 1) if eta_ahead is not None else None,
+            "eta_behind_at_merge_seconds": round(eta_behind, 1) if eta_behind is not None else None,
+            "target_speed_kts": getattr(aircraft, "target_speed_kts", None),
+            "target_altitude_ft": getattr(aircraft, "target_altitude_ft", None),
             "reason": reason,
         })
         del self.ai_decision_log[50:]
@@ -1130,14 +1226,16 @@ class SimulationEngine:
 
                 target = getattr(yielding, "target_speed_kts", None)
                 leader_speed = float(getattr(leader, "speed_kts", 0) or 0)
-                if isinstance(target, (int, float)) and target > self.MIN_ARRIVAL_SPEED_KTS:
+                minimum_speed = self._minimum_sequencing_speed(yielding)
+                if isinstance(target, (int, float)) and target > minimum_speed:
                     deficit = self.MIN_MERGE_SEPARATION_NM - closest_distance
-                    adjusted = max(self.MIN_ARRIVAL_SPEED_KTS,
+                    adjusted = max(minimum_speed,
                                    min(float(target), leader_speed - max(0.25, deficit) * 12.0))
                     if adjusted < target:
                         if not hasattr(yielding, "_engine_predictive_original_target_speed"):
                             yielding._engine_predictive_original_target_speed = target
-                        yielding.target_speed_kts = adjusted
+                        yielding.assign_speed(adjusted)
+                        yielding._sequence_speed_ceiling = adjusted
                         yielding._engine_predictive_applied_target_speed = adjusted
                         self._record_separation_event(
                             yielding, leader, getattr(yielding, "target_node", None), "SPEED REDUCTION",
@@ -1375,6 +1473,7 @@ class SimulationEngine:
         if own_progress is None or own_speed <= 0:
             return {"safe": False, "reason": "Approach trajectory cannot be predicted"}
         own_etas = self._approach_point_etas(aircraft, route, own_progress, float(own_speed))
+        speed_solution = None
         traffic = self.manager.all()
         for other in traffic:
             if (other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}
@@ -1395,11 +1494,24 @@ class SimulationEngine:
                 if abs(own_altitude - other_altitude) >= self.MIN_VERTICAL_SEPARATION_FT:
                     continue
                 separation = abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0
-                if separation < self.MIN_MERGE_SEPARATION_NM:
+                if separation < self.MIN_MERGE_SEPARATION_NM and own_eta > other_eta:
+                    required_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
+                        float(own_speed), float(other_speed)
+                    )
+                    distance_nm = own_eta * float(own_speed) / 3600.0
+                    required_speed = distance_nm * 3600.0 / max(required_eta, 1.0)
+                    minimum_speed = self._minimum_sequencing_speed(aircraft)
+                    if required_speed >= minimum_speed and required_speed < float(own_speed) - 1.0:
+                        speed_solution = required_speed if speed_solution is None else min(speed_solution, required_speed)
+                        continue
                     point_name = self.approach_ai.approach_points[point_index].get("id", "approach fix")
                     return {"safe": False, "reason": f"{other.callsign} is predicted {separation:.2f} NM away at downstream fix {point_name}",
                             "other_aircraft": other.callsign, "conflict_waypoint": point_name,
-                            "predicted_separation_nm": round(separation, 2)}
+                            "predicted_separation_nm": round(separation, 2),
+                            "own_eta_seconds": round(own_eta, 1), "other_eta_seconds": round(other_eta, 1)}
+        if speed_solution is not None:
+            return {"safe": True, "reason": "Speed adjustment restores predicted approach separation",
+                    "speed_reduction_kts": round(speed_solution, 1)}
         return {"safe": True, "reason": "Downstream approach separation available"}
 
     def _record_hold_release(self, aircraft, release):
@@ -1424,6 +1536,8 @@ class SimulationEngine:
     def _restore_shared_waypoint_speeds(self, aircraft_list):
 
         for aircraft in aircraft_list:
+            if hasattr(aircraft, "_sequence_speed_ceiling"):
+                del aircraft._sequence_speed_ceiling
             applied_altitude = getattr(aircraft, "_separation_applied_target_altitude", None)
             if applied_altitude is not None:
                 if getattr(aircraft, "target_altitude_ft", None) == applied_altitude:
@@ -1439,7 +1553,7 @@ class SimulationEngine:
             predictive_target = getattr(aircraft, "_engine_predictive_applied_target_speed", None)
             if predictive_target is not None:
                 if getattr(aircraft, "target_speed_kts", None) == predictive_target:
-                    aircraft.target_speed_kts = aircraft._engine_predictive_original_target_speed
+                    aircraft.assign_speed(aircraft._engine_predictive_original_target_speed)
                 del aircraft._engine_predictive_applied_target_speed
                 del aircraft._engine_predictive_original_target_speed
 
@@ -1452,7 +1566,7 @@ class SimulationEngine:
                 continue
 
             if getattr(aircraft, "target_speed_kts", None) == applied_target:
-                aircraft.target_speed_kts = aircraft._engine_shared_waypoint_original_target_speed
+                aircraft.assign_speed(aircraft._engine_shared_waypoint_original_target_speed)
 
             del aircraft._engine_shared_waypoint_applied_target_speed
             del aircraft._engine_shared_waypoint_original_target_speed
@@ -1548,11 +1662,12 @@ class SimulationEngine:
                         continue
 
                     gap = follower_remaining - leader_remaining
-                    if gap >= 4.5 or follower[5] <= 140:
+                    minimum_speed = self._minimum_sequencing_speed(follower[0])
+                    if gap >= 4.5 or follower[5] <= minimum_speed:
                         continue
 
                     adjusted = max(
-                        140.0,
+                        minimum_speed,
                         leader[4] - (4.5 - gap) * 12.0
                     )
                     current_target = desired_targets.get(id(follower[0]), follower[5])
@@ -1566,12 +1681,24 @@ class SimulationEngine:
             if adjusted < target:
                 if not hasattr(aircraft, "_engine_shared_waypoint_original_target_speed"):
                     aircraft._engine_shared_waypoint_original_target_speed = target
-                aircraft.target_speed_kts = max(self.MIN_ARRIVAL_SPEED_KTS, adjusted)
+                aircraft.target_speed_kts = max(self._minimum_sequencing_speed(aircraft), adjusted)
+                aircraft._sequence_speed_ceiling = aircraft.target_speed_kts
                 aircraft._engine_shared_waypoint_applied_target_speed = aircraft.target_speed_kts
 
     def process_due_departures(self):
 
-        departures = self.scheduler.get_due_departures()
+        active_count = len(self.manager.all())
+        wave_name = self.traffic_manager.active_wave[0]
+        departure_gaps = {
+            "LOW": (75, 115),
+            "MEDIUM": (50, 85),
+            "HIGH": (38, 68),
+        }
+        departures = self.scheduler.get_due_departures(
+            active_aircraft_count=active_count,
+            active_capacity=self.traffic_manager.active_wave_capacity,
+            release_gap_range=departure_gaps.get(wave_name),
+        )
 
         for aircraft_data in departures:
 
@@ -1637,9 +1764,7 @@ class SimulationEngine:
         self._apply_shared_waypoint_separation(traffic)
 
         for aircraft in traffic:
-
             try:
-
                 if aircraft.phase == "DEPARTURE":
                     self.guidance.update(aircraft)
                     if aircraft.target_node is None:
@@ -1657,87 +1782,42 @@ class SimulationEngine:
                         speed = waypoint.get("speed", {})
                         if speed.get("knots") is not None:
                             aircraft.assign_speed(speed["knots"])
-                    move_aircraft(aircraft, dt)
                     continue
 
-                # Keep the conflicting pair at their current positions while the
-                # asynchronous decision is pending. This guarantees a fallback
-                # can still insert its hold before either aircraft passes the fix.
-                if mistral_controller.has_pending_conflict_for(aircraft.callsign):
-                    continue
+                # Pending asynchronous decisions leave the current clearance in
+                # place; movement still happens in the common pass below.
+                if not mistral_controller.has_pending_conflict_for(aircraft.callsign):
+                    self.arrival_ai.update(aircraft)
+                    self.guidance.update(aircraft)
 
-                self.arrival_ai.update(
-                    aircraft
-                )
+                    if aircraft.phase == "FINAL":
+                        self.approach_ai.update(aircraft)
 
-                self.guidance.update(
-                    aircraft
-                )
+                    if getattr(aircraft, "approach_complete", False):
+                        self.aircraft_db.upsert(
+                            callsign=aircraft.callsign,
+                            aircraft_type=aircraft.aircraft_type,
+                            runway_exit="27",
+                            taxiway="23ft"
+                        )
+                        self.scheduler.aircraft_landed(aircraft.callsign)
+                        print(f"FINAL APPROACH COMPLETE: {aircraft.callsign} -> RWY 27 / 23ft")
+                        print(f"TRAFFIC STORED AT AIRPORT: {aircraft.callsign}")
+                        self.manager.remove(aircraft)
+                        print(f"AIRCRAFT REMOVED FROM SIM: {aircraft.callsign}")
+                        continue
 
-                if aircraft.phase == "FINAL":
-
-                    self.approach_ai.update(
-                        aircraft
-                    )
-
-                if getattr(
-                    aircraft,
-                    "approach_complete",
-                    False
-                ):
-
-                    self.aircraft_db.upsert(
-                        callsign=aircraft.callsign,
-                        aircraft_type=aircraft.aircraft_type,
-                        runway_exit="27",
-                        taxiway="23ft"
-                    )
-
-                    self.scheduler.aircraft_landed(
-                        aircraft.callsign
-                    )
-
-                    print(
-                        f"FINAL APPROACH COMPLETE: "
-                        f"{aircraft.callsign} -> RWY 27 / 23ft"
-                    )
-
-                    print(
-                        f"TRAFFIC STORED AT AIRPORT: "
-                        f"{aircraft.callsign}"
-                    )
-
-                    self.manager.remove(
-                        aircraft
-                    )
-
-                    print(
-                        f"AIRCRAFT REMOVED FROM SIM: "
-                        f"{aircraft.callsign}"
-                    )
-
-                    continue
-
-                self.landing_ai.update(
-                    aircraft
-                )
-
-                for arrival_aircraft in traffic:
-                    self.guidance.apply_route_constraints(arrival_aircraft)
-
-                if (aircraft.phase == "ARRIVAL"
-                        and getattr(aircraft, "separation_status", None) == "APPROACH DELAYED"
-                        and aircraft.target_node == aircraft.assigned_node):
-                    continue
-
-                move_aircraft(
-                    aircraft,
-                    dt
-                )
+                    self.landing_ai.update(aircraft)
+                    for arrival_aircraft in traffic:
+                        self.guidance.apply_route_constraints(arrival_aircraft)
 
             except Exception as error:
+                print(f"AIRCRAFT UPDATE ERROR {aircraft.callsign}: {error}")
 
-                print(
-                    f"AIRCRAFT UPDATE ERROR "
-                    f"{aircraft.callsign}: {error}"
-                )
+        # Advance every aircraft that remains active exactly once per tick,
+        # after this tick's decisions and clearance changes have been applied.
+        for aircraft in list(self.manager.all()):
+            try:
+                move_aircraft(aircraft, dt)
+            except Exception as error:
+                print(f"AIRCRAFT MOVEMENT ERROR {aircraft.callsign}: {error}")

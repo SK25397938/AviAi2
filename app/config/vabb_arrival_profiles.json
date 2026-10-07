@@ -82,7 +82,7 @@
     "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
     "speed": { "type": "MAX", "knots": 250 }
   },
-  "EMARK": {
+  "EMRAK": {
     "altitude": { "type": "AT", "feet": 10000 },
     "speed": { "type": "MAX", "knots": 230 },
     "vertical_profile": { "descent_ft_per_nm": 33 }

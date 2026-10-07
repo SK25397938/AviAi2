@@ -167,8 +167,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .aip-input:focus{border-color:var(--accent)}
 .aip-input::placeholder{color:var(--border-light)}
 .aip-actions{display:flex;gap:8px;margin-top:10px}
-.layer-ctrl{position:absolute;top:56px;right:10px;z-index:210;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:8px 10px;min-width:150px;transition:opacity .15s}
-.layer-ctrl--hidden{opacity:0;pointer-events:none}
+.layer-menu{position:relative}
+.layer-menu__toggle{font-family:var(--font-mono);font-size:9px;letter-spacing:.8px;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;text-transform:uppercase;list-style:none;white-space:nowrap}
+.layer-menu__toggle::-webkit-details-marker{display:none}
+.layer-menu__toggle::after{content:'▾';margin-left:8px;color:var(--accent)}
+.layer-menu[open] .layer-menu__toggle{border-color:var(--accent);color:var(--accent)}
+.layer-ctrl{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:410;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.layer-menu[open] .layer-ctrl{display:block}
 .lc-title{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
 .lc-item{display:flex;align-items:center;gap:8px;padding:3px 0}
 .lc-item label{font-size:11px;color:var(--fg);cursor:pointer;display:flex;align-items:center;gap:8px}
@@ -191,7 +196,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .semantic-edit #opsPanel{display:none}
 .semantic-edit #trafficPanel{display:none}
 .semantic-edit #decisionLog{display:none}
-.semantic-edit #layerCtrl{top:60px;right:10px}
 .semantic-edit #viewCtrl{bottom:10px}
 .semantic-edit #simMap{position:absolute;top:48px;left:0;right:0;bottom:0}
 .top-btn{font-family:var(--font-mono);font-size:9px;letter-spacing:.8px;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:all .15s;text-transform:uppercase}
@@ -209,12 +213,23 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <span class="sh-sep"></span>
 <span class="sh-sub">Autonomous ATC Simulation</span>
 </div>
-<div class="sh-center">
-<span class="sh-clock" id="simClock">14:30:00</span>
-</div>
 <div class="sh-right">
 <button class="pp-btn" id="ppBtn" onclick="togglePause()">&#9208;</button>
 <button class="btn btn--ghost btn--sm" onclick="toggleAtcInput()">ATC INPUT</button>
+<details class="layer-menu" id="layerMenu">
+<summary class="layer-menu__toggle">Layers</summary>
+<div class="layer-ctrl" id="layerCtrl" aria-label="Map layers">
+<div class="lc-item"><label><input type="checkbox" checked data-layer="aircraft" onchange="toggleLayer(this)"> Aircraft</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="labels" onchange="toggleLayer(this)"> Aircraft Labels</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="runways" onchange="toggleLayer(this)"> Runways</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="taxiways" onchange="toggleLayer(this)"> Taxiways</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="aprons" onchange="toggleLayer(this)"> Aprons</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="gates" onchange="toggleLayer(this)"> Gates</label></div>
+<div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
+<div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
+<div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
+</div>
+</details>
 <a href="/" class="btn btn--sm">Operations</a>
 <a href="/map/" class="btn btn--sm">Live Map</a>
 <button id="semanticModeBtn" class="top-btn">Semantic Edit</button>
@@ -432,18 +447,6 @@ Apply Weather
 <button class="btn btn--sm btn--danger" onclick="emergencyPause()">EMERGENCY PAUSE</button>
 </div>
 </div>
-</div>
-<div class="layer-ctrl" id="layerCtrl">
-<div class="lc-title">Layers</div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="aircraft" onchange="toggleLayer(this)"> Aircraft</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="labels" onchange="toggleLayer(this)"> Aircraft Labels</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="runways" onchange="toggleLayer(this)"> Runways</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="taxiways" onchange="toggleLayer(this)"> Taxiways</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="aprons" onchange="toggleLayer(this)"> Aprons</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="gates" onchange="toggleLayer(this)"> Gates</label></div>
-<div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
-<div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
-<div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
 </div>
 <div class="view-ctrl" id="viewCtrl">
 <button class="btn btn--sm" onclick="setView('airport')">AIRPORT VIEW</button>
@@ -730,6 +733,19 @@ async function loadRouteVisualization(){
 
         });
 
+        // Sequencing fixes are not part of the published arrival routes, but
+        // should still be visible on the map for controllers.
+        [
+            {name:"DOGAP", latitude:18.809143, longitude:73.416653},
+            {name:"MB398", latitude:19.453401, longitude:73.462572}
+        ].forEach(function(point){
+            waypointFeatures.push({
+                type:"Feature",
+                properties:{name:point.name, route_id:"SEQUENCING"},
+                geometry:{type:"Point", coordinates:[point.longitude, point.latitude]}
+            });
+        });
+
         map.getSource(
             "vabb-routes"
         ).setData({
@@ -784,7 +800,15 @@ function makeLabel(ac){
 }
 
 function initMap(){
-  map=new maplibregl.Map({container:"simMap",style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",center:VABB,zoom:11.5,scrollZoom:{around:"center"},pitch:0,antialias:false});
+  map=new maplibregl.Map({
+  container:"simMap",
+  style:"https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  center:VABB,
+  zoom:11.5,
+  scrollZoom:{around:"center"},
+  pitch:0,
+  antialias:false
+});
   map.addControl(new maplibregl.NavigationControl(),"top-left");
   map.on("load",async()=>{
     await loadAirport();
@@ -1341,7 +1365,10 @@ function addAircraftMarkers(){
             .setLngLat([ac.lon, ac.lat])
             .addTo(map);
 
-        markers[ac.callsign] = {marker:marker, el:el, data:ac};
+        markers[ac.callsign] = {
+            marker:marker, el:el, data:ac,
+            from:[ac.lon,ac.lat], to:[ac.lon,ac.lat], start:performance.now(), duration:100
+        };
     });
 
     updateAircraftMarkers();
@@ -1528,12 +1555,10 @@ function updateAircraftMarkers(){
 
         }
 
-        m.marker.setLngLat([
-
-            ac.lon,
-            ac.lat
-
-        ]);
+        const current = marker.getLngLat();
+        m.from = [current.lng, current.lat];
+        m.to = [Number(ac.lon), Number(ac.lat)];
+        m.start = performance.now();
 
         updateGuidance(
             ac
@@ -1541,6 +1566,17 @@ function updateAircraftMarkers(){
 
     });
 
+}
+
+function interpolateAircraftMarkers(now){
+    Object.keys(markers).forEach(function(id){
+        const m=markers[id];
+        if(!m.to||!m.from) return;
+        const progress=Math.max(0,Math.min(1,(now-m.start)/m.duration));
+        const lon=m.from[0]+(m.to[0]-m.from[0])*progress;
+        const lat=m.from[1]+(m.to[1]-m.from[1])*progress;
+        m.marker.setLngLat([lon,lat]);
+    });
 }
 
 function updateGuidance(ac){
@@ -1614,6 +1650,7 @@ async function tick(now){
     simTime+=realDt;
     document.getElementById("simClock").textContent=fmtTime(simTime);
   }
+  interpolateAircraftMarkers(now);
   requestAnimationFrame(tick);
 }
 
@@ -1845,6 +1882,17 @@ function toggleLayer(cb){
     updateAircraftMarkers();
   }
 }
+
+document.addEventListener('click',function(event){
+  var menu=document.getElementById('layerMenu');
+  if(menu && menu.open && !menu.contains(event.target)) menu.open=false;
+});
+document.addEventListener('keydown',function(event){
+  if(event.key==='Escape'){
+    var menu=document.getElementById('layerMenu');
+    if(menu && menu.open){menu.open=false;menu.querySelector('summary').focus();}
+  }
+});
 
 function setView(v){
   if(v==='airport'){map.flyTo({center:VABB,zoom:14,duration:1200,easing:function(t){return t*(2-t);}});}

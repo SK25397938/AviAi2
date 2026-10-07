@@ -2,14 +2,20 @@ import json
 import math
 import time
 from collections import deque
+from app.aircraft.aircraft_type import get_aircraft_performance
 from app.core.config import redis_client
 
 MAX_POINTS = 6
 WINDOW_SECONDS = 40
 MIN_ARRIVAL_SEPARATION_NM = 4.5
-MIN_ARRIVAL_SPEED_KTS = 140.0
 SEPARATION_SPEED_GAIN = 12.0
 MIN_SHARED_WAYPOINT_TIME_GAP = 60.0
+
+
+def _minimum_arrival_speed(aircraft):
+    return float(get_aircraft_performance(
+        getattr(aircraft, "aircraft_type", "")
+    ).get("minimum_arrival_speed_kts", 170))
 
 
 def _distance_nm(lat1, lon1, lat2, lon2):
@@ -334,11 +340,11 @@ def apply_arrival_separation(aircraft_list, graph):
             if (
                 0 <= gap < MIN_ARRIVAL_SEPARATION_NM
                 and target is not None
-                and target >= MIN_ARRIVAL_SPEED_KTS
+                and target >= _minimum_arrival_speed(follower)
             ):
 
                 adjusted = max(
-                    MIN_ARRIVAL_SPEED_KTS,
+                    _minimum_arrival_speed(follower),
                     leader.speed_kts
                     - (
                         MIN_ARRIVAL_SEPARATION_NM
@@ -349,12 +355,13 @@ def apply_arrival_separation(aircraft_list, graph):
                 follower._separation_original_speed = target
 
                 follower.target_speed_kts = max(
-                    MIN_ARRIVAL_SPEED_KTS,
+                    _minimum_arrival_speed(follower),
                     min(
                         target,
                         adjusted
                     )
                 )
+                follower._sequence_speed_ceiling = follower.target_speed_kts
 
                 follower._separation_target_speed = (
                     follower.target_speed_kts
@@ -526,7 +533,7 @@ def apply_shared_waypoint_separation(
             )
 
             adjusted = max(
-                MIN_ARRIVAL_SPEED_KTS,
+                _minimum_arrival_speed(follower),
                 min(
                     target,
                     required_speed
@@ -538,6 +545,7 @@ def apply_shared_waypoint_separation(
 
             follower._shared_waypoint_original_speed = target
             follower.target_speed_kts = adjusted
+            follower._sequence_speed_ceiling = adjusted
             follower._shared_waypoint_target_speed = adjusted
 
 

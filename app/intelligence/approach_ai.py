@@ -104,16 +104,26 @@ class ApproachAI:
             point["altitude_ft"]
         )
 
+        distance_nm = self._distance(
+            aircraft.lat, aircraft.lon, point["latitude"], point["longitude"]
+        ) / 1.852
+        current_speed = max(float(getattr(aircraft, "speed_kts", 1) or 1), 1.0)
+        minutes_to_fix = max(distance_nm * 60.0 / current_speed, 0.1)
+        required_vertical_speed = (
+            (float(point["altitude_ft"]) - float(aircraft.altitude_ft)) / minutes_to_fix
+        )
+        aircraft.target_vertical_speed_fpm = max(-1500.0, min(1500.0, required_vertical_speed))
+
         speed = self._get_speed(
             aircraft,
             point["id"]
         )
 
         if speed is not None:
-
-            aircraft.assign_speed(
-                speed
-            )
+            sequencing_ceiling = getattr(aircraft, "_sequence_speed_ceiling", None)
+            if isinstance(sequencing_ceiling, (int, float)):
+                speed = min(float(speed), float(sequencing_ceiling))
+            aircraft.assign_speed(speed)
 
         distance = self._distance(
             aircraft.lat,
@@ -251,6 +261,9 @@ class ApproachAI:
                 "A388": "A388",
                 "A359": "A359",
                 "A35K": "A350-1000",
+                "A350-900": "A359",
+                "A350-1000": "A350-1000",
+                "A380": "A388",
                 "A320": "A320",
                 "A321": "A321",
                 "B788": "B787-8",

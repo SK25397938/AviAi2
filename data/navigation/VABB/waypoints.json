@@ -44,6 +44,18 @@
             "type": "RNAV_FIX",
             "lat": 19.215000,
             "lon": 72.335000
+        },
+        {
+            "name": "DOGAP",
+            "type": "RNAV_FIX",
+            "lat": 18.809143,
+            "lon": 73.416653
+        },
+        {
+            "name": "MB398",
+            "type": "RNAV_FIX",
+            "lat": 19.453401,
+            "lon": 73.462572
         }
     ]
 }
