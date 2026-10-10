@@ -145,7 +145,8 @@ class GuidanceAI:
                 if safety.get("safe") and hasattr(aircraft, "separation_status"):
                     del aircraft.separation_status
                 if safety.get("safe"):
-                    for name in ("_approach_extension_used", "_approach_extension_fix"):
+                    for name in ("_approach_extension_used", "_approach_extension_fix",
+                                 "_approach_extension_index"):
                         if hasattr(aircraft, name):
                             delattr(aircraft, name)
                 if not safety.get("safe", False):
@@ -172,23 +173,35 @@ class GuidanceAI:
                         # already evaluated by the handoff predictor; this leg
                         # provides path extension when a hold is unavailable.
                         aircraft.separation_status = "APPROACH DELAYED"
-                        extension_fix = ("DOGAP" if str(reached_node).upper() in {"MB395", "LIKTA"}
-                                         else "MB398")
+                        trigger_node = self.graph.get_node(trigger)
+                        extension_fix = min(
+                            ("DOGAP", "MB398"),
+                            key=lambda fix: self._distance_nm(
+                                trigger_node["lat"], trigger_node["lon"],
+                                self.graph.get_node(fix)["lat"], self.graph.get_node(fix)["lon"],
+                            ),
+                        )
                         if not getattr(aircraft, "_approach_extension_used", False):
-                            # Add a one-time flyable dogleg to the active route.
-                            # The final trigger remains the reconnect point, so
-                            # the regular handoff and cursor logic still apply.
+                            # Insert one reusable delay loop in the active route.
                             aircraft.route[aircraft.route_index + 1:aircraft.route_index + 1] = [
                                 extension_fix, reached_node
                             ]
                             aircraft._approach_extension_used = True
                             aircraft._approach_extension_fix = extension_fix
+                            aircraft._approach_extension_index = aircraft.route_index + 1
                             aircraft.clearance.direct_node = extension_fix
                             if self.decision_event_callback is not None:
                                 self.decision_event_callback(
                                     aircraft, f"{extension_fix} SEQUENCING", extension_fix,
                                     f"Downstream approach spacing insufficient; temporary path extension via {extension_fix}"
                                 )
+                        else:
+                            delay_index = getattr(aircraft, "_approach_extension_index", None)
+                            if (isinstance(delay_index, int)
+                                    and delay_index < len(aircraft.route)
+                                    and str(aircraft.route[delay_index]).upper() == extension_fix):
+                                # Reuse the same DOGAP/entry pair until cleared.
+                                aircraft.route_index = delay_index - 1
                     if self.decision_event_callback is not None:
                         self.decision_event_callback(
                             aircraft, "APPROACH DELAYED", reached_node,

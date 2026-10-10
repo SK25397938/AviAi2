@@ -1,3 +1,4 @@
+
 import json
 import math
 import random
@@ -195,10 +196,19 @@ class SimulationEngine:
 
     def spawn_due_arrivals(self, dt=1.0):
 
+        active_aircraft = self.manager.all()
+        wave_active_count = sum(
+            1 for aircraft in active_aircraft
+            if not (
+                getattr(aircraft, "arrival_route_id", None) is not None
+                and getattr(aircraft, "phase", "") == "FINAL"
+            )
+        )
         arrivals = self.traffic_manager.update(
             dt,
             can_release_arrival=self._arrival_has_spacing,
-            active_aircraft_count=len(self.manager.all()),
+            active_aircraft_count=len(active_aircraft),
+            wave_active_aircraft_count=wave_active_count,
         )
 
         active_callsigns = {
