@@ -73,6 +73,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .sec__val{font-family:var(--font-mono);font-size:11px;color:var(--fg);font-weight:500}
 .sec__val--accent{color:var(--accent)}
 .sec__val--safe{color:var(--safe)}
+.safety-command-log{margin-top:7px;border-top:1px solid var(--border);max-height:min(44vh,320px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--border-light) var(--surface)}
+.safety-command-log::-webkit-scrollbar{width:4px}
+.safety-command-log::-webkit-scrollbar-track{background:var(--surface)}
+.safety-command-log::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:2px}
+.safety-command{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font:10px/1.45 var(--font-mono);color:var(--fg)}
+.safety-command:last-child{border-bottom:none}
+.safety-command__time{flex-shrink:0;color:var(--muted)}
 .ai-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px}
 .ai-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .ai-dot--active{background:var(--safe);box-shadow:0 0 4px var(--safe)}
@@ -174,6 +181,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .layer-menu[open] .layer-menu__toggle{border-color:var(--accent);color:var(--accent)}
 .layer-ctrl{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:410;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .layer-menu[open] .layer-ctrl{display:block}
+.layer-menu[open] .nav-ctrl{display:flex;flex-direction:column;gap:6px;min-width:140px}
+.nav-ctrl .btn{justify-content:center}
 .lc-title{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
 .lc-item{display:flex;align-items:center;gap:8px;padding:3px 0}
 .lc-item label{font-size:11px;color:var(--fg);cursor:pointer;display:flex;align-items:center;gap:8px}
@@ -181,8 +190,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .lc-item input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
 .lc-item input[type="checkbox"]:checked::after{content:'';position:absolute;left:3px;top:0;width:4px;height:7px;border:solid var(--bg);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
 .lc-item input[type="checkbox"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.view-ctrl{position:absolute;bottom:180px;left:10px;z-index:210;display:flex;gap:4px}
-.view-ctrl.dlog-collapsed--true{bottom:10px}
 .maplibregl-ctrl-group{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:2px!important;box-shadow:none!important;overflow:hidden;margin-top:52px!important}
 .maplibregl-ctrl-group button{background:var(--surface)!important;color:var(--fg)!important;border-color:var(--border)!important;width:30px!important;height:30px!important;transition:all .15s}
 .maplibregl-ctrl-group button:hover{background:var(--accent)!important;color:var(--bg)!important}
@@ -191,12 +198,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .maplibregl-ctrl-attrib a{color:var(--accent)!important}
 @media(max-width:1200px){.sh-apt{display:none}.sh-center{gap:10px}}
 @media(max-width:900px){.ops-panel{width:200px}.ops-panel--collapsed{transform:translateX(-200px)}.traffic-panel{width:230px}.traffic-panel--collapsed{transform:translateX(230px)}.sh-sub{display:none}}
-@media(max-width:700px){.ops-panel,.traffic-panel{display:none}.dlog{height:140px}.dlog--collapsed{transform:translateY(140px)}.conflict-alert{width:calc(100vw - 20px)}.atc-input-panel{width:calc(100vw - 20px)}.view-ctrl{bottom:150px}.view-ctrl.dlog-collapsed--true{bottom:10px}}
+@media(max-width:700px){.ops-panel,.traffic-panel{display:none}.dlog{height:140px}.dlog--collapsed{transform:translateY(140px)}.conflict-alert{width:calc(100vw - 20px)}.atc-input-panel{width:calc(100vw - 20px)}}
 @media(prefers-reduced-motion:reduce){.sh-dot::after{animation:none}.ov-panel{transition:none}.conflict-alert{transition:none}.atc-input-panel{transition:none}.inspector-module--active{animation:none}}
 .semantic-edit #opsPanel{display:none}
 .semantic-edit #trafficPanel{display:none}
 .semantic-edit #decisionLog{display:none}
-.semantic-edit #viewCtrl{bottom:10px}
 .semantic-edit #simMap{position:absolute;top:48px;left:0;right:0;bottom:0}
 .top-btn{font-family:var(--font-mono);font-size:9px;letter-spacing:.8px;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:all .15s;text-transform:uppercase}
 .top-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -228,6 +234,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
+</div>
+</details>
+<details class="layer-menu" id="navMenu">
+<summary class="layer-menu__toggle">Navigation</summary>
+<div class="layer-ctrl nav-ctrl" aria-label="Map navigation views">
+<button class="btn btn--sm" type="button" onclick="setView('airport');document.getElementById('navMenu').open=false">Airport View</button>
+<button class="btn btn--sm" type="button" onclick="setView('60nm');document.getElementById('navMenu').open=false">60 NM View</button>
 </div>
 </details>
 <a href="/" class="btn btn--sm">Operations</a>
@@ -395,12 +408,8 @@ Apply Weather
 <div class="inspector-module" id="inspSafety">
 <div class="sec">
 <div class="sec__label">Safety Supervisor</div>
-<div class="sec__row"><span class="sec__key">AI Status</span><span class="sec__val" id="aiSafety">Loading...</span></div>
-<div class="sec__row"><span class="sec__key">Conflict Count</span><span class="sec__val" id="opConflicts">Loading...</span></div>
-<div class="sec__row"><span class="sec__key">Separation Alerts</span><span class="sec__val" id="opSepAlerts">Loading...</span></div>
-<div class="sec__row"><span class="sec__key">Runway Incursions</span><span class="sec__val" id="opIncursions">Loading...</span></div>
-<div class="sec__row"><span class="sec__key">Safety Score</span><span class="sec__val" id="opSafetyScore">Loading...</span></div>
-<div class="sec__row"><span class="sec__key">Latest Actions</span><span class="sec__val" id="opSafetyActions">Loading...</span></div>
+<div class="sec__key" style="margin-top:8px">Latest AI Guidance</div>
+<div class="safety-command-log" id="opSafetyActions" aria-live="polite"><div class="safety-command">Waiting for aircraft guidance...</div></div>
 </div>
 </div>
 </div>
@@ -441,16 +450,13 @@ Apply Weather
 <button class="ca-dismiss" onclick="toggleAtcInput()" aria-label="Close ATC input">&times;</button>
 </div>
 <div class="aip-body">
-<input class="aip-input" id="atcCmd" type="text" placeholder='e.g. "Prioritize AIC101" or "Hold IGO221"' autocomplete="off">
+<input class="aip-input" id="atcCmd" type="text" placeholder='e.g. "AIC101 direct OLGUS" or "Hold IGO221 at APP32"' autocomplete="off">
+<div id="atcFeedback" style="margin-top:8px;color:var(--muted);font:10px/1.4 var(--font-mono)" aria-live="polite"></div>
 <div class="aip-actions">
-<button class="btn btn--sm" onclick="submitAtcCmd()">SUBMIT SUGGESTION</button>
+<button class="btn btn--sm" onclick="submitAtcCmd()">SEND COMMAND</button>
 <button class="btn btn--sm btn--danger" onclick="emergencyPause()">EMERGENCY PAUSE</button>
 </div>
 </div>
-</div>
-<div class="view-ctrl" id="viewCtrl">
-<button class="btn btn--sm" onclick="setView('airport')">AIRPORT VIEW</button>
-<button class="btn btn--sm" onclick="setView('60nm')">60 NM VIEW</button>
 </div>
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <script src="/static/js/runway_renderer.js"></script>
@@ -1113,6 +1119,7 @@ function loadAircraft(){
         }
 
         renderDecisionLog(state.ai_decision_log || [], state.arrival_guidance || []);
+        renderSafetyCommands(state.ai_decision_log || []);
         updateHoldingVisualization(state.holding_routes || [], state.holding_points || []);
 
         addAircraftMarkers();
@@ -1202,6 +1209,50 @@ function escapeLogText(value){
 
 let latestDecisionEntries=[];
 let latestAircraftStatuses=[];
+
+function renderSafetyCommands(entries){
+    const container=document.getElementById("opSafetyActions");
+    if(!container) return;
+    const commands=(Array.isArray(entries)?entries:[]).filter(function(entry){
+        return entry && entry.callsign && (entry.instruction || entry.decision);
+    }).slice(0,8);
+    container.replaceChildren();
+    if(!commands.length){
+        const empty=document.createElement("div");
+        empty.className="safety-command";
+        empty.textContent="No AI guidance issued yet.";
+        container.appendChild(empty);
+        return;
+    }
+    commands.forEach(function(entry){
+        const command=document.createElement("div");
+        command.className="safety-command";
+        const time=document.createElement("span");
+        time.className="safety-command__time";
+        time.textContent=String(entry.timestamp||"").slice(11,19);
+        const text=document.createElement("span");
+        const callsign=String(entry.callsign).toUpperCase();
+        const decision=String(entry.decision||"").toUpperCase();
+        const waypoint=entry.target_waypoint||entry.conflict_waypoint||entry.assigned_waypoint||entry.rejoin_node;
+        const altitude=entry.target_altitude_ft!=null?entry.target_altitude_ft:entry.altitude;
+        const speed=entry.target_speed_kts!=null?entry.target_speed_kts:entry.speed;
+        let instruction=String(entry.instruction||decision).replace(/_/g," ").trim();
+        if(decision==="APPROACH CLEARED") instruction="cleared for approach"+(waypoint?" via "+waypoint:"");
+        else if(decision==="APPROACH DELAYED") instruction="approach delayed; continue to "+(waypoint||"assigned waypoint");
+        else if(decision==="SPEED REDUCTION") instruction="reduce speed to "+(speed!=null?Math.round(Number(speed))+" knots":"assigned speed")+(waypoint?"; proceed to "+waypoint:"");
+        else if(decision==="ALTITUDE SEPARATION") instruction="maintain "+(altitude!=null?Math.round(Number(altitude))+" feet":"assigned altitude")+(waypoint?"; proceed to "+waypoint:"");
+        else if(decision==="HOLD") instruction="enter holding at "+(waypoint||"assigned fix");
+        else if(decision==="RELEASE HOLD") instruction="resume route"+(entry.rejoin_node?" via "+entry.rejoin_node:"");
+        else if(decision==="APPROACH HANDOFF") instruction="continue to approach control"+(waypoint?" at "+waypoint:"");
+        else if(decision==="WAYPOINT CAPTURED") instruction="proceed to "+(entry.target_waypoint||"next waypoint");
+        const details=[];
+        if(altitude!=null && decision!=="ALTITUDE SEPARATION") details.push("maintain "+Math.round(Number(altitude))+" ft");
+        if(speed!=null && decision!=="SPEED REDUCTION") details.push("speed "+Math.round(Number(speed))+" kt");
+        text.textContent=callsign+": "+instruction+(details.length?"; "+details.join("; "):"")+".";
+        command.append(time,text);
+        container.appendChild(command);
+    });
+}
 
 function renderDecisionLog(entries, statuses){
     if(Array.isArray(entries)) latestDecisionEntries=entries;
@@ -1816,7 +1867,6 @@ function selectAircraft(cs){
 
 function togglePanel(id){
   document.getElementById(id).classList.toggle(id+'--collapsed');
-  if(id==='decisionLog'){document.getElementById('viewCtrl').classList.toggle('dlog-collapsed--true');}
 }
 
 function setSpeed(s){
@@ -1845,12 +1895,23 @@ function toggleAtcInput(){
   if(atcOpen) document.getElementById('atcCmd').focus();
 }
 
-function submitAtcCmd(){
+async function submitAtcCmd(){
   var input=document.getElementById('atcCmd');
   var cmd=input.value.trim();
   if(!cmd) return;
-  addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:'Suggestion received: '+cmd});
+  var feedback=document.getElementById('atcFeedback');
+  feedback.textContent='Processing command...';
+  addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:'Command: '+cmd});
   input.value='';
+  try{
+    var response=await fetch('/simulation/atc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+    var result=await response.json();
+    feedback.textContent=String(result.message||'Command '+(result.status||'processed')+'.');
+    addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:String(result.message||result.status||'Command processed.')});
+  }catch(error){
+    feedback.textContent='ATC command could not be sent.';
+    addLogEntry({time:fmtTime(simTime),src:'HUMAN ATC',cls:'human',text:'Command failed: '+error.message});
+  }
 }
 
 function emergencyPause(){
@@ -1896,8 +1957,10 @@ function toggleLayer(cb){
 }
 
 document.addEventListener('click',function(event){
-  var menu=document.getElementById('layerMenu');
-  if(menu && menu.open && !menu.contains(event.target)) menu.open=false;
+  ['layerMenu','navMenu'].forEach(function(id){
+    var menu=document.getElementById(id);
+    if(menu && menu.open && !menu.contains(event.target)) menu.open=false;
+  });
 });
 document.addEventListener('keydown',function(event){
   if(event.key==='Escape'){

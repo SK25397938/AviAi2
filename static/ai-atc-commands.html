@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AviAi ATC Commands</title>
+  <style>
+    body { max-width: 760px; margin: 2rem auto; padding: 0 1rem; font: 16px system-ui, sans-serif; color: #17212b; }
+    select { min-width: 220px; padding: .45rem; }
+    #current, li { padding: .7rem; border: 1px solid #d7dee7; border-radius: .35rem; margin-top: .7rem; }
+    ul { padding: 0; list-style: none; }
+    small { color: #5c6978; }
+  </style>
+</head>
+<body>
+  <h1>AI ATC Commands</h1>
+  <label for="aircraft">Aircraft</label>
+  <select id="aircraft"><option value="">Select an aircraft</option></select>
+  <div id="current">Select an aircraft to view its current AI ATC instruction.</div>
+  <h2>Command history</h2>
+  <ul id="history"><li>No aircraft selected.</li></ul>
+  <script>
+    const select = document.getElementById("aircraft");
+    const current = document.getElementById("current");
+    const history = document.getElementById("history");
+    let state = { aircraft: [], ai_decision_log: [], instruction_log: [] };
+
+    function render() {
+      const callsign = select.value;
+      const aircraft = state.aircraft.find(item => item.callsign === callsign);
+      current.textContent = aircraft
+        ? `${aircraft.controller || "ATC"}: ${aircraft.last_instruction || "No active instruction."}`
+        : "Select an aircraft to view its current AI ATC instruction.";
+      const entries = [...state.ai_decision_log, ...state.instruction_log]
+        .filter(item => item.callsign === callsign)
+        .sort((first, second) => String(second.timestamp || second.time || "").localeCompare(String(first.timestamp || first.time || "")));
+      history.replaceChildren();
+      if (!callsign || !entries.length) {
+        history.innerHTML = `<li>${callsign ? "No recorded AI ATC commands." : "No aircraft selected."}</li>`;
+        return;
+      }
+      entries.forEach(item => {
+        const row = document.createElement("li");
+        const time = item.timestamp || item.time || "";
+        const title = document.createElement("strong");
+        title.textContent = `${item.controller || "ATC"}${item.decision ? ` — ${item.decision}` : ""}`;
+        const instruction = document.createTextNode(item.instruction || item.reason || "No instruction text.");
+        const timestamp = document.createElement("small");
+        timestamp.textContent = time;
+        row.append(title, document.createElement("br"), instruction, document.createElement("br"), timestamp);
+        history.appendChild(row);
+      });
+    }
+
+    function update(nextState) {
+      const selected = select.value;
+      state = nextState;
+      select.replaceChildren(new Option("Select an aircraft", ""));
+      state.aircraft.forEach(item => select.add(new Option(`${item.callsign} (${item.type})`, item.callsign)));
+      select.value = state.aircraft.some(item => item.callsign === selected) ? selected : "";
+      render();
+    }
+
+    select.addEventListener("change", render);
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocol}://${location.host}/simulation/ws`);
+    socket.onmessage = event => update(JSON.parse(event.data));
+    socket.onclose = () => { current.textContent = "Simulation connection closed."; };
+  </script>
+</body>
+</html>

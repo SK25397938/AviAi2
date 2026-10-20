@@ -1,4 +1,5 @@
 import math
+import time
 
 
 class HoldingManager:
@@ -354,6 +355,7 @@ class HoldingManager:
             "circuit_length": len(circuit_names), "requested_circuits": circuits,
             "scheduled_circuits": 1, "completed_circuits": 0,
             "next_circuit_end_index": hold_start + len(circuit_names) - 1,
+            "holding_since": time.monotonic(),
         }
         aircraft.route = active_route
         # Keep the navigation cursor anchored to the aircraft's current fix,

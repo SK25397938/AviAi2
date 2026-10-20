@@ -103,6 +103,10 @@ class SimulationEngine:
             self.holding_routes = []
 
         self.holding_manager = HoldingManager(self.holding_routes, self.graph)
+        # Approach entry ownership is held until the aircraft passes its
+        # assigned entry fix. The simulation updates these reservations on its
+        # single control thread, so a check and assignment are atomic here.
+        self.approach_reservations = {}
         self.ai_decision_log = []
         self._last_separation_event_at = {}
 
@@ -195,10 +199,19 @@ class SimulationEngine:
 
     def spawn_due_arrivals(self, dt=1.0):
 
+        active_aircraft = self.manager.all()
+        wave_active_count = sum(
+            1 for aircraft in active_aircraft
+            if not (
+                getattr(aircraft, "arrival_route_id", None) is not None
+                and getattr(aircraft, "phase", "") == "FINAL"
+            )
+        )
         arrivals = self.traffic_manager.update(
             dt,
             can_release_arrival=self._arrival_has_spacing,
-            active_aircraft_count=len(self.manager.all()),
+            active_aircraft_count=len(active_aircraft),
+            wave_active_aircraft_count=wave_active_count,
         )
 
         active_callsigns = {
@@ -1413,9 +1426,11 @@ class SimulationEngine:
                     if other_state is not None:
                         if other_state["completed_circuits"] < other_state["requested_circuits"]:
                             continue
-                        if str(aircraft.callsign) < str(other.callsign):
+                        own_wait_started = hold.get("holding_since", float("inf"))
+                        other_wait_started = other_state.get("holding_since", float("inf"))
+                        if own_wait_started <= other_wait_started:
                             continue
-                        return {"safe": False, "reason": f"{other.callsign} is also ready to rejoin the downstream route",
+                        return {"safe": False, "reason": f"{other.callsign} has waited longer and is ready to rejoin the downstream route",
                                 "other_aircraft": other.callsign, "conflict_waypoint": name}
                     time_gap = abs(held_eta - (other_cumulative[other_index] - other_progress) * 3600.0 / other_speed)
                     other_altitude = getattr(other, "altitude_ft", 0)
@@ -1465,55 +1480,239 @@ class SimulationEngine:
                         )}
         return {"safe": True, "reason": "Downstream route clear and required separation available"}
 
-    def _can_approach_handoff(self, aircraft):
+    def _can_approach_handoff(self, aircraft, from_fallback=False):
+        self._prune_approach_reservations()
         route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
         if not isinstance(route, dict):
+            self._release_approach_reservation(aircraft)
             return {"safe": False, "reason": "Arrival route is unavailable for approach sequencing"}
         own_speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", 0)
         own_progress = self._route_progress_nm(aircraft, route)
         if own_progress is None or own_speed <= 0:
+            self._release_approach_reservation(aircraft)
             return {"safe": False, "reason": "Approach trajectory cannot be predicted"}
-        own_etas = self._approach_point_etas(aircraft, route, own_progress, float(own_speed))
-        speed_solution = None
         traffic = self.manager.all()
-        for other in traffic:
-            if (other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}
-                    or self.holding_manager.has_active_holding_route(other)):
+
+        # APP38 and APP32 are separate entry choices. Score both against
+        # current ownership, route reachability, altitude readiness and the
+        # predicted spacing at every downstream common approach fix.
+        points = self.approach_ai.approach_points
+        entries = [(index, point) for index, point in enumerate(points)
+                   if str(point.get("id", "")).upper() in {"APP32", "APP38"}]
+        if not entries:
+            self._release_approach_reservation(aircraft)
+            return {"safe": False, "reason": "No configured APP32/APP38 entry is available"}
+
+        prior_entry = next((node for node, owner in self.approach_reservations.items()
+                            if owner is aircraft), None)
+        candidates = []
+        failures = []
+        for index, point in entries:
+            node = str(point["id"]).upper()
+            owner = self.approach_reservations.get(node)
+            if owner is not None and owner is not aircraft:
+                failures.append(f"{node} reserved for {owner.callsign}")
                 continue
-            other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
-            other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
-            if not isinstance(other_route, dict) or other_speed <= 0:
+            eta = self._approach_entry_eta_seconds(aircraft, route, own_progress,
+                                                   float(own_speed), point,
+                                                   from_fallback=from_fallback)
+            if eta is None:
+                failures.append(f"{node} trajectory cannot be predicted")
                 continue
-            other_progress = self._route_progress_nm(other, other_route)
-            if other_progress is None:
+            speed = float(own_speed)
+            predicted_altitude = float(aircraft.altitude_ft) + float(
+                getattr(aircraft, "vertical_speed_fpm", 0) or 0
+            ) * eta / 60.0
+            target_altitude = float(point.get("altitude_ft", predicted_altitude))
+            required_vs = (target_altitude - float(aircraft.altitude_ft)) * 60.0 / max(eta, 1.0)
+            if abs(required_vs) > 1500.0:
+                failures.append(f"{node} altitude is not reachable at current readiness")
                 continue
-            other_etas = self._approach_point_etas(other, other_route, other_progress, float(other_speed))
-            for point_index in set(own_etas).intersection(other_etas):
-                own_eta, other_eta = own_etas[point_index], other_etas[point_index]
-                own_altitude = aircraft.altitude_ft + aircraft.vertical_speed_fpm * own_eta / 60.0
-                other_altitude = other.altitude_ft + other.vertical_speed_fpm * other_eta / 60.0
-                if abs(own_altitude - other_altitude) >= self.MIN_VERTICAL_SEPARATION_FT:
+
+            # Routes must end close enough to join the selected entry through
+            # the configured approach geometry.
+            endpoint = route.get("waypoints", [])[-1]
+            connector_nm = self._route_segment_length_nm(
+                endpoint, {"latitude": point["latitude"], "longitude": point["longitude"]}
+            )
+            if connector_nm > self.SEQUENCING_WINDOW_NM:
+                failures.append(f"{node} is incompatible with this arrival route")
+                continue
+
+            occupied = next((other for other in traffic
+                             if other is not aircraft
+                             and getattr(other, "phase", "") in {"ARRIVAL", "FINAL"}
+                             and self._route_segment_length_nm(
+                                 {"latitude": point["latitude"], "longitude": point["longitude"]},
+                                 {"latitude": other.lat, "longitude": other.lon},
+                             ) < self.MIN_MERGE_SEPARATION_NM
+                             and abs(predicted_altitude - float(other.altitude_ft))
+                             < self.MIN_VERTICAL_SEPARATION_FT), None)
+            if occupied is not None:
+                failures.append(f"{node} is currently occupied by {occupied.callsign}")
+                continue
+
+            minimum_margin = float("inf")
+            unsafe_reason = None
+            speed_solution = None
+            for other in traffic:
+                if other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}:
                     continue
-                separation = abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0
-                if separation < self.MIN_MERGE_SEPARATION_NM and own_eta > other_eta:
-                    required_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
-                        float(own_speed), float(other_speed)
+                if self.holding_manager.has_active_holding_route(other):
+                    continue
+                other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
+                other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
+                if not isinstance(other_route, dict) or not isinstance(other_speed, (int, float)) or other_speed <= 0:
+                    continue
+                other_progress = self._route_progress_nm(other, other_route)
+                if other_progress is None:
+                    continue
+                other_etas = self._approach_point_etas(other, other_route, other_progress, float(other_speed))
+                for downstream_index in set(range(index, len(points))).intersection(other_etas):
+                    own_eta = eta + sum(
+                        self._route_segment_length_nm(points[j - 1], points[j]) * 3600.0 / speed
+                        for j in range(index + 1, downstream_index + 1)
                     )
-                    distance_nm = own_eta * float(own_speed) / 3600.0
-                    required_speed = distance_nm * 3600.0 / max(required_eta, 1.0)
-                    minimum_speed = self._minimum_sequencing_speed(aircraft)
-                    if required_speed >= minimum_speed and required_speed < float(own_speed) - 1.0:
-                        speed_solution = required_speed if speed_solution is None else min(speed_solution, required_speed)
+                    other_eta = other_etas[downstream_index]
+                    own_alt = target_altitude + float(
+                        getattr(aircraft, "vertical_speed_fpm", 0) or 0
+                    ) * (own_eta - eta) / 60.0
+                    other_alt = float(other.altitude_ft) + float(
+                        getattr(other, "vertical_speed_fpm", 0) or 0
+                    ) * other_eta / 60.0
+                    gap = abs(own_eta - other_eta) * max(speed, float(other_speed)) / 3600.0
+                    if abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT:
+                        minimum_margin = min(minimum_margin, gap - self.MIN_MERGE_SEPARATION_NM)
+                        if gap < self.MIN_MERGE_SEPARATION_NM:
+                            if own_eta > other_eta:
+                                desired_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
+                                    speed, float(other_speed)
+                                )
+                                required_speed = own_eta * speed / max(desired_eta, 1.0)
+                                minimum_speed = self._minimum_sequencing_speed(aircraft)
+                                if minimum_speed <= required_speed < speed - 1.0:
+                                    speed_solution = (required_speed if speed_solution is None
+                                                      else min(speed_solution, required_speed))
+                                    continue
+                            unsafe_reason = (
+                                f"{other.callsign} is predicted inside 5 NM at "
+                                f"{points[downstream_index].get('id', 'approach fix')}"
+                            )
+                            break
+                if unsafe_reason:
+                    break
+            if unsafe_reason:
+                failures.append(f"{node}: {unsafe_reason}")
+                continue
+            if speed_solution is not None:
+                adjusted_margin = float("inf")
+                for other in traffic:
+                    if other is aircraft or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}:
                         continue
-                    point_name = self.approach_ai.approach_points[point_index].get("id", "approach fix")
-                    return {"safe": False, "reason": f"{other.callsign} is predicted {separation:.2f} NM away at downstream fix {point_name}",
-                            "other_aircraft": other.callsign, "conflict_waypoint": point_name,
-                            "predicted_separation_nm": round(separation, 2),
-                            "own_eta_seconds": round(own_eta, 1), "other_eta_seconds": round(other_eta, 1)}
-        if speed_solution is not None:
-            return {"safe": True, "reason": "Speed adjustment restores predicted approach separation",
-                    "speed_reduction_kts": round(speed_solution, 1)}
-        return {"safe": True, "reason": "Downstream approach separation available"}
+                    if self.holding_manager.has_active_holding_route(other):
+                        continue
+                    other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
+                    other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
+                    if not isinstance(other_route, dict) or not isinstance(other_speed, (int, float)) or other_speed <= 0:
+                        continue
+                    other_progress = self._route_progress_nm(other, other_route)
+                    if other_progress is None:
+                        continue
+                    other_etas = self._approach_point_etas(other, other_route, other_progress, float(other_speed))
+                    for downstream_index in set(range(index, len(points))).intersection(other_etas):
+                        original_own_eta = eta + sum(
+                            self._route_segment_length_nm(points[j - 1], points[j]) * 3600.0 / speed
+                            for j in range(index + 1, downstream_index + 1)
+                        )
+                        adjusted_own_eta = original_own_eta * speed / speed_solution
+                        own_alt = target_altitude + float(
+                            getattr(aircraft, "vertical_speed_fpm", 0) or 0
+                        ) * (adjusted_own_eta - eta) / 60.0
+                        other_alt = float(other.altitude_ft) + float(
+                            getattr(other, "vertical_speed_fpm", 0) or 0
+                        ) * other_etas[downstream_index] / 60.0
+                        gap = abs(adjusted_own_eta - other_etas[downstream_index]) * max(
+                            speed_solution, float(other_speed)
+                        ) / 3600.0
+                        if (abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT
+                                and gap < self.MIN_MERGE_SEPARATION_NM):
+                            unsafe_reason = (
+                                f"{other.callsign} remains inside 5 NM at "
+                                f"{points[downstream_index].get('id', 'approach fix')} after speed adjustment"
+                            )
+                            break
+                        if abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT:
+                            adjusted_margin = min(adjusted_margin, gap - self.MIN_MERGE_SEPARATION_NM)
+                    if unsafe_reason:
+                        break
+                if unsafe_reason:
+                    failures.append(f"{node}: {unsafe_reason}")
+                    continue
+                minimum_margin = adjusted_margin
+            # Preserve a valid prior choice to avoid fallback oscillation;
+            # otherwise maximize separation margin, then choose the closer
+            # connector for this route.
+            candidates.append((node == prior_entry, minimum_margin, -connector_nm,
+                               eta, index, node, speed_solution))
+
+        if not candidates:
+            self._release_approach_reservation(aircraft)
+            return {"safe": False,
+                    "reason": "; ".join(failures) or "Neither approach entry is safe"}
+        candidates.sort(reverse=True)
+        _, _, _, eta, selected_index, selected_node, speed_solution = candidates[0]
+        self._release_approach_reservation(aircraft)
+        self.approach_reservations[selected_node] = aircraft
+        aircraft._approach_entry_index = selected_index
+        aircraft._approach_entry_node = selected_node
+        selected_eta = (eta * float(own_speed) / speed_solution
+                        if speed_solution is not None else eta)
+        return {"safe": True, "reason": f"{selected_node} selected with downstream separation available",
+                "approach_entry_index": selected_index, "approach_entry_node": selected_node,
+                "predicted_entry_eta_seconds": round(selected_eta, 1),
+                **({"speed_reduction_kts": round(speed_solution, 1)}
+                   if speed_solution is not None else {})}
+
+    def _approach_entry_eta_seconds(self, aircraft, route, progress, speed, point,
+                                    from_fallback=False):
+        route_points = route.get("waypoints", [])
+        if not route_points or speed <= 0:
+            return None
+        if from_fallback:
+            remaining_route = 0.0
+            origin = {"latitude": aircraft.lat, "longitude": aircraft.lon}
+        else:
+            remaining_route = sum(self._route_segment_length_nm(a, b)
+                                  for a, b in zip(route_points, route_points[1:])) - progress
+            origin = route_points[-1]
+        connector = self._route_segment_length_nm(
+            origin, {"latitude": point["latitude"], "longitude": point["longitude"]}
+        )
+        if remaining_route < -0.1:
+            return None
+        return max(0.0, remaining_route + connector) * 3600.0 / speed
+
+    def _prune_approach_reservations(self):
+        active = {id(item): item for item in self.manager.all()}
+        for node, owner in list(self.approach_reservations.items()):
+            if id(owner) not in active or active[id(owner)] is not owner:
+                self._release_approach_reservation(owner)
+                continue
+            entry_index = getattr(owner, "_approach_entry_index", None)
+            if (getattr(owner, "phase", "") not in {"ARRIVAL", "FINAL"}
+                    or (isinstance(entry_index, int)
+                        and isinstance(getattr(owner, "approach_index", None), int)
+                        and owner.approach_index > entry_index)):
+                self._release_approach_reservation(owner)
+
+    def _release_approach_reservation(self, aircraft):
+        for node, owner in list(self.approach_reservations.items()):
+            if owner is aircraft:
+                self.approach_reservations.pop(node, None)
+        for name in ("_approach_entry_index", "_approach_entry_node"):
+            if hasattr(aircraft, name):
+                delattr(aircraft, name)
+
 
     def _record_hold_release(self, aircraft, release):
         safety = release.get("safety", {})
@@ -1822,3 +2021,5 @@ class SimulationEngine:
                 move_aircraft(aircraft, dt)
             except Exception as error:
                 print(f"AIRCRAFT MOVEMENT ERROR {aircraft.callsign}: {error}")
+
+        self._prune_approach_reservations()

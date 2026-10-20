@@ -69,7 +69,12 @@ class ApproachAI:
             aircraft,
             "approach_index"
         ):
-            aircraft.approach_index = self._closest_waypoint_index(aircraft.lat, aircraft.lon)
+            selected_entry = getattr(aircraft, "_approach_entry_index", None)
+            aircraft.approach_index = (
+                selected_entry if isinstance(selected_entry, int)
+                and 0 <= selected_entry < len(self.approach_points)
+                else self._closest_waypoint_index(aircraft.lat, aircraft.lon)
+            )
 
             aircraft.approach_instruction_index = None
             transition = self.approach_points[aircraft.approach_index]["id"]

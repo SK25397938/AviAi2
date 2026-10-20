@@ -291,10 +291,13 @@ class TrafficManager:
 
         return spawned
 
-    def update(self, dt, can_release_arrival=None, active_aircraft_count=0):
+    def update(self, dt, can_release_arrival=None, active_aircraft_count=0,
+               wave_active_aircraft_count=None):
 
         spawned = []
         self._advance_wave(dt)
+        wave_active_count = (active_aircraft_count if wave_active_aircraft_count is None
+                             else wave_active_aircraft_count)
 
         now = time.time()
         for aircraft in self.db.get_due_completions(now):
@@ -303,7 +306,7 @@ class TrafficManager:
 
         if not self.initial_arrivals_spawned:
 
-            if (active_aircraft_count >= self.active_wave_capacity
+            if (wave_active_count >= self.active_wave_capacity
                     or active_aircraft_count >= self.MAX_ACTIVE_AIRCRAFT):
                 return spawned
 
@@ -315,7 +318,7 @@ class TrafficManager:
 
         active_arrivals = self.get_active_arrivals()
 
-        if (active_aircraft_count >= self.active_wave_capacity
+        if (wave_active_count >= self.active_wave_capacity
                 or active_aircraft_count >= self.MAX_ACTIVE_AIRCRAFT):
 
             self.arrival_timer = 0.0
