@@ -37,6 +37,8 @@ class SimulationEngine:
     MIN_VERTICAL_SEPARATION_FT = 1000
     CONFLICT_WARNING_DISTANCE_NM = 6.0
     PREDICTION_LOOKAHEAD_SECONDS = 120.0
+    SEQUENCING_DECISION_HORIZON_SECONDS = 600.0
+    MAX_SEQUENCING_SPEED_DELTA_KTS = 10.0
     CRITICAL_SEPARATION_NM = 1.0
 
     def __init__(
@@ -344,6 +346,62 @@ class SimulationEngine:
                 return max(0.0, travelled - progress)
         return None
 
+    def _active_route_distance_to_trigger_nm(self, aircraft, route, waypoint_name=None):
+        """Measure from current position along its active route to a named fix."""
+        active_route = getattr(aircraft, "route", None)
+        route_points = route.get("waypoints", []) if isinstance(route, dict) else []
+        trigger = str(waypoint_name or route.get("approach_trigger", "")).upper() if isinstance(route, dict) else ""
+        if not isinstance(active_route, list) or not active_route or not route_points or not trigger:
+            return None
+
+        names = [str(name).upper() for name in active_route]
+        target = str(getattr(aircraft, "target_node", "")).upper()
+        route_index = getattr(aircraft, "route_index", 0)
+        cursor = max(0, min(int(route_index or 0), len(names) - 1))
+        target_indices = [index for index, name in enumerate(names) if name == target]
+        active_target_index = next((index for index in target_indices if index >= cursor), None)
+        if active_target_index is not None:
+            start_index = active_target_index
+        elif target_indices:
+            start_index = target_indices[0]
+        else:
+            start_index = cursor
+            if (getattr(self, "holding_manager", None) is not None
+                    and self.holding_manager.has_active_holding_route(aircraft)):
+                start_index = min(start_index + 1, len(names) - 1)
+        end_index = next((index for index in range(start_index, len(names))
+                          if names[index] == trigger), None)
+        if end_index is None:
+            return None
+
+        coordinates = {
+            str(point.get("name", "")).upper(): (point.get("latitude"), point.get("longitude"))
+            for point in route_points if isinstance(point, dict)
+        }
+        graph = getattr(self, "graph", None)
+        if graph is not None:
+            for name, node in graph.nodes.items():
+                coordinates[str(name).upper()] = (node.get("lat"), node.get("lon"))
+
+        def point_for(name):
+            point = coordinates.get(name)
+            if point is None or point[0] is None or point[1] is None:
+                return None
+            return {"latitude": float(point[0]), "longitude": float(point[1])}
+
+        target_point = point_for(names[start_index])
+        if target_point is None:
+            return None
+        distance = self._route_segment_length_nm(
+            {"latitude": float(aircraft.lat), "longitude": float(aircraft.lon)}, target_point
+        )
+        for index in range(start_index + 1, end_index + 1):
+            previous, current = point_for(names[index - 1]), point_for(names[index])
+            if previous is None or current is None:
+                return None
+            distance += self._route_segment_length_nm(previous, current)
+        return distance
+
     def _approach_merge_eta_seconds(self, aircraft, route, progress, speed):
         points = route.get("waypoints", []) if isinstance(route, dict) else []
         approach_points = getattr(self.approach_ai, "approach_points", [])
@@ -360,12 +418,19 @@ class SimulationEngine:
                 distance += self._route_segment_length_nm(previous, following)
             return distance * 3600.0 / speed
 
-        total_route_distance = sum(
+        active_remaining = self._active_route_distance_to_trigger_nm(aircraft, route)
+        if active_remaining is not None:
+            remaining = active_remaining
+            endpoint = next((point for point in points
+                             if str(point.get("name", "")).upper()
+                             == str(route.get("approach_trigger", "")).upper()), points[-1])
+        else:
+            total_route_distance = sum(
             self._route_segment_length_nm(first, second)
             for first, second in zip(points, points[1:])
-        )
-        remaining = max(0.0, total_route_distance - progress)
-        endpoint = points[-1]
+            )
+            remaining = max(0.0, total_route_distance - progress)
+            endpoint = points[-1]
         intercept_index = min(
             range(len(approach_points)),
             key=lambda index: self._route_segment_length_nm(endpoint, approach_points[index]),
@@ -394,12 +459,20 @@ class SimulationEngine:
                 result[index] = distance * 3600.0 / speed
             return result
 
-        travelled_to_end = sum(self._route_segment_length_nm(a, b)
-                               for a, b in zip(route_points, route_points[1:]))
-        endpoint = route_points[-1]
+        active_remaining = self._active_route_distance_to_trigger_nm(aircraft, route)
+        if active_remaining is None:
+            travelled_to_end = sum(self._route_segment_length_nm(a, b)
+                                   for a, b in zip(route_points, route_points[1:]))
+            endpoint = route_points[-1]
+            remaining_distance = max(0.0, travelled_to_end - progress)
+        else:
+            remaining_distance = active_remaining
+            endpoint = next((point for point in route_points
+                             if str(point.get("name", "")).upper()
+                             == str(route.get("approach_trigger", "")).upper()), route_points[-1])
         start_index = min(range(len(approach_points)),
                           key=lambda index: self._route_segment_length_nm(endpoint, approach_points[index]))
-        distance = max(0.0, travelled_to_end - progress)
+        distance = remaining_distance
         distance += self._route_segment_length_nm(endpoint, approach_points[start_index])
         result = {}
         for index in range(start_index, len(approach_points)):
@@ -418,7 +491,10 @@ class SimulationEngine:
         if desired_eta <= 0:
             return False
         required_speed = distance_to_merge_nm * 3600.0 / desired_eta
-        if required_speed < minimum_speed or required_speed >= target - 1.0:
+        minimum_sequencing_target = max(
+            minimum_speed, float(target) - self.MAX_SEQUENCING_SPEED_DELTA_KTS
+        )
+        if required_speed < minimum_sequencing_target or required_speed >= target - 1.0:
             return False
         if not hasattr(aircraft, "_engine_shared_waypoint_original_target_speed"):
             aircraft._engine_shared_waypoint_original_target_speed = target
@@ -728,6 +804,8 @@ class SimulationEngine:
                 if not candidates:
                     continue
                 _, approach_index, first_eta, second_eta, gap_nm = min(candidates)
+                if max(first_eta, second_eta) > self.SEQUENCING_DECISION_HORIZON_SECONDS:
+                    continue
                 delayed = first if first_eta >= second_eta else second
                 leader_eta = second_eta if delayed is first else first_eta
                 delayed_eta = first_eta if delayed is first else second_eta
@@ -888,6 +966,11 @@ class SimulationEngine:
 
                     for first_occurrence in first_occurrences:
                         first_remaining = first_occurrence[2] - first[2]
+                        first_remaining_active = self._active_route_distance_to_trigger_nm(
+                            first[0], self.arrival_routes[first[1]], first_occurrence[1].get("name")
+                        )
+                        if first_remaining_active is not None:
+                            first_remaining = first_remaining_active
                         first_eta_seconds = first_remaining * 3600.0 / first[3]
 
                         for second_occurrence in second_occurrences:
@@ -912,10 +995,17 @@ class SimulationEngine:
                                 continue
 
                             second_remaining = second_occurrence[2] - second[2]
+                            second_remaining_active = self._active_route_distance_to_trigger_nm(
+                                second[0], self.arrival_routes[second[1]], second_occurrence[1].get("name")
+                            )
+                            if second_remaining_active is not None:
+                                second_remaining = second_remaining_active
                             if max(first_remaining, second_remaining) > self.SEQUENCING_WINDOW_NM:
                                 continue
                             second_eta_seconds = second_remaining * 3600.0 / second[3]
                             prediction_time = max(first_eta_seconds, second_eta_seconds)
+                            if prediction_time > self.SEQUENCING_DECISION_HORIZON_SECONDS:
+                                continue
                             first_altitude = (float(getattr(first[0], "altitude_ft", 0))
                                               + float(getattr(first[0], "vertical_speed_fpm", 0)) * prediction_time / 60.0)
                             second_altitude = (float(getattr(second[0], "altitude_ft", 0))
@@ -1244,7 +1334,7 @@ class SimulationEngine:
                 minimum_speed = self._minimum_sequencing_speed(yielding)
                 if isinstance(target, (int, float)) and target > minimum_speed:
                     deficit = self.MIN_MERGE_SEPARATION_NM - closest_distance
-                    adjusted = max(minimum_speed,
+                    adjusted = max(minimum_speed, float(target) - self.MAX_SEQUENCING_SPEED_DELTA_KTS,
                                    min(float(target), leader_speed - max(0.25, deficit) * 12.0))
                     if adjusted < target:
                         if not hasattr(yielding, "_engine_predictive_original_target_speed"):
@@ -1591,7 +1681,10 @@ class SimulationEngine:
                                 )
                                 required_speed = own_eta * speed / max(desired_eta, 1.0)
                                 minimum_speed = self._minimum_sequencing_speed(aircraft)
-                                if minimum_speed <= required_speed < speed - 1.0:
+                                minimum_sequencing_target = max(
+                                    minimum_speed, speed - self.MAX_SEQUENCING_SPEED_DELTA_KTS
+                                )
+                                if minimum_sequencing_target <= required_speed < speed - 1.0:
                                     speed_solution = (required_speed if speed_solution is None
                                                       else min(speed_solution, required_speed))
                                     continue
@@ -1679,7 +1772,12 @@ class SimulationEngine:
         route_points = route.get("waypoints", [])
         if not route_points or speed <= 0:
             return None
-        if from_fallback:
+        remaining_route = self._active_route_distance_to_trigger_nm(aircraft, route)
+        if remaining_route is not None:
+            origin = next((item for item in route_points
+                           if str(item.get("name", "")).upper()
+                           == str(route.get("approach_trigger", "")).upper()), route_points[-1])
+        elif from_fallback:
             remaining_route = 0.0
             origin = {"latitude": aircraft.lat, "longitude": aircraft.lon}
         else:
@@ -1869,6 +1967,7 @@ class SimulationEngine:
 
                     adjusted = max(
                         minimum_speed,
+                        float(follower[5]) - self.MAX_SEQUENCING_SPEED_DELTA_KTS,
                         leader[4] - (self.MIN_MERGE_SEPARATION_NM - gap) * 12.0
                     )
                     current_target = desired_targets.get(id(follower[0]), follower[5])

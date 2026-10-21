@@ -12,6 +12,7 @@ from app.intelligence.instruction_manager import instruction_manager
 class ApproachAI:
 
     CAPTURE_DISTANCE_KM = 0.35
+    EARTH_RADIUS_KM = 6371.0
 
     def __init__(
         self,
@@ -159,7 +160,21 @@ class ApproachAI:
                 aircraft.approach_index
             )
 
-        if distance <= self.CAPTURE_DISTANCE_KM:
+        previous_position = getattr(aircraft, "_approach_previous_position", None)
+        current_position = (float(aircraft.lat), float(aircraft.lon))
+        aircraft._approach_previous_position = current_position
+        passed_within_capture = (
+            previous_position is not None
+            and self._distance_to_segment_km(
+                point["latitude"], point["longitude"], previous_position, current_position
+            ) <= self.CAPTURE_DISTANCE_KM
+        )
+
+        if distance <= self.CAPTURE_DISTANCE_KM or passed_within_capture:
+
+            # ApproachAI owns this route cursor once cleared. Keep the last
+            # captured fix and the active guidance target in sync.
+            aircraft.assigned_node = point["id"]
 
             aircraft.approach_index += 1
 
@@ -178,6 +193,30 @@ class ApproachAI:
                 next_point = self.approach_points[aircraft.approach_index]
                 aircraft.target_node = next_point["id"]
                 aircraft.clearance.direct_node = next_point["id"]
+
+    @classmethod
+    def _distance_to_segment_km(cls, latitude, longitude, start, end):
+        """Return the local-plane distance from a fix to a sampled flight segment."""
+        reference_latitude = radians(latitude)
+        scale_x = cls.EARTH_RADIUS_KM * cos(reference_latitude) * radians(1.0)
+        scale_y = cls.EARTH_RADIUS_KM * radians(1.0)
+
+        def project(position):
+            return (
+                (float(position[1]) - longitude) * scale_x,
+                (float(position[0]) - latitude) * scale_y,
+            )
+
+        start_x, start_y = project(start)
+        end_x, end_y = project(end)
+        segment_x, segment_y = end_x - start_x, end_y - start_y
+        length_squared = segment_x * segment_x + segment_y * segment_y
+        if length_squared == 0:
+            return sqrt(start_x * start_x + start_y * start_y)
+        fraction = max(0.0, min(1.0, -(start_x * segment_x + start_y * segment_y) / length_squared))
+        closest_x = start_x + fraction * segment_x
+        closest_y = start_y + fraction * segment_y
+        return sqrt(closest_x * closest_x + closest_y * closest_y)
 
     def _closest_waypoint_index(
         self,

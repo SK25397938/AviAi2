@@ -62,6 +62,39 @@ def sequencing_engine(traffic=(), entry_etas=None):
 
 
 class ApproachCoordinationTests(unittest.TestCase):
+    def test_approach_fix_passed_between_ticks_advances_once(self):
+        own = aircraft("PASS", phase="FINAL")
+        own.aircraft_type = "A320"
+        own._approach_entry_index = 1
+        own.approach_complete = False
+        own.controller = "Arrival"
+        own.last_instruction = ""
+        own.assign_altitude = lambda altitude: None
+        own.assign_speed = lambda speed: None
+        approach = ApproachAI(None)
+        app32 = approach.approach_points[1]
+
+        # Both sampled positions are outside the existing capture radius, but
+        # the aircraft's path passes directly over APP32 between updates.
+        own.lat = app32["latitude"]
+        own.lon = app32["longitude"] + 0.004
+        approach.update(own)
+        self.assertEqual(own.approach_index, 1)
+
+        own.lon = app32["longitude"] - 0.004
+        approach.update(own)
+
+        self.assertEqual(own.approach_index, 2)
+        self.assertEqual(own.assigned_node, "APP32")
+        self.assertEqual(own.target_node, approach.approach_points[2]["id"])
+        self.assertEqual(own.clearance.direct_node, own.target_node)
+
+        # A subsequent update continues toward the next fix without consuming
+        # it or restoring the completed APP32 target.
+        approach.update(own)
+        self.assertEqual(own.approach_index, 2)
+        self.assertEqual(own.target_node, approach.approach_points[2]["id"])
+
     def test_app32_occupied_app38_safe_selects_app38(self):
         own = aircraft("OWN")
         other = aircraft("OTHER")
@@ -91,6 +124,7 @@ class ApproachCoordinationTests(unittest.TestCase):
         self.assertFalse(result["safe"])
         self.assertNotIn("APP32", engine.approach_reservations)
         self.assertIs(engine.approach_reservations["APP38"], other)
+
 
     def test_app32_occupied_app38_unsafe_retains_safe_delay_state(self):
         own = aircraft("OWN")
@@ -155,6 +189,54 @@ class ApproachCoordinationTests(unittest.TestCase):
         own.approach_index = 2
         engine._prune_approach_reservations()
         self.assertNotIn("APP32", engine.approach_reservations)
+
+
+class ArrivalSequencingBoundsTests(unittest.TestCase):
+    def test_merge_speed_adjustment_is_limited_to_ten_knots(self):
+        item = aircraft("SPEED")
+        assigned = []
+        item.assign_speed = assigned.append
+        item.target_speed_kts = 220.0
+        engine = object.__new__(SimulationEngine)
+        engine._minimum_sequencing_speed = lambda _: 170.0
+
+        # This ETA calls for a 210 kt target, a 10 kt reduction from baseline.
+        leader_eta = 20.0 * 3600.0 / 210.0 - 72.0
+        applied = engine._apply_merge_speed_delay(item, 20.0, leader_eta, 250.0)
+
+        self.assertTrue(applied)
+        self.assertAlmostEqual(assigned[-1], 210.0)
+        self.assertLessEqual(abs(assigned[-1] - 220.0), 10.0)
+
+    def test_active_route_eta_uses_route_changes_and_fallback_waypoints(self):
+        item = aircraft("ROUTE")
+        item.route = ["IN", "DOGAP", "TRIG"]
+        item.route_index = 1
+        item.target_node = "DOGAP"
+        item.lat, item.lon = 19.0, 73.0
+        route = {"approach_trigger": "TRIG", "waypoints": [
+            {"name": "IN", "latitude": 19.0, "longitude": 72.9},
+            {"name": "TRIG", "latitude": 19.0, "longitude": 73.2},
+        ]}
+        engine = object.__new__(SimulationEngine)
+        engine.graph = SimpleNamespace(nodes={
+            "DOGAP": {"lat": 19.0, "lon": 73.1},
+            "TRIG": {"lat": 19.0, "lon": 73.2},
+        })
+        engine.holding_manager = SimpleNamespace(has_active_holding_route=lambda _: False)
+
+        distance = engine._active_route_distance_to_trigger_nm(item, route)
+        expected_distance = engine._route_segment_length_nm(
+            {"latitude": 19.0, "longitude": 73.0},
+            {"latitude": 19.0, "longitude": 73.2},
+        )
+        self.assertAlmostEqual(distance, expected_distance, delta=0.01)
+
+        item.route = ["IN", "HOLD_FIX", "TRIG"]
+        item.target_node = "HOLD_FIX"
+        engine.graph.nodes["HOLD_FIX"] = {"lat": 19.0, "lon": 73.05}
+        updated_distance = engine._active_route_distance_to_trigger_nm(item, route)
+        self.assertAlmostEqual(updated_distance, expected_distance, delta=0.01)
 
 
 class FallbackReleaseTests(unittest.TestCase):
