@@ -171,7 +171,7 @@ class FallbackReleaseTests(unittest.TestCase):
         guidance.apply_route_constraints = lambda item: None
         return guidance
 
-    def test_safe_fallback_release_synchronizes_approach_state(self):
+    def test_safe_fallback_reassessment_continues_to_route_trigger(self):
         item = aircraft("FALLBACK")
         item.route = ["TRIG", "DOGAP", "TRIG"]
         item.route_index = 1
@@ -186,13 +186,13 @@ class FallbackReleaseTests(unittest.TestCase):
 
         guidance.update(item)
 
-        self.assertEqual(item.phase, "FINAL")
+        self.assertEqual(item.phase, "ARRIVAL")
         self.assertEqual(item.assigned_node, "DOGAP")
-        self.assertEqual(item.route, ["TRIG", "DOGAP"])
-        self.assertEqual(item.route_index, 1)
-        self.assertEqual(item.target_node, "APP38")
-        self.assertEqual(item.clearance.direct_node, "APP38")
-        self.assertTrue(item.approach_clearance)
+        self.assertEqual(item.route, ["TRIG", "DOGAP", "TRIG"])
+        self.assertEqual(item.route_index, 2)
+        self.assertEqual(item.target_node, "TRIG")
+        self.assertEqual(item.clearance.direct_node, "TRIG")
+        self.assertFalse(getattr(item, "approach_clearance", False))
         self.assertFalse(hasattr(item, "_approach_extension_used"))
 
     def test_unsafe_fallback_remains_on_existing_loop(self):
@@ -258,7 +258,7 @@ class HoldingFairnessTests(unittest.TestCase):
         item = aircraft("HOLD")
         state = {
             "aircraft": item, "next_circuit_end_index": 4,
-            "completed_circuits": 0, "requested_circuits": 1,
+            "completed_circuits": 0, "requested_circuits": 3,
             "holding_route_id": "H1", "rejoin_waypoint": "TRIG",
             "original_route": ["TRIG", "OUT"], "rejoin_index": 0,
             "holding_node_ids": [], "original_target_altitude": None,

@@ -141,29 +141,14 @@ class GuidanceAI:
             )
             if is_delay_fallback and self.approach_handoff_validator is not None:
                 safety = self.approach_handoff_validator(aircraft, from_fallback=True)
-                if safety.get("safe") and isinstance(safety.get("approach_entry_index"), int):
-                    selected_index = safety["approach_entry_index"]
-                    selected_node = safety.get("approach_entry_node")
-                    aircraft.route = aircraft.route[:aircraft.route_index + 1]
-                    aircraft.assigned_node = reached_node
-                    aircraft.phase = "FINAL"
-                    aircraft.state = "APPROACH"
-                    aircraft.approach_phase = "INTERCEPT"
-                    aircraft.approach_index = selected_index
-                    aircraft.approach_instruction_index = None
-                    aircraft.target_node = selected_node
-                    aircraft.clearance.direct_node = selected_node
-                    aircraft.approach_clearance = True
+                if safety.get("safe"):
+                    # A delay fix is only a place to reassess sequencing. Keep
+                    # flying the permanent route to its approach trigger; only
+                    # that trigger capture may assign APP32/APP38.
                     for name in ("_approach_extension_used", "_approach_extension_fix",
                                  "_approach_extension_index"):
                         if hasattr(aircraft, name):
                             delattr(aircraft, name)
-                    if self.decision_event_callback is not None:
-                        self.decision_event_callback(
-                            aircraft, "APPROACH RELEASED FROM FALLBACK", reached_node,
-                            safety.get("reason", "Approach entry became available at the delay fix")
-                        )
-                    return
 
             route_definition = self.arrival_routes.get(
                 getattr(aircraft, "arrival_route_id", None), {}

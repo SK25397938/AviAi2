@@ -1958,11 +1958,11 @@ class SimulationEngine:
 
         traffic = self.manager.all()
         self._restore_shared_waypoint_speeds(traffic)
+        self._apply_shared_waypoint_separation(traffic)
         self._detect_shared_waypoint_conflicts(traffic)
         self._enforce_predictive_separation(traffic)
         apply_arrival_separation(traffic, self.graph)
         self._record_route_following_actions(traffic)
-        self._apply_shared_waypoint_separation(traffic)
 
         for aircraft in traffic:
             try:

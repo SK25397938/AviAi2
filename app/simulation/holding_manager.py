@@ -425,20 +425,12 @@ class HoldingManager:
         aircraft.holding_circuits_completed = state["completed_circuits"]
         print(f"HOLD CIRCUIT COMPLETE | callsign={aircraft.callsign} "
               f"circuit={state['completed_circuits']}/{state['requested_circuits']} fix={state['rejoin_waypoint']}")
-        priority_release = bool(state.get("priority_callsign") and state.get("protected_merge_point"))
         safety = can_release(aircraft) if can_release is not None else {"safe": True, "reason": "No release validator configured"}
         if isinstance(safety, bool):
             safety = {"safe": safety, "reason": "Downstream route check"}
         print(f"APPROACH CLEARANCE CHECK | callsign={aircraft.callsign} "
               f"result={'GRANTED' if safety.get('safe') else 'DENIED'} reason={safety.get('reason', '')}")
         if safety.get("safe"):
-            if (state["completed_circuits"] < state["requested_circuits"]
-                    and not priority_release):
-                state["scheduled_circuits"] += 1
-                state["next_circuit_end_index"] = index + len(state["repeat_circuit_waypoints"])
-                self._schedule_holding_circuit(aircraft, state, index)
-                return self._result(True, "Continue configured holding circuits", released=False,
-                                    safety=safety, completed_circuits=state["completed_circuits"])
             aircraft.approach_clearance = True
             print(f"APPROACH CLEARANCE GRANTED | callsign={aircraft.callsign}")
             released = self.restore_original_route(aircraft, circuit_boundary=True)
