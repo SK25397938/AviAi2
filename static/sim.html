@@ -182,6 +182,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .layer-ctrl{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:410;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .layer-menu[open] .layer-ctrl{display:block}
 .layer-menu[open] .nav-ctrl{display:flex;flex-direction:column;gap:6px;min-width:140px}
+.terrain-status{display:none;max-width:250px;color:#ff9b7b;font:9px var(--font-mono);margin-top:6px;white-space:normal}
+.terrain-controls{margin:5px 0 2px 19px;color:var(--muted);font:9px var(--font-mono)}
+.terrain-controls select{margin-left:5px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);color:var(--fg);font:9px var(--font-mono)}
 .nav-ctrl .btn{justify-content:center}
 .lc-title{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
 .lc-item{display:flex;align-items:center;gap:8px;padding:3px 0}
@@ -234,6 +237,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
+<div class="lc-item"><label><input type="checkbox" data-layer="terrain" onchange="toggleLayer(this)"> Terrain Elevation</label><div class="terrain-controls"><select id="terrainThreshold" aria-label="Contour threshold in metres" title="Contour threshold in metres" onchange="setTerrainThreshold(this.value)"><option value="300">300 m</option><option value="500" selected>500 m</option><option value="750">750 m</option><option value="1000">1,000 m</option></select></div><div id="terrainStatus" class="terrain-status" role="status" aria-live="polite"></div></div>
 </div>
 </details>
 <details class="layer-menu" id="navMenu">
@@ -460,6 +464,7 @@ Apply Weather
 </div>
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <script src="/static/js/runway_renderer.js"></script>
+<script src="/static/js/terrain_elevation.js"></script>
 <script>
 const VABB=[72.8656,19.0896];
 let acData=[];
@@ -476,7 +481,8 @@ const AIRCRAFT_HISTORY_LIMIT=1200;
 const aircraftPathHistory=Object.create(null);
 let atisExpanded=false;
 let atisMessage="";
-let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false};
+let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false,terrain:false};
+let terrainController=null;
 let semanticMode=false;
 let holdingMode=false;
 let configuredHoldingPatterns=[];
@@ -815,6 +821,12 @@ function initMap(){
   pitch:0,
   antialias:false
 });
+  terrainController=TerrainElevation.createController(map,function(){return layers.terrain;},function(message,isError){
+    var status=document.getElementById("terrainStatus");
+    status.textContent=isError?message:"";
+    status.style.display=isError?"block":"none";
+  });
+  map.on("style.load",function(){if(terrainController) terrainController.styleLoaded();});
   map.addControl(new maplibregl.NavigationControl(),"top-left");
   map.on("load",async()=>{
     await loadAirport();
@@ -1042,6 +1054,17 @@ map.addLayer({
         "line-width":["case",["get","active"],3,2],
         "line-opacity":["case",["get","active"],0.92,0.55]
     }
+});
+map.addSource("short-holding-patterns",{
+    type:"geojson",
+    data:{type:"FeatureCollection",features:[]}
+});
+map.addLayer({
+    id:"short-holding-pattern-lines",
+    type:"line",
+    source:"short-holding-patterns",
+    paint:{"line-color":"#607783","line-width":4,"line-opacity":0.55,"line-dasharray":[1,1]},
+    layout:{"line-cap":"round","line-join":"round"}
 });
 map.addSource("configured-holding-fixes",{
     type:"geojson",
@@ -1307,6 +1330,7 @@ async function loadHoldingPatternGeometry(){
         if(!response.ok) throw new Error("Holding pattern geometry request failed");
         const data=await response.json();
         configuredHoldingPatterns=Array.isArray(data.patterns)?data.patterns:[];
+        updateHoldingVisualization([],[]);
     }catch(error){
         console.error("Failed to load holding pattern geometry:",error);
         configuredHoldingPatterns=[];
@@ -1315,13 +1339,36 @@ async function loadHoldingPatternGeometry(){
 
 function updateHoldingVisualization(holds, configuredPoints){
     const activeIds=new Set((holds||[]).map(function(hold){return String(hold.holding_route_id);}));
+    const shortHolds=new Set();
+    const shortFeatures=configuredHoldingPatterns.map(function(pattern){
+        const coordinates=Array.isArray(pattern.short_coordinates)?pattern.short_coordinates.map(function(point){return [Number(point[0]),Number(point[1])];}):[];
+        if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return null;
+        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id},geometry:{type:"LineString",coordinates:coordinates}};
+    }).filter(Boolean);
+    (holds||[]).forEach(function(hold){
+        const pattern=configuredHoldingPatterns.find(function(item){return String(item.holding_route_id)===String(hold.holding_route_id);});
+        const standard=pattern&&Array.isArray(pattern.coordinates)?pattern.coordinates:[];
+        const waypoints=Array.isArray(hold.waypoints)?hold.waypoints:[];
+        const coordinates=waypoints.map(function(point){return [Number(point.longitude),Number(point.latitude)];});
+        if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return;
+        const matchesStandard=coordinates.length===standard.length&&coordinates.every(function(point,index){
+            return Math.abs(point[0]-Number(standard[index][0]))<1e-7&&Math.abs(point[1]-Number(standard[index][1]))<1e-7;
+        });
+        if(!matchesStandard){
+            shortHolds.add(String(hold.holding_route_id));
+            const feature=shortFeatures.find(function(item){return String(item.properties.holding_route_id)===String(hold.holding_route_id);});
+            if(feature) feature.geometry.coordinates=coordinates;
+        }
+    });
     const features=configuredHoldingPatterns.map(function(pattern){
         const coordinates=Array.isArray(pattern.coordinates)?pattern.coordinates.map(function(point){return [Number(point[0]),Number(point[1])];}):[];
         if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return null;
-        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:activeIds.has(String(pattern.holding_route_id))},geometry:{type:"LineString",coordinates:coordinates}};
+        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:activeIds.has(String(pattern.holding_route_id))&&!shortHolds.has(String(pattern.holding_route_id))},geometry:{type:"LineString",coordinates:coordinates}};
     }).filter(Boolean);
     const source=map.getSource("holding-patterns");
     if(source) source.setData({type:"FeatureCollection",features:features});
+    const shortSource=map.getSource("short-holding-patterns");
+    if(shortSource) shortSource.setData({type:"FeatureCollection",features:shortFeatures});
     const pointFeatures=(configuredPoints||[]).map(function(point){
         return {type:"Feature",properties:{fix:point.fix,holding_route_id:point.holding_route_id,active:!!point.active},geometry:{type:"Point",coordinates:[Number(point.longitude),Number(point.latitude)]}};
     }).filter(function(feature){return Number.isFinite(feature.geometry.coordinates[0])&&Number.isFinite(feature.geometry.coordinates[1]);});
@@ -1923,6 +1970,9 @@ function emergencyPause(){
 function toggleLayer(cb){
   var layer=cb.dataset.layer;
   layers[layer]=cb.checked;
+  if(layer==='terrain'){
+    if(terrainController) terrainController.setVisible(cb.checked);
+  }
   if(layer==='aircraft'){
     Object.values(markers).forEach(function(m){m.marker.getElement().style.display=cb.checked?'':'none';});
   }
@@ -1947,13 +1997,17 @@ function toggleLayer(cb){
   if(layer==='holdpts'){
     if(map.getLayer('holding')) map.setLayoutProperty('holding','visibility',cb.checked?'visible':'none');
     if(map.getLayer('holding-labels')) map.setLayoutProperty('holding-labels','visibility',cb.checked?'visible':'none');
-    ['holding-pattern-lines'].forEach(function(id){
+    ['holding-pattern-lines','short-holding-pattern-lines'].forEach(function(id){
       if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',cb.checked?'visible':'none');
     });
   }
   if(layer==='labels'){
     updateAircraftMarkers();
   }
+}
+
+function setTerrainThreshold(value){
+  if(terrainController) terrainController.setThreshold(Number(value));
 }
 
 document.addEventListener('click',function(event){

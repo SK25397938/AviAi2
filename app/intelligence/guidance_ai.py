@@ -1,4 +1,7 @@
+import math
+
 from app.intelligence.graph_navigator import GraphNavigator
+from app.simulation.physics import TURN_RATE_DEG_PER_SEC
 
 
 class GuidanceAI:
@@ -8,6 +11,7 @@ class GuidanceAI:
     # Physical capture radius in nautical miles (about 600 ft).
     ARRIVAL_WAYPOINT_CAPTURE_DISTANCE = 0.1
     TAXI_SPEED = 15
+    PROGRESS_STALL_SECONDS = 60.0
 
     @staticmethod
     def _distance_nm(lat1, lon1, lat2, lon2):
@@ -45,15 +49,13 @@ class GuidanceAI:
         self.arrival_profiles = arrival_profiles or {}
         self.decision_event_callback = decision_event_callback
         self.approach_handoff_validator = approach_handoff_validator
+        self._progress = {}
 
         self.navigator = GraphNavigator(
             graph
         )
 
-    def update(
-        self,
-        aircraft
-    ):
+    def update(self, aircraft, dt=1.0):
 
         if aircraft.state == "TAXI":
 
@@ -66,6 +68,52 @@ class GuidanceAI:
         if not aircraft.route:
 
             return
+
+        previous_position = getattr(aircraft, "_guidance_previous_position", None)
+        previous_target = getattr(aircraft, "_guidance_previous_target", None)
+        current_position = (float(aircraft.lat), float(aircraft.lon))
+        aircraft._guidance_previous_position = current_position
+
+        # A denied temporary sequencing fix is a real waiting state. Recheck
+        # it before capture handling; otherwise a zero-distance target would
+        # be captured and denied on every tick without advancing the cursor.
+        resumed_wait = False
+        if (getattr(aircraft, "_approach_clearance_waiting", False)
+                and getattr(aircraft, "_approach_extension_used", False)):
+            validator = self.approach_handoff_validator
+            safety = validator(aircraft, from_fallback=True) if validator is not None else {"safe": False}
+            if not safety.get("safe", False):
+                aircraft.approach_clearance = False
+                aircraft.target_node = getattr(aircraft, "_approach_extension_fix", aircraft.target_node)
+                aircraft.clearance.direct_node = aircraft.target_node
+                self._record_progress(aircraft, dt, legitimate_wait=True)
+                return
+            wait_index = getattr(aircraft, "_approach_extension_index", None)
+            if not (isinstance(wait_index, int) and 0 <= wait_index < len(aircraft.route)):
+                # Corrupt temporary state has no deterministic safe recovery;
+                # remain stopped at the configured fix and keep reassessing.
+                if self.decision_event_callback is not None:
+                    self.decision_event_callback(
+                        aircraft, "NAVIGATION WAIT STATE INVALID", aircraft.target_node,
+                        f"Missing valid temporary route index: {wait_index!r}; preserving clearance wait"
+                    )
+                self._record_progress(aircraft, dt, legitimate_wait=True)
+                return
+            aircraft.assigned_node = aircraft.route[wait_index]
+            aircraft.route_index = wait_index + 1
+            aircraft.target_node = (aircraft.route[aircraft.route_index]
+                                    if aircraft.route_index < len(aircraft.route) else None)
+            resumed_wait = True
+            for name in ("_approach_clearance_waiting", "_approach_extension_used",
+                         "_approach_extension_fix", "_approach_extension_index"):
+                if hasattr(aircraft, name):
+                    delattr(aircraft, name)
+            if resumed_wait:
+                if aircraft.target_node is not None:
+                    aircraft.assign_heading(self.navigator.heading_to_node(aircraft, aircraft.target_node))
+                    aircraft.clearance.direct_node = aircraft.target_node
+                self._record_progress(aircraft, dt)
+                return
 
         active_holding_state = (
             self.holding_manager.state_for(aircraft)
@@ -90,6 +138,7 @@ class GuidanceAI:
             and not (self.holding_manager is not None
                      and self.holding_manager.has_active_holding_route(aircraft))
         )
+        route_waypoint_navigation = strict_arrival_navigation or active_holding_state is not None
         if strict_arrival_navigation:
             if aircraft.route_index < 0 or aircraft.route_index > len(aircraft.route):
                 return
@@ -113,6 +162,13 @@ class GuidanceAI:
 
             return
 
+        # A route splice or recovery changes the objective. Do not use a
+        # segment sampled while pursuing the previous target as passage
+        # evidence for the new fix.
+        if previous_target != aircraft.target_node:
+            previous_position = None
+        aircraft._guidance_previous_target = aircraft.target_node
+
         self.apply_route_constraints(aircraft)
 
         node = self.graph.get_node(
@@ -120,14 +176,29 @@ class GuidanceAI:
         )
 
         distance_nm = self._distance_nm(aircraft.lat, aircraft.lon, node["lat"], node["lon"])
-        distance = (distance_nm if strict_arrival_navigation else self.navigator.distance(
+        distance = (distance_nm if route_waypoint_navigation else self.navigator.distance(
             aircraft.lat, aircraft.lon, node["lat"], node["lon"]
         ))
 
         aircraft.current_distance = distance
 
-        capture_distance = self.ARRIVAL_WAYPOINT_CAPTURE_DISTANCE if strict_arrival_navigation else self.WAYPOINT_CAPTURE_DISTANCE
-        if distance <= capture_distance:
+        capture_distance = (self.ARRIVAL_WAYPOINT_CAPTURE_DISTANCE
+                            if route_waypoint_navigation else self.WAYPOINT_CAPTURE_DISTANCE)
+        if active_holding_state is not None:
+            holding_names = {point["name"] for point in active_holding_state.get("holding_waypoints", [])}
+            if (aircraft.target_node in holding_names
+                    and str(aircraft.target_node).upper()
+                    != str(active_holding_state.get("rejoin_waypoint", "")).upper()):
+                turn_rate = math.radians(TURN_RATE_DEG_PER_SEC)
+                speed = max(0.0, float(getattr(aircraft, "speed_kts", 0.0) or 0.0))
+                capture_distance = max(
+                    capture_distance,
+                    speed / (3600.0 * turn_rate) + speed * max(0.0, float(dt or 0.0)) / 7200.0,
+                )
+        captured = (self._valid_waypoint_capture(
+            aircraft, node, distance, capture_distance, previous_position
+        ) if route_waypoint_navigation else distance <= capture_distance)
+        if captured:
 
             reached_node = aircraft.target_node
             fallback_fix = getattr(aircraft, "_approach_extension_fix", None)
@@ -149,6 +220,22 @@ class GuidanceAI:
                                  "_approach_extension_index"):
                         if hasattr(aircraft, name):
                             delattr(aircraft, name)
+                else:
+                    # The delay fix is the configured waiting point for this
+                    # sequencing extension. Keep the route cursor on it so
+                    # the aircraft is reassessed here as traffic changes,
+                    # instead of flying another trigger/delay loop.
+                    aircraft.approach_clearance = False
+                    aircraft.assigned_node = reached_node
+                    aircraft.target_node = reached_node
+                    aircraft.clearance.direct_node = reached_node
+                    aircraft._approach_clearance_waiting = True
+                    if self.decision_event_callback is not None:
+                        self.decision_event_callback(
+                            aircraft, "APPROACH CLEARANCE WITHHELD", reached_node,
+                            safety.get("reason", "Approach handoff validator withheld clearance")
+                        )
+                    return
 
             route_definition = self.arrival_routes.get(
                 getattr(aircraft, "arrival_route_id", None), {}
@@ -191,7 +278,8 @@ class GuidanceAI:
                     held = False
                     for option in options:
                         result = self.holding_manager.apply_holding_route(
-                            aircraft, option["holding_route_id"], circuits=1
+                            aircraft, option["holding_route_id"], circuits=1,
+                            required_delay_seconds=safety.get("required_delay_seconds"),
                         )
                         if result.get("success"):
                             held = True
@@ -329,6 +417,107 @@ class GuidanceAI:
         aircraft.clearance.direct_node = (
             aircraft.target_node
         )
+        self._record_progress(aircraft, dt)
+
+    def _record_progress(self, aircraft, dt=1.0, legitimate_wait=False):
+        """Diagnose stale route targets without inventing motion or clearance."""
+        if getattr(aircraft, "phase", "") == "FINAL":
+            return
+        target = getattr(aircraft, "target_node", None)
+        route = getattr(aircraft, "route", None)
+        if not target or not route:
+            return
+        key = id(aircraft)
+        distance = getattr(aircraft, "current_distance", None)
+        progress = getattr(self, "_progress", None)
+        if progress is None:
+            progress = self._progress = {}
+        state = progress.get(key)
+        signature = (getattr(aircraft, "route_index", None), target,
+                     getattr(aircraft, "clearance", None).direct_node
+                     if getattr(aircraft, "clearance", None) is not None else None)
+        if state is None or state["signature"] != signature:
+            progress[key] = {"signature": signature, "elapsed": 0.0,
+                             "last_distance": distance}
+            return
+        if distance is not None and state["last_distance"] is not None and distance < state["last_distance"] - 0.01:
+            state["elapsed"] = 0.0
+        else:
+            state["elapsed"] += max(0.0, float(dt or 0.0))
+        state["last_distance"] = distance
+        if legitimate_wait or state["elapsed"] < self.PROGRESS_STALL_SECONDS:
+            return
+        # Repair only an impossible self-target. Holds and clearance waits
+        # have explicit reassessment paths and must remain untouched.
+        if (target == getattr(aircraft, "assigned_node", None)
+                and not (self.holding_manager is not None
+                         and self.holding_manager.has_active_holding_route(aircraft))
+                and not getattr(aircraft, "_approach_clearance_waiting", False)):
+            index = getattr(aircraft, "route_index", -1)
+            if isinstance(index, int) and index + 1 < len(route):
+                next_target = route[index + 1]
+                aircraft.target_node = next_target
+                aircraft.clearance.direct_node = next_target
+                state["signature"] = (index, next_target, next_target)
+                state["elapsed"] = 0.0
+                if self.decision_event_callback is not None:
+                    reason = (
+                        "Active target matched assigned fix for the stall threshold; "
+                        f"cursor={index} assigned={getattr(aircraft, 'assigned_node', None)} "
+                        f"target={target} clearance={getattr(aircraft.clearance, 'direct_node', None)} "
+                        f"approach_clearance={getattr(aircraft, 'approach_clearance', False)} "
+                        f"reservation={getattr(aircraft, '_approach_entry_node', None)} "
+                        f"hold={getattr(aircraft, 'holding_route_id', None)} "
+                        f"position=({getattr(aircraft, 'lat', None)},{getattr(aircraft, 'lon', None)}) "
+                        f"distance={getattr(aircraft, 'current_distance', None)}"
+                    )
+                    self.decision_event_callback(
+                        aircraft, "NAVIGATION STALL RECOVERED", next_target, reason
+                    )
+
+    @classmethod
+    def _distance_to_segment_nm(cls, latitude, longitude, start, end):
+        """Distance from a fix to a sampled ground track segment in NM."""
+        scale_x = 60.0 * math.cos(math.radians(latitude))
+        scale_y = 60.0
+
+        def project(position):
+            return ((float(position[1]) - longitude) * scale_x,
+                    (float(position[0]) - latitude) * scale_y)
+
+        start_x, start_y = project(start)
+        end_x, end_y = project(end)
+        segment_x, segment_y = end_x - start_x, end_y - start_y
+        length_squared = segment_x * segment_x + segment_y * segment_y
+        if length_squared <= 1e-12:
+            return math.hypot(start_x, start_y)
+        fraction = max(0.0, min(1.0,
+            -(start_x * segment_x + start_y * segment_y) / length_squared))
+        return math.hypot(start_x + fraction * segment_x,
+                          start_y + fraction * segment_y)
+
+    def _valid_waypoint_capture(self, aircraft, node, distance, capture_distance,
+                                previous_position):
+        """Require approach or measured passage before advancing a route fix."""
+        if distance > capture_distance:
+            if previous_position is None:
+                return False
+            return self._distance_to_segment_nm(
+                node["lat"], node["lon"], previous_position,
+                (float(aircraft.lat), float(aircraft.lon))) <= capture_distance
+
+        if previous_position is None:
+            return True
+
+        previous_distance = self._distance_nm(
+            previous_position[0], previous_position[1], node["lat"], node["lon"])
+        # A fix that is already behind the aircraft is captured only when the
+        # sampled path proves that the aircraft passed through its capture tube.
+        if distance > previous_distance + 0.01:
+            return self._distance_to_segment_nm(
+                node["lat"], node["lon"], previous_position,
+                (float(aircraft.lat), float(aircraft.lon))) <= capture_distance
+        return True
 
     def apply_route_constraints(self, aircraft):
         if not aircraft.route or aircraft.target_node is None or aircraft.phase == "FINAL":

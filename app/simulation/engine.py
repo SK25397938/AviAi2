@@ -2,6 +2,7 @@
 import json
 import math
 import random
+from threading import RLock
 from pathlib import Path
 from datetime import datetime
 
@@ -106,10 +107,12 @@ class SimulationEngine:
             self.holding_routes = []
 
         self.holding_manager = HoldingManager(self.holding_routes, self.graph)
-        # Approach entry ownership is held until the aircraft passes its
-        # assigned entry fix. The simulation updates these reservations on its
-        # single control thread, so a check and assignment are atomic here.
+        # Entry reservations cover pending clearances and remain owned until
+        # the aircraft passes its assigned entry fix. Clearance requests may
+        # be evaluated by concurrent callers, so allocation and pruning share
+        # this reentrant lock.
         self.approach_reservations = {}
+        self._approach_allocation_lock = RLock()
         self.ai_decision_log = []
         self._last_separation_event_at = {}
 
@@ -153,6 +156,7 @@ class SimulationEngine:
         self.approach_ai = ApproachAI(
             self.runway
         )
+        self.holding_manager.route_continuation_validator = self._has_configured_holding_continuation
 
         self.landing_ai = LandingAI(
             self.runway,
@@ -772,7 +776,7 @@ class SimulationEngine:
                     or getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
                     or self.holding_manager.has_active_holding_route(aircraft)
                     or getattr(aircraft, "separation_status", None) == "APPROACH DELAYED"
-                    or mistral_controller.has_pending_conflict_for(aircraft.callsign)):
+                    ):
                 continue
             progress = self._route_progress_nm(aircraft, route)
             speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", None)
@@ -903,7 +907,6 @@ class SimulationEngine:
                 getattr(aircraft, "phase", "") not in ("ARRIVAL", "FINAL")
                 or route_id not in self.arrival_routes
                 or self.holding_manager.has_active_holding_route(aircraft)
-                or mistral_controller.has_pending_conflict_for(aircraft.callsign)
             ):
                 continue
 
@@ -1194,7 +1197,8 @@ class SimulationEngine:
         del self.ai_decision_log[50:]
 
     def _record_guidance_event(self, aircraft, event, waypoint, reason):
-        event_key = (str(aircraft.callsign), str(event), str(waypoint))
+        event_key = (str(aircraft.callsign), str(event), str(waypoint),
+                     str(reason) if event == "APPROACH CLEARANCE WITHHELD" else None)
         now = datetime.now().astimezone()
         previous = self._last_separation_event_at.get(event_key)
         if previous is not None and (now - previous).total_seconds() < 30:
@@ -1352,9 +1356,15 @@ class SimulationEngine:
                     merge = self._next_common_route_waypoint(yielding, leader)
                     options = self.holding_manager.compatible_holding_options(yielding, merge) if merge else []
                     held = False
+                    required_hold_delay = (
+                        closest_time + max(0.0, self.MIN_MERGE_SEPARATION_NM - closest_distance)
+                        / math.sqrt(relative_speed_sq)
+                        if relative_speed_sq > 1e-12 else None
+                    )
                     for option in options:
                         result = self.holding_manager.apply_holding_route(
-                            yielding, option["holding_route_id"], circuits=1
+                            yielding, option["holding_route_id"], circuits=1,
+                            required_delay_seconds=required_hold_delay,
                         )
                         if result.get("success"):
                             held = True
@@ -1444,8 +1454,6 @@ class SimulationEngine:
                     "reason": f"Waiting for priority aircraft {priority_callsign} to clear {protected_merge_point}",
                     "other_aircraft": priority_callsign,
                     "conflict_waypoint": protected_merge_point}
-        if mistral_controller.has_pending_conflict_for(aircraft.callsign):
-            return {"safe": False, "reason": "A traffic-conflict decision is still pending"}
         route_id = getattr(aircraft, "arrival_route_id", None)
         route_definition = self.arrival_routes.get(route_id, {})
         route_points = route_definition.get("waypoints", [])
@@ -1569,9 +1577,37 @@ class SimulationEngine:
                         "predicted_separation_nm": round(
                             abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0, 2
                         )}
-        return {"safe": True, "reason": "Downstream route clear and required separation available"}
+        handoff = self._can_approach_handoff(aircraft)
+        if not handoff.get("safe"):
+            return {"safe": False, "reason": handoff.get("reason", "Configured approach transition is unavailable")}
+        return {"safe": True, "reason": "Downstream route clear and required separation available",
+                "approach_entry_index": handoff["approach_entry_index"],
+                "approach_entry_node": handoff["approach_entry_node"]}
 
     def _can_approach_handoff(self, aircraft, from_fallback=False):
+        with self._approach_allocation_lock:
+            return self._evaluate_approach_handoff(aircraft, from_fallback=from_fallback)
+
+    def _has_configured_holding_continuation(self, aircraft, trigger):
+        route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
+        if not isinstance(route, dict):
+            return False
+        points = route.get("waypoints", [])
+        trigger = str(trigger).upper()
+        if (not points or str(route.get("approach_trigger", "")).upper() != trigger
+                or str(points[-1].get("name", "")).upper() != trigger):
+            return False
+        endpoint = points[-1]
+        return any(
+            isinstance(point.get("arrival_entry_transition"), dict)
+            and point["arrival_entry_transition"].get("type") == "DIRECT_FROM_ARRIVAL_TRIGGER"
+            and self._route_segment_length_nm(
+                endpoint, {"latitude": point["latitude"], "longitude": point["longitude"]}
+            ) <= self.SEQUENCING_WINDOW_NM
+            for point in self.approach_ai.approach_points
+        )
+
+    def _evaluate_approach_handoff(self, aircraft, from_fallback=False):
         self._prune_approach_reservations()
         route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
         if not isinstance(route, dict):
@@ -1584,20 +1620,33 @@ class SimulationEngine:
             return {"safe": False, "reason": "Approach trajectory cannot be predicted"}
         traffic = self.manager.all()
 
-        # APP38 and APP32 are separate entry choices. Score both against
-        # current ownership, route reachability, altitude readiness and the
-        # predicted spacing at every downstream common approach fix.
+        # Only points with an explicitly configured transition from the
+        # arrival trigger may be considered. The supported direct transition
+        # is then checked against route geometry, altitude readiness, current
+        # ownership and predicted spacing along the downstream approach.
         points = self.approach_ai.approach_points
-        entries = [(index, point) for index, point in enumerate(points)
-                   if str(point.get("id", "")).upper() in {"APP32", "APP38"}]
+        entries = [
+            (index, point) for index, point in enumerate(points)
+            if isinstance(point.get("arrival_entry_transition"), dict)
+            and point["arrival_entry_transition"].get("type") == "DIRECT_FROM_ARRIVAL_TRIGGER"
+        ]
         if not entries:
             self._release_approach_reservation(aircraft)
-            return {"safe": False, "reason": "No configured APP32/APP38 entry is available"}
+            return {"safe": False, "reason": "No configured arrival-trigger approach transition is available"}
 
         prior_entry = next((node for node, owner in self.approach_reservations.items()
                             if owner is aircraft), None)
+        configured_preferences = route.get("approach_entry_preferences", [])
+        if not isinstance(configured_preferences, list):
+            configured_preferences = []
+        preference_rank = {
+            str(node).strip().upper(): rank
+            for rank, node in enumerate(configured_preferences)
+            if isinstance(node, str) and node.strip()
+        }
         candidates = []
         failures = []
+        required_hold_delays = []
         for index, point in entries:
             node = str(point["id"]).upper()
             owner = self.approach_reservations.get(node)
@@ -1622,7 +1671,13 @@ class SimulationEngine:
 
             # Routes must end close enough to join the selected entry through
             # the configured approach geometry.
-            endpoint = route.get("waypoints", [])[-1]
+            route_points = route.get("waypoints", [])
+            trigger = str(route.get("approach_trigger", "")).upper()
+            if (not route_points
+                    or str(route_points[-1].get("name", "")).upper() != trigger):
+                failures.append(f"{node} direct transition does not start at the configured arrival trigger")
+                continue
+            endpoint = route_points[-1]
             connector_nm = self._route_segment_length_nm(
                 endpoint, {"latitude": point["latitude"], "longitude": point["longitude"]}
             )
@@ -1630,17 +1685,37 @@ class SimulationEngine:
                 failures.append(f"{node} is incompatible with this arrival route")
                 continue
 
-            occupied = next((other for other in traffic
-                             if other is not aircraft
-                             and getattr(other, "phase", "") in {"ARRIVAL", "FINAL"}
-                             and self._route_segment_length_nm(
-                                 {"latitude": point["latitude"], "longitude": point["longitude"]},
-                                 {"latitude": other.lat, "longitude": other.lon},
-                             ) < self.MIN_MERGE_SEPARATION_NM
-                             and abs(predicted_altitude - float(other.altitude_ft))
-                             < self.MIN_VERTICAL_SEPARATION_FT), None)
+            occupied = None
+            for other in traffic:
+                if (other is aircraft
+                        or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}
+                        or self._route_segment_length_nm(
+                            {"latitude": point["latitude"], "longitude": point["longitude"]},
+                            {"latitude": other.lat, "longitude": other.lon},
+                        ) >= self.MIN_MERGE_SEPARATION_NM
+                        or abs(predicted_altitude - float(other.altitude_ft))
+                        >= self.MIN_VERTICAL_SEPARATION_FT):
+                    continue
+                # A nearby aircraft is not an automatic entry conflict if its
+                # validated route and ETA show it will clear before this
+                # aircraft arrives. The downstream separation checks below
+                # remain authoritative. Keep the conservative occupancy
+                # rejection only when that traffic cannot be predicted.
+                other_route = self.arrival_routes.get(getattr(other, "arrival_route_id", None))
+                other_speed = getattr(other, "target_speed_kts", None) or getattr(other, "speed_kts", 0)
+                other_progress = (self._route_progress_nm(other, other_route)
+                                  if isinstance(other_route, dict)
+                                  and isinstance(other_speed, (int, float)) and other_speed > 0
+                                  and not self.holding_manager.has_active_holding_route(other)
+                                  else None)
+                other_etas = (self._approach_point_etas(
+                    other, other_route, other_progress, float(other_speed)
+                ) if other_progress is not None else {})
+                if not set(range(index, len(points))).intersection(other_etas):
+                    occupied = other
+                    break
             if occupied is not None:
-                failures.append(f"{node} is currently occupied by {occupied.callsign}")
+                failures.append(f"{node} is currently occupied by {occupied.callsign} and downstream ETA cannot be predicted")
                 continue
 
             minimum_margin = float("inf")
@@ -1675,6 +1750,11 @@ class SimulationEngine:
                     if abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT:
                         minimum_margin = min(minimum_margin, gap - self.MIN_MERGE_SEPARATION_NM)
                         if gap < self.MIN_MERGE_SEPARATION_NM:
+                            required_hold_delays.append(max(
+                                0.0,
+                                other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0
+                                / max(speed, float(other_speed)) - own_eta,
+                            ))
                             if own_eta > other_eta:
                                 desired_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
                                     speed, float(other_speed)
@@ -1743,18 +1823,24 @@ class SimulationEngine:
                     failures.append(f"{node}: {unsafe_reason}")
                     continue
                 minimum_margin = adjusted_margin
-            # Preserve a valid prior choice to avoid fallback oscillation;
-            # otherwise maximize separation margin, then choose the closer
-            # connector for this route.
-            candidates.append((node == prior_entry, minimum_margin, -connector_nm,
-                               eta, index, node, speed_solution))
+            # Route preferences rank already-safe configured entries. They
+            # never admit a candidate rejected by the checks above. Within a
+            # preference rank, downstream margin, connector length and ETA
+            # rank the feasible options. Preserve a safe prior reservation to
+            # avoid switching on repeated clearance reassessment.
+            rank = preference_rank.get(node, len(preference_rank))
+            candidates.append((node == prior_entry, -rank, minimum_margin,
+                               -connector_nm, -eta, index, node, speed_solution))
 
         if not candidates:
-            self._release_approach_reservation(aircraft)
-            return {"safe": False,
-                    "reason": "; ".join(failures) or "Neither approach entry is safe"}
+            result = {"safe": False,
+                      "reason": "; ".join(failures) or "Neither approach entry is safe"}
+            if required_hold_delays:
+                result["required_delay_seconds"] = max(required_hold_delays)
+            return result
         candidates.sort(reverse=True)
-        _, _, _, eta, selected_index, selected_node, speed_solution = candidates[0]
+        _, preference_score, _, _, negative_eta, selected_index, selected_node, speed_solution = candidates[0]
+        eta = -negative_eta
         self._release_approach_reservation(aircraft)
         self.approach_reservations[selected_node] = aircraft
         aircraft._approach_entry_index = selected_index
@@ -1763,6 +1849,7 @@ class SimulationEngine:
                         if speed_solution is not None else eta)
         return {"safe": True, "reason": f"{selected_node} selected with downstream separation available",
                 "approach_entry_index": selected_index, "approach_entry_node": selected_node,
+                "approach_entry_preference_rank": -preference_score,
                 "predicted_entry_eta_seconds": round(selected_eta, 1),
                 **({"speed_reduction_kts": round(speed_solution, 1)}
                    if speed_solution is not None else {})}
@@ -1792,17 +1879,43 @@ class SimulationEngine:
         return max(0.0, remaining_route + connector) * 3600.0 / speed
 
     def _prune_approach_reservations(self):
-        active = {id(item): item for item in self.manager.all()}
-        for node, owner in list(self.approach_reservations.items()):
-            if id(owner) not in active or active[id(owner)] is not owner:
-                self._release_approach_reservation(owner)
-                continue
-            entry_index = getattr(owner, "_approach_entry_index", None)
-            if (getattr(owner, "phase", "") not in {"ARRIVAL", "FINAL"}
-                    or (isinstance(entry_index, int)
-                        and isinstance(getattr(owner, "approach_index", None), int)
-                        and owner.approach_index > entry_index)):
-                self._release_approach_reservation(owner)
+        with self._approach_allocation_lock:
+            active = {id(item): item for item in self.manager.all()}
+            for node, owner in list(self.approach_reservations.items()):
+                if id(owner) not in active or active[id(owner)] is not owner:
+                    self._release_approach_reservation(owner)
+                    continue
+                entry_index = getattr(owner, "_approach_entry_index", None)
+                if (getattr(owner, "phase", "") not in {"ARRIVAL", "FINAL"}
+                        or (isinstance(entry_index, int)
+                            and isinstance(getattr(owner, "approach_index", None), int)
+                            and owner.approach_index > entry_index)):
+                    self._release_approach_reservation(owner)
+
+            # Recover ownership from a clearance already handed to ApproachAI
+            # if a caller restored aircraft state without the in-memory map.
+            # A reservation already owned by another aircraft remains
+            # authoritative and is never overwritten here.
+            configured_entries = {
+                str(point.get("id", "")).upper()
+                for point in self.approach_ai.approach_points
+                if isinstance(point.get("arrival_entry_transition"), dict)
+                and point["arrival_entry_transition"].get("type")
+                == "DIRECT_FROM_ARRIVAL_TRIGGER"
+            }
+            for aircraft in active.values():
+                node = str(getattr(aircraft, "_approach_entry_node", "")).upper()
+                entry_index = getattr(aircraft, "_approach_entry_index", None)
+                if (node not in configured_entries
+                        or not isinstance(entry_index, int)
+                        or getattr(aircraft, "phase", "") not in {"ARRIVAL", "FINAL"}):
+                    continue
+                if (isinstance(getattr(aircraft, "approach_index", None), int)
+                        and aircraft.approach_index > entry_index):
+                    continue
+                owner = self.approach_reservations.get(node)
+                if owner is None or owner is aircraft:
+                    self.approach_reservations[node] = aircraft
 
     def _release_approach_reservation(self, aircraft):
         for node, owner in list(self.approach_reservations.items()):
@@ -2066,7 +2179,7 @@ class SimulationEngine:
         for aircraft in traffic:
             try:
                 if aircraft.phase == "DEPARTURE":
-                    self.guidance.update(aircraft)
+                    self.guidance.update(aircraft, dt)
                     if aircraft.target_node is None:
                         aircraft.lat = self.departure_waypoints[aircraft.assigned_node]["latitude"]
                         aircraft.lon = self.departure_waypoints[aircraft.assigned_node]["longitude"]
@@ -2084,28 +2197,25 @@ class SimulationEngine:
                             aircraft.assign_speed(speed["knots"])
                     continue
 
-                # Pending asynchronous decisions leave the current clearance in
-                # place; movement still happens in the common pass below.
-                if not mistral_controller.has_pending_conflict_for(aircraft.callsign):
-                    self.arrival_ai.update(aircraft)
-                    self.guidance.update(aircraft)
+                self.arrival_ai.update(aircraft)
+                self.guidance.update(aircraft, dt)
 
-                    if aircraft.phase == "FINAL":
-                        self.approach_ai.update(aircraft)
+                if aircraft.phase == "FINAL":
+                    self.approach_ai.update(aircraft)
 
-                    if getattr(aircraft, "approach_complete", False):
-                        self.aircraft_db.upsert(
-                            callsign=aircraft.callsign,
-                            aircraft_type=aircraft.aircraft_type,
-                            runway_exit="27",
-                            taxiway="23ft"
-                        )
-                        self.scheduler.aircraft_landed(aircraft.callsign)
-                        print(f"FINAL APPROACH COMPLETE: {aircraft.callsign} -> RWY 27 / 23ft")
-                        print(f"TRAFFIC STORED AT AIRPORT: {aircraft.callsign}")
-                        self.manager.remove(aircraft)
-                        print(f"AIRCRAFT REMOVED FROM SIM: {aircraft.callsign}")
-                        continue
+                if getattr(aircraft, "approach_complete", False):
+                    self.aircraft_db.upsert(
+                        callsign=aircraft.callsign,
+                        aircraft_type=aircraft.aircraft_type,
+                        runway_exit="27",
+                        taxiway="23ft"
+                    )
+                    self.scheduler.aircraft_landed(aircraft.callsign)
+                    print(f"FINAL APPROACH COMPLETE: {aircraft.callsign} -> RWY 27 / 23ft")
+                    print(f"TRAFFIC STORED AT AIRPORT: {aircraft.callsign}")
+                    self.manager.remove(aircraft)
+                    print(f"AIRCRAFT REMOVED FROM SIM: {aircraft.callsign}")
+                    continue
 
                     self.landing_ai.update(aircraft)
                     for arrival_aircraft in traffic:

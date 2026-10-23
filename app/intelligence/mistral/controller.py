@@ -1,16 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-
-from app.intelligence.mistral.client import generate
-from app.intelligence.mistral.prompt import build_conflict_prompt
-from app.intelligence.mistral.parser import parse
 
 
 class MistralController:
     """Mistral advises on detected conflicts; deterministic safety is the fallback."""
 
     def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=1)
         self._lock = Lock()
         self._conflict_state = {}
 
@@ -41,53 +35,24 @@ class MistralController:
             if key in self._conflict_state:
                 return False
             self._conflict_state[key] = {
-                "status": "pending", "callsigns": {trailing_callsign},
+                "status": "resolving", "callsigns": {trailing_callsign},
                 "priority_callsign": priority_callsign,
                 "trailing_callsign": trailing_callsign,
             }
-        self.executor.submit(self._decide_conflict, key, conflict, holding_manager, on_result)
-        return True
-
-    def _decide_conflict(self, key, conflict, holding_manager, on_result):
-        result = None
-        decision_source = "Mistral"
-        try:
-            response = generate(build_conflict_prompt(conflict))
-            decision = parse(response)
-            if decision is None:
-                raise ValueError("Mistral returned invalid conflict-decision JSON")
-            if decision["decision"] == "NONE":
-                result = self._apply_deterministic_hold(conflict, holding_manager)
-                decision_source = "deterministic_fallback"
-            else:
-                result = self._apply_model_hold(decision, conflict, holding_manager)
-        except Exception as exc:
-            print(f"MISTRAL DECISION INVALID | reason={exc} | fallback=deterministic")
             result = self._apply_deterministic_hold(conflict, holding_manager)
-            decision_source = "deterministic_fallback"
-
-        result["decision_source"] = decision_source
-        decision = result["decision"]
-        if result["holding"]:
-            print(f"AI DECISION | source={decision_source} decision=HOLD "
-                  f"callsign={decision['callsign']} holding_route_id={decision['holding_route_id']} "
-                  f"holding_fix={decision['holding_fix']}")
-        else:
-            print(f"AI DECISION | source={decision_source} decision=NONE "
-                  f"fix={conflict.get('waypoint')} reason={decision['reason']}")
-
-        with self._lock:
-            state = self._conflict_state.get(key)
-            if state is not None:
-                state["status"] = "holding" if result["holding"] else "decided"
-                if result["holding"]:
-                    state["held_callsign"] = result["selected_aircraft"].callsign
-                    hold = holding_manager.state_for(result["selected_aircraft"])
-                    if hold is not None:
-                        hold["priority_callsign"] = conflict["priority_callsign"]
-                        hold["protected_merge_point"] = conflict["waypoint"]
+            result["decision_source"] = "deterministic_fallback"
+            state = self._conflict_state[key]
+            state["status"] = "holding" if result["holding"] else "decided"
+            if result["holding"]:
+                selected = result["selected_aircraft"]
+                state["held_callsign"] = selected.callsign
+                hold = holding_manager.state_for(selected)
+                if hold is not None:
+                    hold["priority_callsign"] = priority_callsign
+                    hold["protected_merge_point"] = conflict["waypoint"]
         if on_result is not None:
             on_result(result)
+        return True
 
     @staticmethod
     def _apply_model_hold(decision, conflict, holding_manager):
@@ -204,6 +169,7 @@ class MistralController:
                 if key in detected_keys:
                     continue
                 if state.get("status") == "pending":
+                    del self._conflict_state[key]
                     continue
                 if state.get("held_callsign") in active_holding_callsigns:
                     continue

@@ -9,19 +9,46 @@
       "inbound_course_true": 181.25,
       "inbound_course_mag": 182.0,
       "turn_direction": "L",
-      "entry_turn_directions": {"003": "R"},
+      "entry_turn_directions": {
+        "003": "R"
+      },
       "entry_direct_join_routes": ["003"],
       "leg_length_nm": 7,
+      "adaptive_leg_length_nm": {
+        "enabled": true,
+        "short_nm": 4,
+        "standard_nm": 7
+      },
       "upper_limit": "FL110",
       "lower_limit": "FL80",
       "max_speed_kt": 230,
       "turn_radius_nm": 3.66,
       "waypoints": [
-        {"name": "EMROS", "latitude": 19.211667, "longitude": 73.143333},
-        {"name": "EMROS_OUTBOUND_START", "latitude": 19.209005, "longitude": 73.272517},
-        {"name": "EMROS_OUTBOUND_END", "latitude": 19.325644, "longitude": 73.275304},
-        {"name": "EMROS_INBOUND_START", "latitude": 19.328306, "longitude": 73.146028},
-        {"name": "EMROS", "latitude": 19.211667, "longitude": 73.143333}
+        {
+          "name": "EMROS",
+          "latitude": 19.211667,
+          "longitude": 73.143333
+        },
+        {
+          "name": "EMROS_OUTBOUND_START",
+          "latitude": 19.209005,
+          "longitude": 73.272517
+        },
+        {
+          "name": "EMROS_OUTBOUND_END",
+          "latitude": 19.325644,
+          "longitude": 73.275304
+        },
+        {
+          "name": "EMROS_INBOUND_START",
+          "latitude": 19.328306,
+          "longitude": 73.146028
+        },
+        {
+          "name": "EMROS",
+          "latitude": 19.211667,
+          "longitude": 73.143333
+        }
       ]
     },
     {
@@ -35,16 +62,41 @@
       "turn_direction": "L",
       "entry_turn_direction": "R",
       "leg_length_nm": 7,
+      "adaptive_leg_length_nm": {
+        "enabled": true,
+        "short_nm": 4,
+        "standard_nm": 7
+      },
       "upper_limit": "FL110",
       "lower_limit": "FL80",
       "max_speed_kt": 230,
       "turn_radius_nm": 3.66,
       "waypoints": [
-        {"name": "OLGUS", "latitude": 19.215, "longitude": 73.473333},
-        {"name": "OLGUS_OUTBOUND_START", "latitude": 19.107839, "longitude": 73.535129},
-        {"name": "OLGUS_OUTBOUND_END", "latitude": 19.163633, "longitude": 73.643655},
-        {"name": "OLGUS_INBOUND_START", "latitude": 19.270794, "longitude": 73.581838},
-        {"name": "OLGUS", "latitude": 19.215, "longitude": 73.473333}
+        {
+          "name": "OLGUS",
+          "latitude": 19.215,
+          "longitude": 73.473333
+        },
+        {
+          "name": "OLGUS_OUTBOUND_START",
+          "latitude": 19.107839,
+          "longitude": 73.535129
+        },
+        {
+          "name": "OLGUS_OUTBOUND_END",
+          "latitude": 19.163633,
+          "longitude": 73.643655
+        },
+        {
+          "name": "OLGUS_INBOUND_START",
+          "latitude": 19.270794,
+          "longitude": 73.581838
+        },
+        {
+          "name": "OLGUS",
+          "latitude": 19.215,
+          "longitude": 73.473333
+        }
       ]
     },
     {
@@ -58,39 +110,89 @@
       "turn_direction": "R",
       "entry_turn_direction": "L",
       "leg_length_nm": 7,
+      "adaptive_leg_length_nm": {
+        "enabled": true,
+        "short_nm": 4 ,
+        "standard_nm": 7
+      },
       "upper_limit": "FL110",
       "lower_limit": "FL70",
       "max_speed_kt": 230,
       "turn_radius_nm": 3.66,
       "waypoints": [
-        {"name": "LIKTA", "latitude": 18.926667, "longitude": 73.151667},
-        {"name": "LIKTA_OUTBOUND_START", "latitude": 18.929712, "longitude": 73.28062},
-        {"name": "LIKTA_OUTBOUND_END", "latitude": 18.813082, "longitude": 73.283608},
-        {"name": "LIKTA_INBOUND_START", "latitude": 18.810037, "longitude": 73.154745},
-        {"name": "LIKTA", "latitude": 18.926667, "longitude": 73.151667}
+        {
+          "name": "LIKTA",
+          "latitude": 18.926667,
+          "longitude": 73.151667
+        },
+        {
+          "name": "LIKTA_OUTBOUND_START",
+          "latitude": 18.929712,
+          "longitude": 73.28062
+        },
+        {
+          "name": "LIKTA_OUTBOUND_END",
+          "latitude": 18.813082,
+          "longitude": 73.283608
+        },
+        {
+          "name": "LIKTA_INBOUND_START",
+          "latitude": 18.810037,
+          "longitude": 73.154745
+        },
+        {
+          "name": "LIKTA",
+          "latitude": 18.926667,
+          "longitude": 73.151667
+        }
       ]
     },
     {
-  "id": "H-EMRAK",
-  "fix": "EMRAK",
-  "trigger_waypoint": "EMRAK",
-  "source_routes": ["005"],
-  "capacity": 3,
-  "inbound_course_true": 253.81,
-  "inbound_course_mag": 254.56,
-  "turn_direction": "L",
-  "leg_length_nm": 10,
-  "upper_limit": "FL220",
-  "lower_limit": "FL120",
-  "max_speed_kt": 230,
-  "turn_radius_nm": 3.66,
-  "waypoints": [
-    {"name": "EMRAK", "latitude": 19.420442, "longitude": 73.871094},
-    {"name": "EMRAK_OUTBOUND_START", "latitude": 19.303262, "longitude": 73.907168},
-    {"name": "EMRAK_OUTBOUND_END", "latitude": 19.349733, "longitude": 74.076892},
-    {"name": "EMRAK_INBOUND_START", "latitude": 19.466913, "longitude": 74.040807},
-    {"name": "EMRAK", "latitude": 19.420442, "longitude": 73.871094}
-  ]
-}
+      "id": "H-EMRAK",
+      "fix": "EMRAK",
+      "trigger_waypoint": "EMRAK",
+      "source_routes": ["005"],
+      "capacity": 3,
+      "inbound_course_true": 253.81,
+      "inbound_course_mag": 254.56,
+      "turn_direction": "L",
+      "leg_length_nm": 10,
+      "adaptive_leg_length_nm": {
+        "enabled": true,
+        "short_nm": 7,
+        "standard_nm": 10
+      },
+      "upper_limit": "FL220",
+      "lower_limit": "FL120",
+      "max_speed_kt": 230,
+      "turn_radius_nm": 3.66,
+      "waypoints": [
+        {
+          "name": "EMRAK",
+          "latitude": 19.420442,
+          "longitude": 73.871094
+        },
+        {
+          "name": "EMRAK_OUTBOUND_START",
+          "latitude": 19.303262,
+          "longitude": 73.907168
+        },
+        {
+          "name": "EMRAK_OUTBOUND_END",
+          "latitude": 19.349733,
+          "longitude": 74.076892
+        },
+        {
+          "name": "EMRAK_INBOUND_START",
+          "latitude": 19.466913,
+          "longitude": 74.040807
+        },
+        {
+          "name": "EMRAK",
+          "latitude": 19.420442,
+          "longitude": 73.871094
+        }
+      ]
+    }
   ]
 }

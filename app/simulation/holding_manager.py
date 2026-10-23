@@ -10,6 +10,7 @@ class HoldingManager:
             holding_routes = holding_routes.get("holding_routes", [])
         self.holding_routes = holding_routes if isinstance(holding_routes, list) else []
         self.graph = graph
+        self.route_continuation_validator = None
         self._active_holds = {}
         self._temporary_node_references = {}
 
@@ -72,10 +73,13 @@ class HoldingManager:
             return []
 
         fix_name, lat0, lon0 = fix
-        sign = -1.0 if direction == "L" else 1.0
-        outbound = math.radians((course + 180.0) % 360.0)
-        ux, uy = math.sin(outbound), math.cos(outbound)
-        lx, ly = -uy * sign, ux * sign
+        # The configured fix is the end of the inbound leg. Begin at the fix,
+        # turn onto the outbound leg, then complete the outbound and inbound legs.
+        # Coordinates use east as +x and north as +y, so positive rotation is left.
+        angular_turn_sign = 1.0 if direction == "L" else -1.0
+        inbound = math.radians(course % 360.0)
+        ux, uy = math.sin(inbound), math.cos(inbound)
+        lx, ly = -uy * angular_turn_sign, ux * angular_turn_sign
 
         def coordinate(x_nm, y_nm):
             lat = lat0 + y_nm / 60.0
@@ -83,25 +87,25 @@ class HoldingManager:
             lon = lon0 + x_nm / max(60.0 * cosine, 1e-6)
             return lat, lon
 
-        points_xy = [(0.0, 0.0), (ux * leg, uy * leg)]
-        p1x, p1y = points_xy[-1]
-        c1x, c1y = p1x + lx * radius, p1y + ly * radius
-        r0x, r0y = p1x - c1x, p1y - c1y
+        points_xy = [(0.0, 0.0)]
+        c1x, c1y = lx * radius, ly * radius
+        r0x, r0y = -lx * radius, -ly * radius
         for step in range(1, self.ARC_SEGMENTS + 1):
-            angle = sign * math.pi * step / self.ARC_SEGMENTS
+            angle = angular_turn_sign * math.pi * step / self.ARC_SEGMENTS
             points_xy.append((c1x + r0x * math.cos(angle) - r0y * math.sin(angle),
                               c1y + r0x * math.sin(angle) + r0y * math.cos(angle)))
 
-        p2x, p2y = points_xy[-1]
-        inbound_x, inbound_y = -ux, -uy
-        p3x, p3y = p2x + inbound_x * leg, p2y + inbound_y * leg
-        points_xy.append((p3x, p3y))
-        c2x, c2y = p3x - lx * radius, p3y - ly * radius
-        r0x, r0y = p3x - c2x, p3y - c2y
+        outbound_x, outbound_y = -ux, -uy
+        outbound_end_x = points_xy[-1][0] + outbound_x * leg
+        outbound_end_y = points_xy[-1][1] + outbound_y * leg
+        points_xy.append((outbound_end_x, outbound_end_y))
+        c2x, c2y = outbound_end_x - lx * radius, outbound_end_y - ly * radius
+        r0x, r0y = lx * radius, ly * radius
         for step in range(1, self.ARC_SEGMENTS + 1):
-            angle = sign * math.pi * step / self.ARC_SEGMENTS
+            angle = angular_turn_sign * math.pi * step / self.ARC_SEGMENTS
             points_xy.append((c2x + r0x * math.cos(angle) - r0y * math.sin(angle),
                               c2y + r0x * math.sin(angle) + r0y * math.cos(angle)))
+        points_xy.append((0.0, 0.0))
 
         route_id = str(route.get("id", "HOLD")).replace(" ", "_")
         result = []
@@ -113,6 +117,97 @@ class HoldingManager:
                 "longitude": round(lon, 7),
             })
         return result
+
+    @staticmethod
+    def _distance_nm(first, second):
+        lat1, lat2 = math.radians(first["latitude"]), math.radians(second["latitude"])
+        dlat = lat2 - lat1
+        dlon = math.radians(second["longitude"] - first["longitude"])
+        value = (math.sin(dlat / 2.0) ** 2
+                 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2.0) ** 2)
+        return 3440.065 * 2.0 * math.atan2(math.sqrt(value), math.sqrt(max(0.0, 1.0 - value)))
+
+    def _valid_racetrack_geometry(self, route, points):
+        """Validate configured dimensions; sampled-leg tolerance is 0.15 NM."""
+        fix = self._fix_point(route)
+        if fix is None or len(points) != self.ARC_SEGMENTS * 2 + 3:
+            return False
+        try:
+            leg = float(route["leg_length_nm"])
+            course = float(route["inbound_course_true"]) % 360.0
+            radius = float(route["turn_radius_nm"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if not all(math.isfinite(value) and value > 0 for value in (leg, radius)) or not math.isfinite(course):
+            return False
+        outbound_start = self.ARC_SEGMENTS
+        outbound_end = outbound_start + 1
+        inbound_start = self.ARC_SEGMENTS * 2 + 1
+        if (self._distance_nm(points[0], points[-1]) > 0.05
+                or abs(self._distance_nm(points[outbound_start], points[outbound_end]) - leg) > 0.15
+                or abs(self._distance_nm(points[inbound_start], points[inbound_start + 1]) - leg) > 0.15):
+            return False
+        inbound = self._bearing(points[inbound_start], points[inbound_start + 1])
+        course_error = abs((inbound - course + 180.0) % 360.0 - 180.0)
+        outbound = self._bearing(points[outbound_start], points[outbound_end])
+        outbound_error = abs((outbound - (course + 180.0) + 180.0) % 360.0 - 180.0)
+        first_arc_heading = self._bearing(points[0], points[1])
+        first_turn = (first_arc_heading - course + 180.0) % 360.0 - 180.0
+        second_arc_heading = self._bearing(points[outbound_end], points[outbound_end + 1])
+        second_turn = (second_arc_heading - outbound + 180.0) % 360.0 - 180.0
+        turn_direction = str(route.get("turn_direction", "")).upper()
+        turn_matches = ((first_turn < 0 and second_turn < 0) if turn_direction == "L"
+                        else (first_turn > 0 and second_turn > 0))
+        expected_arc_chord = 2.0 * radius * math.sin(math.pi / (2.0 * self.ARC_SEGMENTS))
+        radius_matches = all(
+            abs(self._distance_nm(points[first], points[first + 1]) - expected_arc_chord) <= 0.1
+            for first in (0, outbound_end)
+        )
+        return (course_error <= 1.0 and outbound_error <= 1.0
+                and turn_matches and radius_matches)
+
+    def _selected_holding_geometry(self, holding, aircraft, required_delay_seconds):
+        """Choose short only when its generated one-circuit time covers the estimate."""
+        standard_route = dict(holding)
+        standard_route["leg_length_nm"] = holding.get("leg_length_nm")
+        standard_points = self.racetrack_waypoints(standard_route)
+        if not self._valid_racetrack_geometry(standard_route, standard_points):
+            return []
+
+        adaptive = holding.get("adaptive_leg_length_nm")
+        if not isinstance(adaptive, dict) or adaptive.get("enabled") is not True:
+            return standard_points
+        try:
+            standard_leg = float(holding["leg_length_nm"])
+            configured_standard = float(adaptive.get("standard_nm", standard_leg))
+            short_leg = float(adaptive["short_nm"])
+        except (KeyError, TypeError, ValueError):
+            return standard_points
+        if (not math.isfinite(short_leg) or short_leg <= 0 or short_leg >= standard_leg
+                or not math.isfinite(configured_standard)
+                or abs(configured_standard - standard_leg) > 1e-6):
+            return standard_points
+
+        try:
+            delay = float(required_delay_seconds)
+        except (TypeError, ValueError):
+            return standard_points
+        if not math.isfinite(delay) or delay < 0:
+            return standard_points
+
+        short_route = dict(holding)
+        short_route["leg_length_nm"] = short_leg
+        short_points = self.racetrack_waypoints(short_route)
+        if not self._valid_racetrack_geometry(short_route, short_points):
+            return standard_points
+        speed = min(float(getattr(aircraft, "speed_kts", holding.get("max_speed_kt", 230)) or 0),
+                    float(holding.get("max_speed_kt", 230)))
+        if not math.isfinite(speed) or speed <= 0:
+            return standard_points
+        short_circuit_nm = sum(self._distance_nm(a, b) for a, b in zip(short_points, short_points[1:]))
+        if short_circuit_nm * 3600.0 / speed >= delay:
+            return short_points
+        return standard_points
 
     @staticmethod
     def _bearing(start, end):
@@ -275,7 +370,8 @@ class HoldingManager:
         return sorted(options, key=lambda option: (option["occupancy"], option["distance_in_route"],
                                                     str(option["holding_route_id"])))
 
-    def apply_holding_route(self, aircraft, holding_route_id, circuits=1):
+    def apply_holding_route(self, aircraft, holding_route_id, circuits=1,
+                            required_delay_seconds=None):
         holding = self._holding_route_by_id(holding_route_id)
         if holding is None:
             return self._result(False, f"Unknown holding route: {holding_route_id}")
@@ -298,7 +394,13 @@ class HoldingManager:
                              if str(original_route[i]).upper() == trigger.upper()), None)
         if rejoin_index is None:
             return self._result(False, "Rejoin waypoint is not ahead on the aircraft route")
-        hold_points = self.racetrack_waypoints(holding)
+        if (rejoin_index + 1 >= len(original_route)
+                and (self.route_continuation_validator is None
+                     or not self.route_continuation_validator(aircraft, trigger))):
+            return self._result(False, f"No configured approach continuation is available at {trigger}")
+        hold_points = self._selected_holding_geometry(
+            holding, aircraft, required_delay_seconds
+        )
         if len(hold_points) < 5 or hold_points[0]["name"].upper() != trigger.upper() or hold_points[-1]["name"].upper() != trigger.upper():
             return self._result(False, "Configured holding pattern geometry is invalid")
         lower = self._flight_level(holding.get("lower_limit"))
@@ -320,7 +422,6 @@ class HoldingManager:
         already_at_trigger = str(getattr(aircraft, "assigned_node", "")).upper() == trigger.upper()
         if already_at_trigger:
             prefix = list(original_route[:rejoin_index + 1])
-            entry_names = []
         else:
             prefix = list(original_route[:rejoin_index])
         # Enter the racetrack from its outbound leg so the aircraft does not
@@ -432,6 +533,9 @@ class HoldingManager:
               f"result={'GRANTED' if safety.get('safe') else 'DENIED'} reason={safety.get('reason', '')}")
         if safety.get("safe"):
             aircraft.approach_clearance = True
+            if isinstance(safety.get("approach_entry_index"), int):
+                aircraft._approach_entry_index = safety["approach_entry_index"]
+                aircraft._approach_entry_node = safety.get("approach_entry_node")
             print(f"APPROACH CLEARANCE GRANTED | callsign={aircraft.callsign}")
             released = self.restore_original_route(aircraft, circuit_boundary=True)
             released.update({"released": released.get("success", False), "safety": safety,

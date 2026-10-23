@@ -23,10 +23,23 @@ async def holding_pattern_visualization():
         waypoints = manager.racetrack_waypoints(route)
         if not waypoints:
             continue
+        adaptive = route.get("adaptive_leg_length_nm")
+        short_waypoints = []
+        if isinstance(adaptive, dict) and adaptive.get("enabled") is True:
+            try:
+                short_leg = float(adaptive["short_nm"])
+                standard_leg = float(route["leg_length_nm"])
+                if 0 < short_leg < standard_leg:
+                    short_route = dict(route)
+                    short_route["leg_length_nm"] = short_leg
+                    short_waypoints = manager.racetrack_waypoints(short_route)
+            except (KeyError, TypeError, ValueError):
+                short_waypoints = []
         patterns.append({
             "holding_route_id": route.get("id"),
             "fix": route.get("fix", route.get("trigger_waypoint")),
             "coordinates": [[point["longitude"], point["latitude"]] for point in waypoints],
+            "short_coordinates": [[point["longitude"], point["latitude"]] for point in short_waypoints],
         })
     return {"patterns": patterns}
 

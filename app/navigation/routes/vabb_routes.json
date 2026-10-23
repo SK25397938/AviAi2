@@ -24,7 +24,8 @@
                     "longitude": 73.473333
                 }
             ],
-            "approach_trigger": "OLGUS"
+            "approach_trigger": "OLGUS",
+            "approach_entry_preferences": ["APP32", "APP38"]
         },
         {
             "id": "002",
@@ -50,7 +51,8 @@
                     "longitude": 73.380000
                 }
             ],
-            "approach_trigger": "MB395"
+            "approach_trigger": "MB395",
+            "approach_entry_preferences": ["APP32", "APP38"]
         },
         {
             "id": "003",
@@ -76,7 +78,8 @@
                     "longitude": 73.473333
                 }
             ],
-            "approach_trigger": "OLGUS"
+            "approach_trigger": "OLGUS",
+            "approach_entry_preferences": ["APP32", "APP38"]
         },
         {
             "id": "004",
@@ -102,7 +105,8 @@
                     "longitude": 73.380000
                 }
             ],
-            "approach_trigger": "MB395"
+            "approach_trigger": "MB395",
+            "approach_entry_preferences": ["APP32", "APP38"]
         },
         {
             "id": "005",
@@ -123,7 +127,8 @@
                     "longitude": 73.473333
                 }
             ],
-            "approach_trigger": "OLGUS"
+            "approach_trigger": "OLGUS",
+            "approach_entry_preferences": ["APP32", "APP38"]
         }
     ]
 }
