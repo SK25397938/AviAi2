@@ -1,666 +1,911 @@
-﻿<div align="center">
+<div align="center">
 
 # ✈️ AviAi
 
-### Real-Time Aviation Intelligence & Autonomous AI ATC Simulation
+### Autonomous Aviation Intelligence & Airport Simulation
 
-*Live global aircraft surveillance, aviation chart intelligence, and an airport digital twin where AI makes the ATC decisions and deterministic logic keeps every decision safe.*
+**An AI-powered airport digital twin that simulates aircraft operations, coordinates arrival traffic, predicts conflicts, manages holding patterns and dynamically allocates approach clearances.**
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-![WebSockets](https://img.shields.io/badge/WebSockets-Live%20Stream-black)
-![Leaflet](https://img.shields.io/badge/Leaflet-199900?logo=leaflet&logoColor=white)
-![Mistral AI](https://img.shields.io/badge/Mistral%20AI-ministral--3b-FF7000)
-![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)
+![MapLibre](https://img.shields.io/badge/MapLibre-maps-396CB2)
+![Mistral](https://img.shields.io/badge/LLM-Mistral-FF7000)
+![Redis](https://img.shields.io/badge/State-Redis-DC382D?logo=redis&logoColor=white)
+![Status](https://img.shields.io/badge/status-experimental-orange)
+
+**Current airport implementation:** Chhatrapati Shivaji Maharaj International Airport (VABB), Mumbai
 
 </div>
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [How It Works](#-how-it-works)
-- [AI ATC (Mistral Integration)](#-ai-atc-mistral-integration)
-- [Airport Digital Twin](#-airport-digital-twin)
-- [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-- [Usage](#-usage)
-- [Performance](#-performance)
-- [Roadmap](#-roadmap)
-- [Author](#-author)
-
----
-
-## 📖 Overview
-
-**AviAi** is an aviation intelligence platform with three connected layers:
-
-1. **Live Surveillance:** ingests live global aircraft data from the OpenSky Network, analyzes trajectories and behavior, and visualizes traffic on an interactive flight-radar map.
-2. **Chart Intelligence (experimental):** upload aviation charts (AIP / airport chart PDFs) and query them in natural language.
-3. **Autonomous AI ATC Simulation:** an airport digital twin (VABB) where simulated traffic follows real procedures and an AI controller resolves conflicts using holding patterns, with every AI decision validated by deterministic safety logic.
-
-Built on an asynchronous architecture (**FastAPI**, **Redis**, **WebSockets**, **Leaflet**), AviAi is not just about displaying aircraft on a map. It aims to simulate how an airport and its Air Traffic Control system actually operate.
-
-```
-Instead of:   Aircraft Tracker
-
-AviAi becomes:   Airport Digital Twin
-                      +
-                 Aircraft Simulation
-                      +
-                 Autonomous ATC
-                      +
-                 Traffic Intelligence
-                      +
-                 Operational Decision System
-```
+1. [Project Overview](#1-project-overview)
+2. [System Architecture](#2-system-architecture)
+3. [VABB Airport Digital Twin](#3-vabb-airport-digital-twin)
+4. [Arrival Route Network](#4-arrival-route-network)
+5. [Holding Pattern Network](#5-holding-pattern-network)
+6. [Dynamic Approach Allocation](#6-dynamic-approach-allocation)
+7. [Arrival Fallback Navigation](#7-arrival-fallback-navigation)
+8. [Multi-Level Holding and Fairness](#8-multi-level-holding-and-fairness)
+9. [Predictive Conflict Detection and Separation](#9-predictive-conflict-detection-and-separation)
+10. [Aircraft Navigation and Physics](#10-aircraft-navigation-and-physics)
+11. [Hybrid AI and Deterministic Control](#11-hybrid-ai-and-deterministic-control)
+12. [Test Mode and Simulation Isolation](#12-test-mode-and-simulation-isolation)
+13. [Real-Time Operational Dashboard](#13-real-time-operational-dashboard)
+14. [Technology Stack](#14-technology-stack)
+15. [Project Structure](#15-project-structure)
+16. [Installation and Setup](#16-installation-and-setup)
+17. [Testing](#17-testing)
+18. [Development Roadmap](#18-development-roadmap)
+19. [Project Scope and Safety](#19-project-scope-and-safety)
+20. [References](#20-references)
+21. [Author](#21-author)
 
 ---
 
-## ✨ Features
+## 1. Project Overview
 
-### ✈️ Live Aircraft Surveillance
+AviAi is an autonomous aviation intelligence and air traffic control simulation platform that models the operational complexity of a modern airport and its surrounding terminal airspace.
 
-- 🌍 Real-time aircraft data from the OpenSky Network
-- ⚡ Asynchronous ingestion pipeline (aiohttp)
-- 📡 WebSocket-based live aircraft streaming
-- 🚀 Redis-powered low-latency state caching
-- 🗺️ Interactive flight-radar style map (Leaflet)
-- 🛫 Heading-rotated aircraft icons
-- 📈 Altitude-colored trajectory trails
-- 🎯 Aircraft selection and highlighting
-- 📊 Live tooltips (callsign, altitude, speed, heading)
-- 🔄 Automatic WebSocket reconnection
+Rather than being a conventional flight tracker, AviAi creates a continuously evolving simulation in which aircraft follow configured airport routes, interact with AI-driven controllers, receive dynamic traffic instructions, enter holding patterns and progress towards approach clearance.
 
-### 🧠 Aircraft Intelligence Engine
+Increasing air traffic makes arrival sequencing, shared navigation fixes, approach allocation, holding and aircraft separation harder to coordinate. AviAi addresses this with a **hybrid architecture**: an LLM *recommends* operational actions, while deterministic navigation, physics, trajectory prediction and safety validation *decide whether they are allowed*.
 
-Continuously analyzes aircraft movement and generates operational insights:
+### Core capabilities
 
-- 📈 Vertical trend detection (climb, cruise, descent)
-- ✈️ Aircraft behavior classification
-- 🚨 Flight event detection
-- 🛣️ Route inference from live trajectories
+```mermaid
+mindmap
+  root((AviAi))
+    Controllers
+      Arrival
+      Tower
+      Ground
+    Arrival Management
+      Dynamic route progression
+      Multi-aircraft approach allocation
+      Global fallback navigation
+    Holding
+      Published holds
+      Synthetic holds
+      Multi-level distribution
+    Safety
+      Predictive conflict detection
+      Separation management
+      Deterministic validation
+    Simulation
+      Aircraft physics
+      Aircraft-specific navigation
+      Isolated Test Mode
+    Visualization
+      MapLibre map
+      Aircraft inspector
+      ATC decision logs
+```
 
-### 📄 Chart Intelligence (Experimental)
+---
 
-Upload official aviation charts and interact with them using natural language.
+## 2. System Architecture
 
-**Current capabilities**
+AviAi separates operational intelligence, AI recommendations, simulation execution and visualization into distinct layers.
 
-- 📤 Upload AIP and airport chart PDFs
-- 📑 Multi-page text extraction
-- 🔍 Semantic search over chart content
-- 💾 Session-based document indexing
-- 💬 Natural language question answering
-- 📄 Source-grounded responses
-- 🚫 Hallucination prevention using retrieved chart content
+```mermaid
+flowchart TB
+    subgraph UI["Operational Interface"]
+        MAP["MapLibre Simulation Map"]
+        DASH["Airport Dashboard"]
+        AIRCRAFT["Aircraft Inspector"]
+        LOG["ATC Decision Logs"]
+        TEST["Test Mode"]
+    end
 
-**Example queries**
+    subgraph API["Backend API"]
+        FASTAPI["FastAPI"]
+        WS["WebSocket State Streaming"]
+        SESSION["Simulation Session Management"]
+    end
 
-- Which airport chart is this?
-- What runways are available?
-- What is the aerodrome elevation?
-- What magnetic variation is published?
-- What operational remarks apply?
-- What are the runway dimensions?
+    subgraph SIM["Simulation Engine"]
+        WORLD["Simulation World"]
+        PHYSICS["Aircraft Physics"]
+        NAV["Navigation and Guidance"]
+        HOLD["Holding Manager"]
+        ALLOC["Approach Allocator"]
+    end
 
-**Current limitations**
+    subgraph INTEL["Aviation Intelligence"]
+        ARR["Arrival Intelligence"]
+        TOWER["Tower Intelligence"]
+        GROUND["Ground Intelligence"]
+        TRAJECTORY["Trajectory Prediction"]
+        CONFLICT["Conflict Detection"]
+        SEQUENCE["Arrival Sequencing"]
+    end
 
-- Instrument approach procedures are not decoded yet
-- Frequency tables require structured extraction
-- Visual chart highlighting is not yet supported
-- Spatial geometry (runways, taxiways) is handled separately by the [Airport Chart Parser](#airport-chart-parser), which is still in development
+    subgraph AI["AI Decision Layer"]
+        MISTRAL["Mistral LLM"]
+        VALIDATION["Deterministic Safety Validation"]
+    end
 
-### 🤖 Autonomous AI ATC Simulation
+    subgraph DATA["Aviation Data"]
+        ROUTES["Arrival and Departure Routes"]
+        FIXES["Navigation Waypoints"]
+        HOLDS["Holding Route Definitions"]
+        STATE["Aircraft and Reservation State"]
+    end
 
-| Feature | Description |
+    UI <--> API
+    API <--> SIM
+    SIM <--> INTEL
+    INTEL <--> AI
+    SIM <--> DATA
+    INTEL <--> DATA
+```
+
+### Component responsibilities
+
+| Component | Responsibility |
 |---|---|
-| 🧠 **AI ATC** | Mistral AI makes ATC decisions only when a relevant conflict is detected |
-| 🛬 **Deterministic Guidance** | Normal flight follows predefined routes, waypoints, altitude and speed constraints with no AI calls |
-| 🔀 **Arrival Routes & Load Balancing** | Multiple VABB arrival routes with configured capacities |
-| 🚦 **Traffic Generation** | Realistic arrival/departure traffic with callsigns, airlines, origins and aircraft types |
-| 📏 **Spawn Separation** | Minimum 4.5 NM separation enforced when spawning aircraft |
-| ⚠️ **Conflict Detection** | Detects aircraft predicted to reach the same waypoint at the same time |
-| 🔁 **Dynamic Holding Patterns** | Racetrack holds with circuit tracking and safe release |
-| 🛡️ **AI + Deterministic Safety** | Every AI decision is parsed and validated before it touches the simulation |
-| 📜 **AI ATC Decision Log** | Structured, explainable log of every AI decision |
-| 🗺️ **Live Simulation UI** | Real-time map streamed over WebSocket |
+| **FastAPI** | Backend endpoints and operational APIs |
+| **WebSockets** | Real-time aircraft and simulation state |
+| **Simulation World** | Active aircraft and simulation lifecycle |
+| **Aircraft Physics** | Position, velocity, heading, speed and altitude |
+| **Navigation Guidance** | Waypoint progression and route following |
+| **Arrival Intelligence** | Arrival sequencing and approach decisions |
+| **Holding Manager** | Holding entry, circuits, release and rejoin |
+| **Approach Allocator** | Approach selection and reservation ownership |
+| **Conflict Detection** | Predicted traffic separation |
+| **Mistral LLM** | Operational decision recommendations |
+| **Safety Validator** | Validation before operational actions are committed |
+| **MapLibre** | Interactive airport and airspace visualization |
 
 ---
 
-## 🧠 How It Works
+## 3. VABB Airport Digital Twin
 
-### Live Surveillance Pipeline
+AviAi models the navigation environment around Mumbai Airport using structured aviation navigation data. The digital twin includes:
+
+- Airport navigation waypoints
+- Configured arrival route geometry
+- Approach entry points
+- Published holding fixes
+- Simulation-generated (synthetic) holding fixes
+- Holding racetrack geometry
+- Route transitions and rejoin points
+- Aircraft navigation profiles
+
+### Operational map layers
+
+| Layer | Content |
+|---|---|
+| Aircraft | Positions and callsign labels |
+| Routes | Active arrival and departure routes |
+| Fixes | Navigation fixes and waypoint labels |
+| Approach | Approach entry markers |
+| Holding | Holding pattern geometry |
+| Guidance | Aircraft trails and guidance |
+| Decisions | Operational decision information |
+| Inspector | Aircraft-specific state inspection |
+
+---
+
+## 4. Arrival Route Network
+
+The active arrival route identifiers are **001–014**. A route ID identifies an *arrival route*; it is distinct from a *holding route ID* such as `H-GUTMU` or `H-BB263-SYN`. The two must never be treated as interchangeable.
+
+> **Note:** Route `005` is not defined in the supplied route configuration; the tables below list only configured routes.
+
+### Route families
+
+| Route IDs | Group | Configured holds | Downstream navigation | Approach trigger |
+|---|---|---|---|---|
+| 001 | Western/northern | DOBVU; synthetic BB256 | BB255 → BB256 → BB257 → BB266 | BB266 |
+| 002, 003 | Western/northern | GUTMU; synthetic NM668 | NM665 → NM667 → NM668 → BB264 → BB257 → BB266 | BB266 |
+| 004 | Arrival group | VELKO | BB258 → BB259 → BB257 → BB266 | BB266 |
+| 006, 007, 008 | Southern/eastern | UKETU; synthetic BB252 | BB251 → BB252 → BB253 → BB254 | BB254 |
+| 009 – 014 | Southern/eastern | AKTOD; synthetic BB263 | BB260 → BB261 → BB262 → BB263 → BB253 → BB254 | BB254 |
+
+The route families share navigation structure (`BB257 → BB266` and `BB253 → BB254`), but these are *not* complete waypoint sequences. Each aircraft follows its own assigned route definition.
+
+Holding associations come from the configured `source_routes` and `route_after_hold` values. They do **not** mean an aircraft must hold on every flight: holding is a traffic-management option, selected when needed and validated against the aircraft's route and state.
+
+### Route topology
+
+```mermaid
+flowchart LR
+    classDef hold fill:#fff3cd,stroke:#d39e00,color:#000,stroke-dasharray: 4 3
+    classDef synth fill:#f8d7da,stroke:#c0392b,color:#000,stroke-dasharray: 4 3
+    classDef trig fill:#d4edda,stroke:#1e8449,color:#000,font-weight:bold
+    classDef app fill:#cce5ff,stroke:#1a5fb4,color:#000
+
+    subgraph WEST["Trigger BB266 · Routes 001 to 004"]
+        direction LR
+        R001["Route 001"] --> BB255 --> BB256 --> BB257
+        R002["Routes 002, 003"] --> NM665 --> NM667 --> NM668 --> BB264 --> BB257
+        R004["Route 004"] --> BB258 --> BB259 --> BB257
+        BB257 --> BB266
+    end
+
+    subgraph EAST["Trigger BB254 · Routes 006 to 014"]
+        direction LR
+        R006["Routes 006 to 008"] --> BB251 --> BB252 --> BB253
+        R009["Routes 009 to 014"] --> BB260 --> BB261 --> BB262 --> BB263 --> BB253
+        BB253 --> BB254
+    end
+
+    BB266:::trig --> A1["APP32 / APP38"]:::app
+    BB254:::trig --> A2["APP25 / APP32 / APP38"]:::app
+
+    DOBVU["H-DOBVU"]:::hold -.-> BB255
+    GUTMU["H-GUTMU"]:::hold -.-> NM665
+    VELKO["H-VELKO"]:::hold -.-> BB258
+    UKETU["H-UKETU"]:::hold -.-> BB251
+    AKTOD["H-AKTOD"]:::hold -.-> BB260
+
+    BB256:::synth
+    NM668:::synth
+    BB252:::synth
+    BB263:::synth
+```
+
+*Legend: dashed yellow = published hold rejoining the route, dashed red = fix that also hosts a synthetic hold, green = approach trigger, blue = approach entries.*
+
+### Shared-fix traffic management
+
+Multiple aircraft may approach the same fix from different routes (for example `BB257` and `BB253`). AviAi monitors:
+
+- Predicted arrival times and distance to the shared fix
+- Aircraft speed and heading
+- Predicted horizontal and vertical separation
+- Current holding and approach assignments
+
+The system can intervene *before* aircraft reach a shared fix through speed adjustment, altitude management, holding or resequencing.
+
+---
+
+## 5. Holding Pattern Network
+
+AviAi supports **five published** and **four synthetic** holding definitions for VABB, distributing arrival traffic across multiple locations instead of concentrating it at one fix.
+
+> ⚠️ The `published` / `synthetic` flags matter. Synthetic holds are simulation-generated and are **not** presented as published real-world procedures.
+
+### Published holding definitions
+
+| Holding ID | Fix | Arrival routes | Turn | Leg length | Capacity | Holding levels |
+|---|---|---|---|---|---:|---|
+| `H-GUTMU` | GUTMU | 002, 003 | Right | 10 NM (adaptive 7 / 10 NM) | 3 | 12,000 / 14,000 / 16,000 / 18,000 ft |
+| `H-DOBVU` | DOBVU | 001 | Left | 10 NM (adaptive 7 / 10 NM) | 3 | 12,000 / 14,000 / 16,000 / 18,000 ft |
+| `H-VELKO` | VELKO | 004 | Left | 10 NM (adaptive 7 / 10 NM) | 3 | 12,000 / 14,000 / 16,000 / 18,000 ft |
+| `H-AKTOD` | AKTOD | 009–014 | Left | 10 NM (adaptive 7 / 10 NM) | 3 | 12,000 / 14,000 / 16,000 / 18,000 ft |
+| `H-UKETU` | UKETU | 006–008 | Right | 10 NM (adaptive 7 / 10 NM) | 3 | 12,000 / 14,000 / 16,000 / 18,000 ft |
+
+Published holds use a configured **maximum holding speed of 230 kt** and a **turn radius of 3.66 NM**.
+
+### Synthetic holding definitions
+
+| Holding ID | Fix | Arrival routes | Turn | Leg length | Capacity | Altitude limits |
+|---|---|---|---|---|---:|---|
+| `H-BB263-SYN` | BB263 | 009–014 | Right | 5 NM | 2 | FL100 – FL180 |
+| `H-NM668-SYN` | NM668 | 002, 003 | Right | 5 NM | 2 | FL100 – FL180 |
+| `H-BB256-SYN` | BB256 | 001 | Right | 5 NM | 2 | FL100 – FL180 |
+| `H-BB252-SYN` | BB252 | 006–008 | Right | 5 NM | 2 | FL100 – FL180 |
+
+These are marked `published: false`, `synthetic: true` and `SYNTHETIC - NOT PUBLISHED`. Their geometry is for simulation only and is not an assertion that the patterns are authorized real-world procedures.
+
+### Holding geometry and entry
+
+Each holding definition carries:
+
+- Fix coordinates and trigger waypoint
+- Inbound magnetic and true courses (where specified)
+- Turn direction, leg length and turn radius
+- Maximum holding speed
+- Entry fixes and entry type
+- Arrival-specific entry courses
+- Post-hold route and rejoin sequence
+- Capacity and applicable altitude limits
+
+Entry geometry is **not** identical for all arrivals. For example, GUTMU supports direct entries from EXOLU and IPNIB, while AKTOD has multiple arrival-specific entries and identifies SUGID as a parallel entry near a sector edge. The holding manager must use the configured entry mapping rather than assume every aircraft can enter every hold directly.
+
+### Holding release and route rejoin
+
+After a hold is assigned, AviAi synchronizes the holding state with navigation guidance. The aircraft follows the configured entry transition and geometry, tracks completed circuits and reassesses approach availability. The `route_after_hold` field defines the downstream sequence:
+
+| Hold | Rejoin sequence |
+|---|---|
+| GUTMU | NM665 → NM667 → NM668 → BB264 → BB257 |
+| DOBVU | BB255 → BB256 → BB257 |
+| VELKO | BB258 → BB259 → BB257 |
+| AKTOD | BB260 → BB261 → BB262 → BB263 → BB253 → BB254 |
+| UKETU | BB251 → BB252 → BB253 → BB254 |
+
+Synthetic patterns use their own shorter route extensions from the holding configuration.
+
+> A release is not valid merely because the AI recommends it. The route must be restored, the rejoin node must be valid, and any approach clearance must be committed through the normal validation path.
+
+The holding manager handles: fix selection, route selection, aircraft-specific entry transitions, altitude assignment, turn direction and geometry, circuit tracking, rejoin node assignment and route restoration after release.
+
+---
+
+## 6. Dynamic Approach Allocation
+
+AviAi has three configured approach entries:
+
+| Approach entry | Configured altitude |
+|---|---:|
+| APP25 | 5,000 ft |
+| APP32 | 6,000 ft |
+| APP38 | 7,000 ft |
+
+### Compatibility
+
+| Route trigger | Approach entries evaluated |
+|---|---|
+| BB254 | APP25, APP32, APP38 |
+| BB266 | APP32, APP38 |
+
+The allocator evaluates compatibility and traffic conditions before committing clearance. It considers existing reservations, previously committed assignments, route and entry compatibility, aircraft altitude and speed, ETA and sequencing, predicted separation, and approach geometry and reachability.
+
+### Vertical profile: holding levels to approach entries
+
+```mermaid
+flowchart TB
+    classDef h fill:#fff3cd,stroke:#d39e00,color:#000
+    classDef a fill:#cce5ff,stroke:#1a5fb4,color:#000
+
+    L18["18,000 ft · holding level"]:::h
+    L16["16,000 ft · holding level"]:::h
+    L14["14,000 ft · holding level"]:::h
+    L12["12,000 ft · holding level"]:::h
+    P38["7,000 ft · APP38"]:::a
+    P32["6,000 ft · APP32"]:::a
+    P25["5,000 ft · APP25"]:::a
+    RWY["Final approach"]
+
+    L18 --> L16 --> L14 --> L12 --> P38 --> P32 --> P25 --> RWY
+```
+
+*Published holds offer 12,000 to 18,000 ft levels; synthetic holds span FL100 to FL180. These are candidate levels, not fixed assignments.*
+
+### Allocation lifecycle
+
+```mermaid
+flowchart TD
+    A["Aircraft reaches approach trigger"] --> B["Evaluate compatible approach entries"]
+    B --> C["Check APP25"]
+    B --> D["Check APP32"]
+    B --> E["Check APP38"]
+    C --> F["Check availability and safety"]
+    D --> F
+    E --> F
+    F --> G{"Safe entry available?"}
+
+    G -->|Yes| H["Select best compatible entry"]
+    H --> I["Reserve approach entry"]
+    I --> J["Validate reservation and aircraft state"]
+    J --> K["Commit approach clearance"]
+    K --> L["Update route target and heading"]
+
+    G -->|No| M["Evaluate global fallbacks: MB398, OLGUS"]
+    M --> N{"Fallback safe?"}
+    N -->|Yes| O["Extend route with fallback"]
+    N -->|No| P["Compatible holding or waiting procedure"]
+```
+
+### Preference order at route end
+
+1. Find a compatible approach entry that passes safety checks.
+2. Reserve and commit it, and update navigation targets.
+3. If none is safe, evaluate global fallbacks **MB398** and **OLGUS**.
+4. If no fallback is safe, evaluate a compatible holding or waiting procedure.
+
+A safe approach entry always takes priority over fallback navigation.
+
+### Reservation ownership and recovery
+
+Reservations must stay consistent with actual aircraft state. A cleared aircraft in `FINAL` targeting a configured approach entry **counts as occupying that entry even if its reservation record is missing or needs recovery**, preventing the same entry being assigned twice. At route end the allocator invokes the normal dynamic selection logic rather than waiting indefinitely for an earlier reservation.
+
+---
+
+## 7. Arrival Fallback Navigation
+
+When no compatible approach entry can be safely allocated, AviAi uses global fallback candidates:
+
+- **MB398**
+- **OLGUS**
+
+Fallback points need not appear in the aircraft's original STAR, but must exist in navigation data and pass reachability, turn-geometry and traffic-separation checks. **DOGAP is explicitly excluded.**
+
+The system evaluates navigation data availability, aircraft position and reachability, inbound heading, turn geometry, route compatibility, predicted traffic separation and other aircraft trajectories. Once a candidate is chosen, AviAi appends the required waypoint and trigger to the active route (without repeatedly appending the same extension) and synchronizes the navigation cursor, assigned waypoint and guidance target so the aircraft keeps progressing instead of re-targeting a captured waypoint.
+
+```mermaid
+flowchart TD
+    A["No safe approach entry"] --> B["Evaluate global fallback candidates"]
+    B --> C["MB398"]
+    B --> D["OLGUS"]
+    X["DOGAP"] -. excluded .-> B
+
+    C --> E["Validate reachability and turn geometry"]
+    D --> F["Validate reachability and turn geometry"]
+    E --> G["Predict traffic separation"]
+    F --> H["Predict traffic separation"]
+
+    G --> I{"MB398 valid?"}
+    H --> J{"OLGUS valid?"}
+
+    I -->|Yes| K["MB398 eligible"]
+    J -->|Yes| L["OLGUS eligible"]
+    I -->|No| M["Reject MB398"]
+    J -->|No| N["Reject OLGUS"]
+
+    K --> O["Select valid fallback"]
+    L --> O
+    O --> P["Extend active route"]
+    P --> Q["Synchronize navigation state"]
+    Q --> R["Continue aircraft movement"]
+
+    M --> S["Evaluate remaining candidates"]
+    N --> S
+    S --> T["Compatible holding or waiting"]
+```
+
+The mechanism is meant to prevent route-end loops while preserving the priority of safe approach clearance.
+
+---
+
+## 8. Multi-Level Holding and Fairness
+
+As traffic density rises, AviAi distributes suitable aircraft across compatible holding fixes and altitude levels instead of stacking everything at one location.
+
+```mermaid
+flowchart TB
+    IN["Incoming Arrival Traffic"] --> E["Traffic and Conflict Evaluation"]
+    E --> H1["Primary Holding - Level A"]
+    E --> H2["Primary Holding - Level B"]
+    E --> H3["Primary Holding - Level C"]
+    H1 --> S["Continuous Separation Monitoring"]
+    H2 --> S
+    H3 --> S
+    S --> R["Approach Availability Reassessment"]
+    R --> A["APP25"]
+    R --> B["APP32"]
+    R --> C["APP38"]
+    A --> OUT["Arrival Sequencing"]
+    B --> OUT
+    C --> OUT
+```
+
+*Conceptual allocation only, not fixed altitude assignments.*
+
+### Holding candidate evaluation
+
+A holding assignment considers current and target altitude, position, inbound heading, distance to the fix, route compatibility, entry transition, turn geometry, speed, predicted horizontal separation, required vertical separation, existing holding assignments and downstream approach traffic.
+
+Higher altitude can make an aircraft a *suitable candidate*, but **altitude alone never authorizes a holding assignment.**
+
+### Holding circuit lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Enroute
+    Enroute --> HoldingEntry: Validated hold assignment
+    HoldingEntry --> Holding: Entry completed
+    Holding --> Reassessment: Circuit completed
+
+    Reassessment --> ApproachRelease: Safe entry available
+    Reassessment --> Holding: Continue holding
+    Reassessment --> AlternativeHold: Alternative validated
+
+    AlternativeHold --> ApproachRelease: Original aircraft release committed
+    AlternativeHold --> Holding: Transfer rejected
+
+    ApproachRelease --> Approach: Clearance committed
+    Approach --> [*]
+```
+
+### Holding fairness roadmap *(planned)*
+
+| Completed circuits | Planned policy |
+|---|---|
+| 1 | Reassess available approach entries |
+| 2 | Increase release priority |
+| 3 | High-priority release and alternative-holding evaluation |
+| 4 | Maximum planned holding duration; escalate if safety prevents release |
+
+```mermaid
+flowchart LR
+    C1["Circuit 1<br/>Reassess entries"] --> C2["Circuit 2<br/>Raise priority"] --> C3["Circuit 3<br/>High priority +<br/>alternative hold"] --> C4["Circuit 4<br/>Escalate"]
+```
+
+- The count must reflect **completed circuits**, not reassessment requests or holding-entry transitions.
+- Circuit limits **never override separation**. If a release would create an unsafe conflict, the system keeps evaluating safe alternatives and records why release was rejected.
+
+---
+
+## 9. Predictive Conflict Detection and Separation
+
+AviAi predicts conflicts by analysing trajectories and expected positions at shared navigation fixes and approach merges. It considers shared route fixes, predicted arrival times, distance to target waypoint, heading and speed, horizontal and vertical separation, approach entry occupancy, holding assignments, and speed/altitude interventions.
+
+### Conflict-resolution lifecycle
+
+```mermaid
+flowchart TD
+    A["Aircraft state updates"] --> B["Predict trajectories and ETAs"]
+    B --> C["Evaluate shared fixes and approach merges"]
+    C --> D["Estimate horizontal and vertical separation"]
+    D --> E{"Conflict predicted?"}
+
+    E -->|No| F["Continue monitoring"]
+    F --> A
+
+    E -->|Yes| G["Generate resolution candidates"]
+    G --> H["Speed adjustment"]
+    G --> I["Altitude adjustment"]
+    G --> J["Holding assignment"]
+    G --> K["Approach resequencing"]
+
+    H --> L["Deterministic safety validation"]
+    I --> L
+    J --> L
+    K --> L
+
+    L --> M{"Candidate valid?"}
+    M -->|Yes| N["Commit intervention"]
+    M -->|No| O["Reject and evaluate alternative"]
+
+    N --> A
+    O --> G
+```
+
+### Horizontal separation
+
+AviAi uses a **6 NM** horizontal separation requirement as a conservative *project configuration*. It is not a universal real-world ATC minimum.
+
+| Source | Horizontal minimum |
+|---|---|
+| **AviAi (configured)** | **6 NM** |
+| AAI eAIP ENR 1.6, surveillance-based, general | 5 NM |
+| AAI eAIP ENR 1.6, authorized within 40 NM of Mumbai ASR/MSSR head, at or below FL140 | 3 NM |
+
+Actual application of real-world minima depends on airspace, authorization, surveillance conditions and operational rules. AviAi does not claim to reproduce them.
+
+### Vertical separation
+
+| Condition (Indian ATS guidance, for reference) | Nominal vertical separation |
+|---|---|
+| Below FL290 | 1,000 ft |
+| At or above FL290 | 2,000 ft (unless RVSM provisions apply) |
+| Designated RVSM airspace, qualifying aircraft | 1,000 ft |
+
+The simulation's configured minimums and holding levels are implementation choices. They should be checked against the actual validation logic and not assumed to implement every real-world exception, aircraft approval requirement or airspace-specific procedure.
+
+The system does **not** assume that different holding fixes automatically guarantee safe separation.
+
+---
+
+## 10. Aircraft Navigation and Physics
+
+The engine moves aircraft through a closed-loop navigation and physics system covering waypoint progression and capture, heading guidance, turn transitions, speed and altitude control, vertical movement, holding navigation, approach transitions, route restoration after holding, and navigation cursor synchronization.
+
+```mermaid
+flowchart LR
+    A["Aircraft State"] --> B["Navigation Guidance"]
+    B --> C["Target Heading, Speed and Altitude"]
+    C --> D["Aircraft Physics"]
+    D --> E["Updated Position and Velocity"]
+    E --> F["Waypoint Capture"]
+    F --> G["Route Cursor and Target Update"]
+    G --> A
+```
+
+The system keeps the **active route, assigned waypoint, target node, heading and clearance state** synchronized. This matters most during holding activation, holding release and fallback route extension.
+
+---
+
+## 11. Hybrid AI and Deterministic Control
+
+The LLM **recommends**; deterministic components **validate and execute**.
+
+| AI responsibilities (Mistral) | Deterministic responsibilities |
+|---|---|
+| HOLD / RELEASE | Aircraft identity and session |
+| Approach sequencing | Current route and navigation state |
+| Holding assignments | Approach entry compatibility |
+| Speed interventions | Reservation ownership |
+| Altitude interventions | Holding route compatibility |
+| Traffic management actions | Entry and rejoin geometry |
+| | Predicted traffic separation |
+| | Clearance state |
+| | Whether the decision is still valid |
+
+```mermaid
+sequenceDiagram
+    participant E as Simulation Engine
+    participant C as Controller Intelligence
+    participant L as Mistral LLM
+    participant V as Safety Validator
+    participant N as Navigation System
+
+    E->>C: Aircraft and traffic state
+    C->>L: Operational decision request
+    L-->>C: Structured recommendation
+    C->>V: Validate proposed action
+    V->>V: Check route, geometry and separation
+
+    alt Decision is valid
+        V->>N: Commit approved instruction
+        N->>E: Update aircraft navigation state
+    else Decision is invalid or stale
+        V-->>C: Reject with reason
+        C->>E: Evaluate deterministic alternative
+    end
+```
+
+**Malformed, delayed or unavailable AI responses must never bypass deterministic safety validation.** Simulation-session identifiers also scope controller decisions so stale or cross-session decisions cannot affect the wrong aircraft.
+
+---
+
+## 12. Test Mode and Simulation Isolation
+
+An isolated Test Mode supports controlled traffic experiments. Users select eligible arrival nodes on the map and spawn test aircraft with compatible route and navigation configurations.
+
+**Capabilities:** direct arrival-node selection, automatic test aircraft, unique test callsigns, multiple simultaneous aircraft, individual removal, live route progression, and testing of approach allocation, holding, conflict detection and separation management, followed by restoration of the normal simulation.
+
+Test Mode uses **the same engine and intelligence logic** as the normal simulation, with no simplified or separate ATC implementation.
+
+```mermaid
+flowchart TD
+    A["Normal Simulation"] --> B["Enable Test Mode"]
+    B --> C["Preserve Normal Simulation"]
+    C --> D["Create Isolated Test Session"]
+    D --> E["Select Arrival Node"]
+    E --> F["Spawn Test Aircraft"]
+
+    F --> G["Shared Simulation Logic"]
+    G --> H["Aircraft Physics"]
+    G --> I["Navigation"]
+    G --> J["ATC Intelligence"]
+    G --> K["Conflict Management"]
+
+    H --> L["Test Simulation"]
+    I --> L
+    J --> L
+    K --> L
+
+    L --> M{"Exit Test Mode?"}
+    M -->|No| E
+    M -->|Yes| N["Tear Down Test Session"]
+    N --> O["Restore Normal Simulation"]
+```
+
+> A successful API spawn alone does not prove an aircraft progressed correctly. During scenario verification, check the **route cursor, target waypoint, holding state, clearance and decision-commit events**.
+
+---
+
+## 13. Real-Time Operational Dashboard
+
+The frontend uses MapLibre to visualize the simulation. Aircraft markers persist across updates, and the interface supports aircraft inspection, navigation visualization and operational monitoring.
+
+| Information | Description |
+|---|---|
+| Aircraft callsign | Unique aircraft identification |
+| Aircraft type | Simulated aircraft profile |
+| Position | Current geographic position |
+| Heading | Current and target heading |
+| Altitude | Current and target altitude |
+| Speed | Current and target speed |
+| Vertical speed | Climb or descent rate |
+| Target node | Active navigation target |
+| Holding state | Holding fix, route and circuit count |
+| Approach state | Arrival phase and clearance |
+| ATC instruction | Latest operational instruction |
+| Decision logs | Controller decisions and validation events |
+
+---
+
+## 14. Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Backend | Python, FastAPI |
+| Frontend | HTML, CSS, JavaScript |
+| Interactive maps | MapLibre |
+| Real-time communication | WebSockets |
+| AI decision-making | Mistral LLM |
+| Simulation | Custom Python aircraft simulation engine |
+| Navigation | Configured routes and waypoint geometry |
+| State management | Redis and in-memory simulation state |
+| Data processing | Python, NumPy, JSON |
+| Testing | Pytest and JavaScript test suites |
+
+---
+
+## 15. Project Structure
 
 ```text
-OpenSky Network API
-          │
-          ▼
-Async Ingestion Engine (aiohttp)
-          │
-          ▼
-Intelligence Engine (trend, behavior, events, routes)
-          │
-          ▼
-Redis Aircraft State Store
-          │
-          ▼
-FastAPI Backend
-          │
-          ▼
-WebSocket Flight Stream
-          │
-          ▼
-Leaflet Live Map
-```
-
-1. OpenSky provides live aircraft states.
-2. The asynchronous ingestion engine continuously retrieves them.
-3. States are enriched with vertical trend detection, behavior classification, event detection, and route inference.
-4. Aircraft information is cached in Redis.
-5. FastAPI broadcasts updates through WebSockets.
-6. Leaflet renders positions and trajectories in real time.
-
-### AI ATC Simulation: Hybrid Architecture
-
-AviAi follows a **hybrid architecture**: AI handles decisions, deterministic systems handle everything else.
-
-| 🤖 AI handles | ⚙️ Deterministic systems handle |
-|---|---|
-| Decision making | Aircraft physics |
-| Conflict interpretation | Route navigation |
-| ATC instruction generation | Waypoint progression |
-| Holding selection | Safety validation |
-| Operational reasoning | Route restoration |
-| | Holding geometry & circuit tracking |
-| | Spawn separation |
-| | Simulation state |
-
-This prevents the AI from having unrestricted control over the simulation.
-
-#### 1. Deterministic Flight Guidance
-
-Aircraft do not depend on AI for every movement. Normal flight follows the predefined route, applying assigned waypoints, route order, altitude constraints, speed constraints, and navigation targets automatically.
-
-```mermaid
-flowchart LR
-    A[Waypoint] --> B[Altitude constraint] --> C[Speed constraint] --> D[Aircraft guidance]
-```
-
-The AI is only triggered when a relevant conflict is detected.
-
-#### 2. Arrival Routes
-
-```mermaid
-flowchart LR
-    MB379 --> EMROS --> OLGUS --> Approach --> Runway
-```
-
-The current VABB simulation includes routes `001`, `002`, `003`, and `004`. Traffic is distributed using configured capacities, and the traffic manager selects eligible routes based on current load:
-
-| Route | Capacity |
-|:---:|:---:|
-| 001 | 5 |
-| 002 | 4 |
-| 003 | 4 |
-| 004 | 5 |
-
-#### 3. Traffic Generation
-
-Simulated traffic includes callsign, airline, origin, destination, aircraft type, flight phase, route, position, altitude, speed, and heading.
-
-```
-AIC100 | Air India | FRA → VABB
-AIC101 | Air India | LHR → VABB
-AIC102 | Air India | CDG → VABB
-```
-
-Traffic is intentionally increased to create realistic airport congestion.
-
-#### 4. Minimum Spawn Separation
-
-New aircraft cannot spawn too close to existing ones. The **4.5 NM** requirement is a *minimum*, not an exact distance.
-
-| Distance | Result |
-|:---:|:---:|
-| 3.8 NM | ❌ Reject |
-| 4.4 NM | ❌ Reject |
-| 4.5 NM | ⚖️ Boundary |
-| 5.0 NM | ✅ Allowed |
-| 7.0 NM | ✅ Allowed |
-| 10 NM | ✅ Allowed |
-
-#### 5. Shared-Waypoint Conflict Detection
-
-```
-Aircraft A:  MB379 → EMROS → OLGUS
-Aircraft B:  MB392 → EMROS → OLGUS
-```
-
-If both are predicted to reach **EMROS** at about the same time, a conflict is raised and passed to the AI ATC controller.
-
-#### 6. AI-Triggered Holding
-
-```
-Conflict:  AIC100 ↔ BAW153
-Waypoint:  EMROS
-Decision:  HOLD BAW153
-```
-
-The selected aircraft is moved into the configured holding route, and **its original route is preserved**:
-
-```
-Original:    MB379 → EMROS → OLGUS
-During hold: MB379 → EMROS → [HOLD loop] → EMROS → OLGUS
-```
-
-#### 7. Holding Pattern System
-
-Holding patterns are racetrack-style loops defined in `holding_routes.json`, independent of the normal arrival routes. Each holding route contains the holding fix, entry point, loop waypoints and coordinates, rejoin waypoint, and route relationship. Holding nodes are activated dynamically and do not become permanent normal-route nodes.
-
-Currently configured holding fixes include **EMROS** and **OLGUS**. POKON and KETOR are intentionally not configured as holding fixes.
-
-#### 8. Holding Circuit Management
-
-An aircraft is not necessarily released after one circuit. AviAi tracks the current circuit, circuit progress, circuit boundary, holding fix, original route, rejoin waypoint, and downstream traffic. At every circuit boundary it decides whether the aircraft can safely leave:
-
-```mermaid
-flowchart TD
-    A[Aircraft in HOLD] --> B[Circuit completed]
-    B --> C{Downstream traffic safe?}
-    C -- No --> D[Another circuit]
-    D --> B
-    C -- Yes --> E[Release]
-    E --> F[Restore original route]
-```
-
-Release separation also considers aircraft altitude. After release, the aircraft rejoins its original route at the rejoin waypoint and the temporary holding route is removed from active navigation.
-
-#### 9. AI + Deterministic Safety
-
-AviAi never blindly executes an AI response. The AI proposes, the system validates:
-
-```mermaid
-flowchart TD
-    A[Conflict Detector] --> B[Mistral AI]
-    B --> C[AI Decision]
-    C --> D[JSON Parser]
-    D --> E[Decision Validation]
-    E --> F[Route / Holding Validation]
-    F --> G[Safety Checks]
-    G --> H[Apply Decision]
-```
-
-Invalid AI output can never directly modify the simulation.
-
-#### 10. Full Conflict Flow
-
-```mermaid
-flowchart TD
-    A[Aircraft] --> B[Route progression]
-    B --> C[Shared waypoint detection]
-    C --> D[Conflict prediction]
-    D --> E[Mistral ATC request]
-    E --> F[Structured JSON response]
-    F --> G[Parser + Validation]
-    G --> H[Holding Manager]
-    H --> I[Aircraft enters holding]
-    I --> J[Holding circuit]
-    J --> K{Downstream traffic safe?}
-    K -- No --> L[Additional circuit] --> J
-    K -- Yes --> M[Release]
-    M --> N[Original route]
-```
-
----
-
-## 🤖 AI ATC (Mistral Integration)
-
-AviAi currently uses **`ministral-3b-2512`** exclusively for ATC decision generation. The AI receives:
-
-- Aircraft callsign, flight phase, position, current waypoint
-- Assigned route, altitude, speed, heading
-- Nearby traffic and the conflict waypoint
-- Available holding patterns and route constraints
-
-It is instructed to return **structured JSON**, not natural language:
-
-```json
-{
-  "controller": "Arrival",
-  "decision": "HOLD",
-  "callsign": "BAW153",
-  "instruction": "Hold at EMROS via the standard holding pattern, maintain current altitude and speed.",
-  "holding_route_id": "H-EMROS",
-  "holding_fix": "EMROS",
-  "altitude": 10000,
-  "speed": 250,
-  "reason": "Confirmed traffic conflict at EMROS; BAW153 is crossing the waypoint en route to OLGUS while AIC100 is also at EMROS. HOLD ensures separation."
-}
-```
-
-### 📜 AI ATC Decision Log
-
-Every decision is recorded in the simulation UI in a structured, human-readable form:
-
-```
-AI ATC [ARRIVAL]
-
-Conflict:     AIC100 ↔ BAW153
-Waypoint:     EMROS
-Decision:     HOLD BAW153
-Instruction:  Hold at EMROS via the standard holding pattern.
-Holding:      H-EMROS
-Altitude:     10000 ft
-Reason:       Confirmed traffic conflict at EMROS.
-```
-
-The log shows what conflict occurred, which aircraft were involved, which was instructed, where, which holding pattern was selected, what altitude/speed was assigned, and **why**.
-
-### 🖥️ Simulation UI
-
-The simulation is visualized in `sim.html` and streamed through the simulation WebSocket. It shows aircraft with callsigns (e.g. `AIC100`, `BAW153`, `DLH149`), routes, waypoints, all configured holding fixes (even when nothing is holding), active holding tracks, AI ATC decisions, aircraft state, weather, and simulation status.
-
----
-
-## 🏢 Airport Digital Twin
-
-AviAi is built around airport-specific operational data. For **VABB**, this includes runways, taxiways, the airport graph, routes, waypoints, approach procedures, holding points, and airport coordinates. Airport reference data is also available through `airports.csv`.
-
-### Airport Chart Parser
-
-A geometry pipeline extracts airport structures from aviation charts:
-
-```mermaid
-flowchart LR
-    A[VectorExtractor] --> B[GeometryClassifier] --> C[GeometryCleaner] --> D[NeighborBuilder] --> E[ComponentBuilder]
-```
-
-It can identify runways, taxiways, lines, connected components, waypoints, and overall airport geometry.
-
-### Real Aircraft Data
-
-AviAi ingests live aircraft data through **OpenSky** and updates the intelligence layer. The project has previously handled thousands of aircraft updates from this source.
-
----
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart TD
-    AviAi --> AD[Airport Data]
-    AviAi --> SE[Simulation Engine]
-    AviAi --> AI[AI Intelligence]
-    AviAi --> LS[Live Surveillance]
-    AD --> AG[Airport Graph]
-    SE --> AP[Aircraft Physics]
-    AI --> M[Mistral AI]
-    AG --> CE[Conflict Engine]
-    AP --> CE
-    M --> CE
-    CE --> ATC[ATC Decision]
-    ATC --> HG[Holding / Guidance]
-    HG --> SIM[Simulation]
-    SIM --> UI[Live UI]
-    LS --> OS[OpenSky + Redis]
-    OS --> UI
-```
-
-### Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Frontend** | HTML5, CSS3, JavaScript, Leaflet.js, `sim.html` |
-| **Backend** | Python, FastAPI, Uvicorn, aiohttp, WebSockets |
-| **Data & Storage** | Redis, SQLite / PostgreSQL components, OpenSky Network API, Airports CSV |
-| **Parsing** | PyMuPDF, NumPy |
-| **AI & Intelligence** | Mistral AI (`ministral-3b-2512`), semantic retrieval, trajectory analysis, event detection, behavior classification, route inference |
-
-### API Endpoints
-
-| Endpoint | Purpose |
-|---|---|
-| `/health` | Health check |
-| `/flights/ws` | Live OpenSky flight stream (WebSocket) |
-| `/airport/VABB` | Airport data |
-| `/airport/VABB/graph` | Airport graph |
-| `/airport/VABB/routes` | Arrival/departure routes |
-| `/airport/VABB/approach` | Approach procedures |
-| `/weather/VABB` | Weather information |
-| `/simulation/ws` | Live simulation WebSocket |
-
-### Project Structure
-
-```
 AviAi/
 │
 ├── app/
 │   ├── api/
-│   │   ├── flights.py
-│   │   ├── ai.py
-│   │   ├── charts.py
-│   │   ├── simulation.py
-│   │   └── semantics.py
-│   │
-│   ├── ingest/
-│   │   ├── opensky_async.py
-│   │   └── opensky_auth.py
+│   │   └── simulation.py
 │   │
 │   ├── intelligence/
+│   │   ├── approach_ai.py
+│   │   ├── guidance_ai.py
+│   │   ├── fallback_selection.py
 │   │   ├── trajectory.py
 │   │   ├── behavior.py
 │   │   ├── event_engine.py
-│   │   ├── route_engine.py
-│   │   ├── guidance_ai.py
 │   │   └── mistral/
-│   │       ├── client.py
-│   │       ├── controller.py
-│   │       ├── parser.py
-│   │       └── prompt.py
+│   │
+│   ├── navigation/
+│   │   └── routes/
 │   │
 │   ├── simulation/
 │   │   ├── engine.py
 │   │   ├── world.py
-│   │   ├── traffic_manager.py
 │   │   └── holding_manager.py
 │   │
-│   ├── parser/
-│   │   ├── vector_extractor.py
-│   │   ├── geometry_classifier.py
-│   │   ├── geometry_cleaner.py
-│   │   ├── neighbor_builder.py
-│   │   └── component_builder.py
-│   │
-│   ├── navigation/routes/
-│   │   └── vabb_routes.json
-│   │
-│   ├── core/
-│   │   └── config.py
-│   │
-│   └── main.py
-│
-├── frontend/
-│   ├── index.html
-│   └── plane.svg
-│
-├── static/
-│   ├── sim.html
-│   └── charts.html
+│   └── parser/
 │
 ├── data/
-│   └── airports.csv
+│   └── navigation/
+│       └── VABB/
 │
+├── frontend/
+├── static/
+├── tests/
 ├── holding_routes.json
 ├── requirements.txt
-├── .env
-├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## 16. Installation and Setup
 
-### 1. Clone the repository
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/SK25397938/AviAi.git
 cd AviAi
 ```
 
-### 2. Create a virtual environment
+**2. Create a virtual environment**
 
 ```bash
 python -m venv venv
 ```
 
-```bash
-# Windows
-venv\Scripts\activate
+Windows:
 
-# Linux / macOS
+```bash
+venv\Scripts\activate
+```
+
+macOS / Linux:
+
+```bash
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
+**3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+**4. Configure environment variables**
 
 Create a `.env` file in the project root:
 
 ```env
-# Live surveillance (OpenSky)
-OPENSKY_CLIENT_ID=your_client_id
-OPENSKY_CLIENT_SECRET=your_client_secret
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# AI ATC (Mistral)
 MISTRAL_API_KEY=your_mistral_api_key
 ```
 
-Additional variables may be required depending on enabled services.
+Configure Redis and any other services according to your environment.
 
-### 5. Start Redis
-
-Run Redis locally or via Docker:
+**5. Start the backend**
 
 ```bash
-docker run -d -p 6379:6379 redis
+uvicorn app.main:app --reload
 ```
 
-### 6. Launch the application
+Default development address: `http://127.0.0.1:8000`. Use the configured entry point and port if your setup differs.
 
-```bash
-python -m uvicorn app.main:app --reload
-```
+**6. Launch the frontend**
 
-The server runs at `http://127.0.0.1:8000`.
-
-### Test the Mistral connection
-
-```bash
-python -c "from app.intelligence.mistral.client import generate; print(generate('Reply with exactly: TEST'))"
-```
-
-A successful run returns a structured AI response.
+Start the frontend with the project's configured development server, or serve its static files according to the existing frontend setup.
 
 ---
 
-## 🌐 Usage
+## 17. Testing
 
-| What | URL |
-|---|---|
-| ✈️ Live Flight Map | `http://127.0.0.1:8000/map/` |
-| 🛬 AI ATC Simulation | `http://127.0.0.1:8000/map/sim.html` |
-| ❤️ Health Check | `http://127.0.0.1:8000/health` |
-| 📡 Flight Stream (WebSocket) | `ws://127.0.0.1:8000/flights/ws` |
-| 🎮 Simulation Stream (WebSocket) | `ws://127.0.0.1:8000/simulation/ws` |
+Regression tests cover simulation, navigation and intelligence components:
+
+- Approach entry allocation and reservation ownership
+- Recovery of committed approach reservations
+- Route-end approach allocation
+- Global fallback selection, reachability and geometry
+- DOGAP fallback exclusion
+- Duplicate route-extension prevention
+- Holding route compatibility, lifecycle and release validation
+- Route progression
+- Test Mode isolation
+- Simulation state management
+
+```bash
+pytest tests/
+```
+
+Report results against your actual local test run. Passing tests are **not** proof of certified real-world ATC performance.
 
 ---
 
-## 📊 Performance
-
-- ⚡ ~0.5 second refresh interval
-- 🌍 Supports thousands of simultaneous aircraft
-- 🚀 Fully asynchronous ingestion
-- 🎞️ Smooth rendering using `requestAnimationFrame`
-- 🔄 Automatic WebSocket recovery
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Current
-
-- [x] Live OpenSky surveillance with Redis caching and WebSocket streaming
-- [x] Trajectory, behavior, event, and route intelligence
-- [x] Experimental chart question answering
-- [x] Arrival traffic, route following, and traffic generation
-- [x] Minimum spawn separation
-- [x] Shared-waypoint conflict detection
-- [x] AI ATC intervention with validated decisions
-- [x] Holding patterns, circuit management, safe release, route restoration
-- [x] AI decision logging and live simulation visualization
-
-### 🔜 Next
+## 18. Development Roadmap
 
 ```mermaid
 flowchart LR
-    A[Sequencing] --> B[Approach Control] --> C[Departure Control] --> D[Ground Control] --> E[Full Airport Autonomy]
+    subgraph H["Holding management"]
+        H1["Progressive circuit limits"]
+        H2["Holding-time fairness"]
+        H3["Alternative hold evaluation"]
+        H4["Better delay distribution"]
+    end
+    subgraph A["Arrival management"]
+        A1["Advanced multi-aircraft sequencing"]
+        A2["Approach allocation at high density"]
+        A3["Enhanced conflict resolution"]
+        A4["Traffic-flow optimization"]
+    end
+    subgraph O["Airport operations"]
+        O1["Tower and Ground autonomy"]
+        O2["Airport surface movement"]
+        O3["Runway and taxiway logic"]
+    end
+    subgraph S["Simulation and analytics"]
+        S1["Traffic performance metrics"]
+        S2["Decision analytics"]
+        S3["Additional airport twins"]
+        S4["Multi-aircraft stress testing"]
+    end
+    H --> A --> O --> S
 ```
 
-- **Sequencing:** landing order, arrival spacing, holding requirements, speed adjustments, vectoring, merge management
-- **Approach Control:** STAR → initial → intermediate → final approach → runway
-- **Departure Control:** pushback → taxi → runway → takeoff → SID → en-route
-- **Ground Control:** taxiway conflict detection, runway occupancy, pushback sequencing, ground routing, taxi clearance
+---
 
-### 💡 Planned Enhancements
+## 19. Project Scope and Safety
 
-- 📄 Advanced aviation chart parser (approach procedures, frequency tables, visual highlighting)
-- 🛰️ Airport surface movement guidance
-- 📈 Flight plan correlation
-- ⚠️ Conflict detection and prediction on live traffic
-- 📊 Aviation analytics dashboard
-- 🛫 Airport arrival and departure prediction
+AviAi is an **experimental aviation simulation and research platform** for software development, simulation and exploration of AI-assisted aviation operations.
+
+It is **not a certified air traffic control system** and must **not** be used to issue real-world ATC instructions or replace qualified aviation personnel.
+
+Published navigation data and simulation-generated geometry must remain clearly distinguished. Synthetic holding patterns are for simulation purposes and do not represent authorized real-world procedures.
 
 ---
 
-## 🧭 Development Philosophy
+## 20. References
 
-1. **Realistic aviation behavior:** aircraft follow procedures and operational constraints, not just point-to-point movement.
-2. **AI where decisions matter:** AI makes meaningful ATC decisions and is never called for deterministic navigation.
-3. **Deterministic safety:** every AI decision is validated by deterministic logic before it affects an aircraft.
+These are reference material for the design rationale only:
 
-## 🔭 Vision
-
-A fully autonomous airport operations simulation where aircraft arrive autonomously and follow real procedures, traffic changes continuously, conflicts are detected automatically, AI ATC sequences traffic, holding patterns are used dynamically, aircraft are released safely, departures interact with arrivals, and ground operations evolve in real time.
+- Airports Authority of India, [eAIP ENR 1.6: ATS Surveillance Services and Procedures](https://aim-india.aai.gov.in/eaip/eaip-v2-03-2026/eAIP/IN-ENR%201.6-en-GB.html)
+- Airports Authority of India, [eAIP ENR 1.9: Additional Rules and Procedures (RVSM)](https://aim-india.aai.gov.in/eaip-v2-02-2024/eAIP/IN-ENR%201.9-en-GB.html)
+- Airports Authority of India, [Manual of Air Traffic Services, Part 1](https://aim-india.aai.aero/sites/default/files/ais_docs/Manual%20of%20Air%20Traffic%20Services%2C%20Part-1%20Edition%206.2.pdf)
 
 ---
 
-## 👤 Author
+## 21. Author
 
-**Subodh Koli (Sk)**, B.Tech AI & Data Science, SIES Graduate School of Technology, Mumbai
+**Subodh Koli**
+B.Tech, Artificial Intelligence & Data Science, SIES Graduate School of Technology
 
-[![GitHub](https://img.shields.io/badge/GitHub-SK25397938-181717?logo=github)](https://github.com/SK25397938)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Subodh%20Koli-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/subodh-koli-9266a237a/)
+Interests: AI Engineering, Autonomous Systems, Aviation Intelligence, Simulation Architecture, Predictive Analytics and Applied Machine Learning.
+
+[GitHub](https://github.com/SK25397938) · [LinkedIn](https://linkedin.com/in/subodh-koli-9266a237a/)
 
 ---
 
-<div align="center">
+## Vision
 
-**AviAi: Autonomous Aviation Intelligence**
-*AI-driven airport operations and ATC simulation platform*
-
-⭐ If you found this project useful, consider giving it a star on GitHub!
-
-</div>
+AviAi explores how autonomous intelligence, predictive analytics and digital twins can transform the simulation and coordination of complex airport operations: from individual aircraft navigation to multi-aircraft arrival sequencing, predictive separation and multi-level holding allocation, building an environment where traffic is continuously evaluated, intelligently coordinated and safely managed.
