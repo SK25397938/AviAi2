@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # ✈️ AviAi
 
@@ -908,4 +908,8 @@ Interests: AI Engineering, Autonomous Systems, Aviation Intelligence, Simulation
 
 ## Vision
 
+<<<<<<< HEAD
 AviAi explores how autonomous intelligence, predictive analytics and digital twins can transform the simulation and coordination of complex airport operations: from individual aircraft navigation to multi-aircraft arrival sequencing, predictive separation and multi-level holding allocation, building an environment where traffic is continuously evaluated, intelligently coordinated and safely managed.
+=======
+AviAi explores how autonomous intelligence, predictive analytics and digital twins can transform the simulation and coordination of complex airport operations: from individual aircraft navigation to multi-aircraft arrival sequencing, predictive separation and multi-level holding allocation, building an environment where traffic is continuously evaluated, intelligently coordinated and safely managed.
+>>>>>>> 8512fa50c1732cedc866791c0991e832a7a8722c
