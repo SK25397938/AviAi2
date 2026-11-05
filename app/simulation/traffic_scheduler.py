@@ -16,15 +16,17 @@ class TrafficScheduler:
     MIN_TURNAROUND = 2700
     MAX_TURNAROUND = 7200
 
-    def __init__(self):
+    def __init__(self, initialize=True, database_path="data/simulation/traffic.sqlite"):
 
-        self.db = TrafficDatabase()
+        self.db = TrafficDatabase(database_path)
 
         self.random = random.Random()
 
         self.next_departure_release = None
+        self.last_departure_status = "not_checked"
 
-        self.initialize_schedule()
+        if initialize:
+            self.initialize_schedule()
 
     def initialize_schedule(self):
 
@@ -77,9 +79,12 @@ class TrafficScheduler:
 
         now = time.time()
 
-        if (now < self.next_departure_release
-                or active_aircraft_count >= active_capacity
+        if now < self.next_departure_release:
+            self.last_departure_status = "release_interval"
+            return []
+        if (active_aircraft_count >= active_capacity
                 or active_aircraft_count >= self.MAX_ACTIVE_AIRCRAFT):
+            self.last_departure_status = "traffic_capacity"
 
             return []
 
@@ -88,6 +93,7 @@ class TrafficScheduler:
         )
 
         if not departures:
+            self.last_departure_status = "no_due_aircraft"
 
             return []
 
@@ -103,6 +109,7 @@ class TrafficScheduler:
 
         gap_range = release_gap_range or (self.MIN_DEPARTURE_GAP, self.MAX_DEPARTURE_GAP)
         self.next_departure_release = now + self.random.randint(*map(int, gap_range))
+        self.last_departure_status = "released_to_engine"
 
         return [aircraft]
 

@@ -64,7 +64,7 @@ class AircraftState:
 
     phase: str = "ARRIVAL"
 
-    approach_phase: str = "INTERCEPT"
+    approach_phase: str = "ARRIVAL"
 
     state: str = "ENROUTE"
 

@@ -1,0 +1,1096 @@
+route,route_name,aircraft,seq,waypoint,lat,lon,leg_nm,dist_from_runway_nm,pub_alt,pub_spd,alt_ft,fl,ias_kt,gs_kt,climb_ft_per_nm,vs_fpm,note
+001,BETKU 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+001,BETKU 3A,A320,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,A320,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,A320,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+001,BETKU 3A,A321,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,A321,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,A321,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+001,BETKU 3A,A359,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,A359,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,A359,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+001,BETKU 3A,B787-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B787-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,B787-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+001,BETKU 3A,B787-9,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B787-9,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,B787-9,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+001,BETKU 3A,B787-10,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B787-10,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,B787-10,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+001,BETKU 3A,B777-200,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B777-200,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,B777-200,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+001,BETKU 3A,B777-200LR,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9870,FL099,250,288,402,1900,
+001,BETKU 3A,B777-200LR,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,10,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B777-200LR,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+001,BETKU 3A,B777-300ER,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9830,FL098,250,288,402,1900,
+001,BETKU 3A,B777-300ER,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,14,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B777-300ER,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+001,BETKU 3A,B777F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+001,BETKU 3A,B777F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B777F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+001,BETKU 3A,A350-1000,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,400,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,A350-1000,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+001,BETKU 3A,A350-1000,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+001,BETKU 3A,B747-400,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+001,BETKU 3A,B747-400,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B747-400,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+001,BETKU 3A,B747-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+001,BETKU 3A,B747-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B747-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+001,BETKU 3A,B747-8F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8900,FL089,250,284,364,1700,
+001,BETKU 3A,B747-8F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,88,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,B747-8F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+001,BETKU 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+001,BETKU 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+001,BETKU 3A,A388,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8950,FL089,250,284,363,1700,
+001,BETKU 3A,A388,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,84,0,"reaches the ceiling at this fix (10,000 ft)"
+001,BETKU 3A,A388,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+002,EXOLU 3A,A320,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,A320,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,A320,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+002,EXOLU 3A,A321,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,A321,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,A321,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+002,EXOLU 3A,A359,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,A359,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,A359,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+002,EXOLU 3A,B787-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B787-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,B787-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+002,EXOLU 3A,B787-9,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B787-9,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,B787-9,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+002,EXOLU 3A,B787-10,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B787-10,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,B787-10,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+002,EXOLU 3A,B777-200,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B777-200,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,B777-200,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+002,EXOLU 3A,B777-200LR,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9870,FL099,250,288,402,1900,
+002,EXOLU 3A,B777-200LR,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,10,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B777-200LR,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+002,EXOLU 3A,B777-300ER,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9830,FL098,250,288,402,1900,
+002,EXOLU 3A,B777-300ER,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,14,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B777-300ER,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+002,EXOLU 3A,B777F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+002,EXOLU 3A,B777F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B777F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+002,EXOLU 3A,A350-1000,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,400,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,A350-1000,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+002,EXOLU 3A,A350-1000,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+002,EXOLU 3A,B747-400,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+002,EXOLU 3A,B747-400,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B747-400,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+002,EXOLU 3A,B747-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+002,EXOLU 3A,B747-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B747-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+002,EXOLU 3A,B747-8F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8900,FL089,250,284,364,1700,
+002,EXOLU 3A,B747-8F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,88,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,B747-8F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+002,EXOLU 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+002,EXOLU 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+002,EXOLU 3A,A388,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8950,FL089,250,284,363,1700,
+002,EXOLU 3A,A388,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,84,0,"reaches the ceiling at this fix (10,000 ft)"
+002,EXOLU 3A,A388,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+003,ISRIS 3A,A320,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,A320,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,A320,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+003,ISRIS 3A,A321,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,A321,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,A321,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+003,ISRIS 3A,A359,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,A359,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,A359,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+003,ISRIS 3A,B787-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,353,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B787-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,B787-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+003,ISRIS 3A,B787-9,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,367,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B787-9,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,B787-9,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+003,ISRIS 3A,B787-10,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B787-10,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,B787-10,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+003,ISRIS 3A,B777-200,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,377,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B777-200,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,B777-200,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+003,ISRIS 3A,B777-200LR,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9870,FL099,250,288,402,1900,
+003,ISRIS 3A,B777-200LR,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,10,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B777-200LR,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+003,ISRIS 3A,B777-300ER,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9830,FL098,250,288,402,1900,
+003,ISRIS 3A,B777-300ER,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,14,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B777-300ER,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+003,ISRIS 3A,B777F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+003,ISRIS 3A,B777F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B777F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+003,ISRIS 3A,A350-1000,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,10000,FL100,250,289,400,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,A350-1000,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,0,0,"flying level at the ceiling (10,000 ft)"
+003,ISRIS 3A,A350-1000,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+003,ISRIS 3A,B747-400,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+003,ISRIS 3A,B747-400,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B747-400,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+003,ISRIS 3A,B747-8,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,9390,FL094,250,286,383,1800,
+003,ISRIS 3A,B747-8,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,49,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B747-8,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+003,ISRIS 3A,B747-8F,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8900,FL089,250,284,364,1700,
+003,ISRIS 3A,B747-8F,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,88,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,B747-8F,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,310,389,238,0,"reaches the ceiling at this fix (16,000 ft)"
+003,ISRIS 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+003,ISRIS 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+003,ISRIS 3A,A388,3,NM560,19.326281,72.678494,14.9,21.6,,<= 250 kt,8950,FL089,250,284,363,1700,
+003,ISRIS 3A,A388,4,NM561,19.534554,72.673177,12.5,34.1,<=10000 ft,<= 250 kt,10000,FL100,250,289,84,0,"reaches the ceiling at this fix (10,000 ft)"
+003,ISRIS 3A,A388,5,NM513,19.954206,72.662483,25.2,59.3,<=16000 ft,<= 250 kt,16000,FL160,300,377,238,0,"reaches the ceiling at this fix (16,000 ft)"
+004,SAKUN 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+004,SAKUN 3A,A320,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,231,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,A320,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,30680,FL307,291,458,289,1500,
+004,SAKUN 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+004,SAKUN 3A,A321,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,250,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,A321,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,29630,FL296,298,460,275,1400,
+004,SAKUN 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+004,SAKUN 3A,A359,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,242,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,A359,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,30670,FL307,300,471,289,1500,
+004,SAKUN 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+004,SAKUN 3A,B787-8,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,231,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B787-8,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,30680,FL307,300,471,289,1500,
+004,SAKUN 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+004,SAKUN 3A,B787-9,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,242,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B787-9,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,29670,FL297,300,464,275,1400,
+004,SAKUN 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+004,SAKUN 3A,B787-10,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,250,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B787-10,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,29140,FL291,310,474,268,1350,
+004,SAKUN 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+004,SAKUN 3A,B777-200,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,250,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B777-200,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,28620,FL286,310,470,261,1300,
+004,SAKUN 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+004,SAKUN 3A,B777-200LR,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,277,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B777-200LR,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,26600,FL266,310,456,235,1100,
+004,SAKUN 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+004,SAKUN 3A,B777-300ER,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,280,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B777-300ER,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,26600,FL266,310,456,235,1100,
+004,SAKUN 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+004,SAKUN 3A,B777F,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,288,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B777F,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,25570,FL256,310,449,221,1000,
+004,SAKUN 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+004,SAKUN 3A,A350-1000,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,269,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,A350-1000,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,27580,FL276,300,449,248,1200,
+004,SAKUN 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+004,SAKUN 3A,B747-400,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,288,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B747-400,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,25570,FL256,310,449,221,1000,
+004,SAKUN 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+004,SAKUN 3A,B747-8,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,288,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B747-8,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,25570,FL256,310,449,221,1000,
+004,SAKUN 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+004,SAKUN 3A,B747-8F,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,299,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,B747-8F,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,24560,FL246,310,442,207,900,
+004,SAKUN 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+004,SAKUN 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+004,SAKUN 3A,A388,3,NM562,19.220231,72.456808,18.5,25.1,<=9000 ft,<= 250 kt,9000,FL090,250,284,296,0,"reaches the ceiling at this fix (9,000 ft)"
+004,SAKUN 3A,A388,4,SAKUN,19.607483,71.196914,75.0,100.2,,<= 250 kt,24560,FL246,300,429,207,900,
+005,BISET 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+005,BISET 3A,A320,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,222,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,A320,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+005,BISET 3A,A321,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,231,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,A321,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+005,BISET 3A,A359,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,227,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,A359,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+005,BISET 3A,B787-8,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,222,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B787-8,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+005,BISET 3A,B787-9,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,227,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B787-9,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+005,BISET 3A,B787-10,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,231,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B787-10,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+005,BISET 3A,B777-200,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,231,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B777-200,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+005,BISET 3A,B777-200LR,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,245,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B777-200LR,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+005,BISET 3A,B777-300ER,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,246,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B777-300ER,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+005,BISET 3A,B777F,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,250,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B777F,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+005,BISET 3A,A350-1000,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,241,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,A350-1000,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,300,412,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+005,BISET 3A,B747-400,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,250,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B747-400,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+005,BISET 3A,B747-8,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,250,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B747-8,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,22000,FL220,310,425,224,0,"reaches the ceiling at this fix (22,000 ft)"
+005,BISET 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+005,BISET 3A,B747-8F,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,310,372,256,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,B747-8F,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,21600,FL216,310,423,214,900,"cannot reach the minimum 22000 ft with this type: about 1,337 fpm needed on this leg"
+005,BISET 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=540 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=540 ft requirement is checked at BB154 (climb-out altitude before the turn)
+005,BISET 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+005,BISET 3A,A388,3,NM518,19.156675,72.097578,37.3,43.9,<=13000 ft,<= 250 kt,13000,FL130,300,361,254,0,"reaches the ceiling at this fix (13,000 ft)"
+005,BISET 3A,A388,4,NM519,19.124714,71.390231,40.2,84.1,at 22000 ft,<= 250 kt,21600,FL216,300,410,214,900,"cannot reach the minimum 22000 ft with this type: about 1,337 fpm needed on this leg"
+006,DARMI 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+006,DARMI 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+006,DARMI 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+006,DARMI 3A,A320,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+006,DARMI 3A,A320,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A320,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+006,DARMI 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+006,DARMI 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+006,DARMI 3A,A321,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+006,DARMI 3A,A321,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A321,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+006,DARMI 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+006,DARMI 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+006,DARMI 3A,A359,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+006,DARMI 3A,A359,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A359,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+006,DARMI 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+006,DARMI 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+006,DARMI 3A,B787-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+006,DARMI 3A,B787-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B787-8,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+006,DARMI 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+006,DARMI 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+006,DARMI 3A,B787-9,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+006,DARMI 3A,B787-9,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B787-9,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+006,DARMI 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+006,DARMI 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+006,DARMI 3A,B787-10,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20940,FL209,310,419,291,1350,
+006,DARMI 3A,B787-10,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,117,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B787-10,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+006,DARMI 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+006,DARMI 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+006,DARMI 3A,B777-200,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20730,FL207,310,417,287,1300,
+006,DARMI 3A,B777-200,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,128,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B777-200,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+006,DARMI 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+006,DARMI 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+006,DARMI 3A,B777-200LR,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+006,DARMI 3A,B777-200LR,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B777-200LR,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+006,DARMI 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+006,DARMI 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+006,DARMI 3A,B777-300ER,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+006,DARMI 3A,B777-300ER,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B777-300ER,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+006,DARMI 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+006,DARMI 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+006,DARMI 3A,B777F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+006,DARMI 3A,B777F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+006,DARMI 3A,B777F,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,37,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+006,DARMI 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+006,DARMI 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+006,DARMI 3A,A350-1000,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20320,FL203,300,402,279,1200,
+006,DARMI 3A,A350-1000,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,151,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A350-1000,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+006,DARMI 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+006,DARMI 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+006,DARMI 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+006,DARMI 3A,B747-400,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+006,DARMI 3A,B747-400,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+006,DARMI 3A,B747-400,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,37,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+006,DARMI 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+006,DARMI 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+006,DARMI 3A,B747-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+006,DARMI 3A,B747-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+006,DARMI 3A,B747-8,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,37,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+006,DARMI 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+006,DARMI 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+006,DARMI 3A,B747-8F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,310,405,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+006,DARMI 3A,B747-8F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,310,424,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+006,DARMI 3A,B747-8F,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,82,0,"reaches the ceiling at this fix (23,000 ft)"
+006,DARMI 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+006,DARMI 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+006,DARMI 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+006,DARMI 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+006,DARMI 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+006,DARMI 3A,A388,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,300,393,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+006,DARMI 3A,A388,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,300,411,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+006,DARMI 3A,A388,8,NM510,18.067539,71.893572,14.0,106.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,82,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+007,ERVIS 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+007,ERVIS 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+007,ERVIS 3A,A320,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+007,ERVIS 3A,A320,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A320,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+007,ERVIS 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+007,ERVIS 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+007,ERVIS 3A,A321,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+007,ERVIS 3A,A321,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A321,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+007,ERVIS 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+007,ERVIS 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+007,ERVIS 3A,A359,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+007,ERVIS 3A,A359,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A359,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+007,ERVIS 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+007,ERVIS 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+007,ERVIS 3A,B787-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+007,ERVIS 3A,B787-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B787-8,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+007,ERVIS 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+007,ERVIS 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+007,ERVIS 3A,B787-9,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+007,ERVIS 3A,B787-9,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B787-9,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+007,ERVIS 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+007,ERVIS 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+007,ERVIS 3A,B787-10,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20940,FL209,310,419,291,1350,
+007,ERVIS 3A,B787-10,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,117,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B787-10,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+007,ERVIS 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+007,ERVIS 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+007,ERVIS 3A,B777-200,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20730,FL207,310,417,287,1300,
+007,ERVIS 3A,B777-200,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,128,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B777-200,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+007,ERVIS 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+007,ERVIS 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+007,ERVIS 3A,B777-200LR,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+007,ERVIS 3A,B777-200LR,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B777-200LR,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+007,ERVIS 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+007,ERVIS 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+007,ERVIS 3A,B777-300ER,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+007,ERVIS 3A,B777-300ER,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B777-300ER,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+007,ERVIS 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+007,ERVIS 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+007,ERVIS 3A,B777F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+007,ERVIS 3A,B777F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+007,ERVIS 3A,B777F,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+007,ERVIS 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+007,ERVIS 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+007,ERVIS 3A,A350-1000,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20320,FL203,300,402,279,1200,
+007,ERVIS 3A,A350-1000,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,151,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A350-1000,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+007,ERVIS 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+007,ERVIS 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+007,ERVIS 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+007,ERVIS 3A,B747-400,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+007,ERVIS 3A,B747-400,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+007,ERVIS 3A,B747-400,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+007,ERVIS 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+007,ERVIS 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+007,ERVIS 3A,B747-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+007,ERVIS 3A,B747-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+007,ERVIS 3A,B747-8,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+007,ERVIS 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+007,ERVIS 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+007,ERVIS 3A,B747-8F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,310,405,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+007,ERVIS 3A,B747-8F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,310,424,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+007,ERVIS 3A,B747-8F,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,47,0,"reaches the ceiling at this fix (23,000 ft)"
+007,ERVIS 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+007,ERVIS 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+007,ERVIS 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+007,ERVIS 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+007,ERVIS 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+007,ERVIS 3A,A388,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,300,393,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+007,ERVIS 3A,A388,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,300,411,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+007,ERVIS 3A,A388,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,47,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+008,GUNDI 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+008,GUNDI 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+008,GUNDI 3A,A320,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+008,GUNDI 3A,A320,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A320,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+008,GUNDI 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+008,GUNDI 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+008,GUNDI 3A,A321,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+008,GUNDI 3A,A321,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A321,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+008,GUNDI 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+008,GUNDI 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+008,GUNDI 3A,A359,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+008,GUNDI 3A,A359,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A359,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+008,GUNDI 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+008,GUNDI 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+008,GUNDI 3A,B787-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21620,FL216,300,410,307,1500,
+008,GUNDI 3A,B787-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,78,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B787-8,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+008,GUNDI 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+008,GUNDI 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+008,GUNDI 3A,B787-9,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,21180,FL212,300,407,297,1400,
+008,GUNDI 3A,B787-9,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,103,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B787-9,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+008,GUNDI 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+008,GUNDI 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+008,GUNDI 3A,B787-10,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20940,FL209,310,419,291,1350,
+008,GUNDI 3A,B787-10,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,117,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B787-10,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+008,GUNDI 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+008,GUNDI 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+008,GUNDI 3A,B777-200,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20730,FL207,310,417,287,1300,
+008,GUNDI 3A,B777-200,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,128,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B777-200,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+008,GUNDI 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+008,GUNDI 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+008,GUNDI 3A,B777-200LR,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+008,GUNDI 3A,B777-200LR,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B777-200LR,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+008,GUNDI 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+008,GUNDI 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+008,GUNDI 3A,B777-300ER,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19840,FL198,310,412,267,1500,"cannot reach the minimum 20000 ft with this type: about 1,606 fpm needed on this leg"
+008,GUNDI 3A,B777-300ER,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,310,432,179,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B777-300ER,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+008,GUNDI 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+008,GUNDI 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+008,GUNDI 3A,B777F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+008,GUNDI 3A,B777F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+008,GUNDI 3A,B777F,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+008,GUNDI 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+008,GUNDI 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+008,GUNDI 3A,A350-1000,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,20320,FL203,300,402,279,1200,
+008,GUNDI 3A,A350-1000,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,23000,FL230,300,419,151,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A350-1000,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,0,0,"flying level at the ceiling (23,000 ft)"
+008,GUNDI 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+008,GUNDI 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+008,GUNDI 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+008,GUNDI 3A,B747-400,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+008,GUNDI 3A,B747-400,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+008,GUNDI 3A,B747-400,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+008,GUNDI 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+008,GUNDI 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+008,GUNDI 3A,B747-8,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,19290,FL193,310,408,251,1400,"cannot reach the minimum 20000 ft with this type: about 1,681 fpm needed on this leg"
+008,GUNDI 3A,B747-8,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,22490,FL225,310,428,181,1000,"cannot reach the minimum 23000 ft with this type: about 1,269 fpm needed on this leg"
+008,GUNDI 3A,B747-8,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,21,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+008,GUNDI 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+008,GUNDI 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+008,GUNDI 3A,B747-8F,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,310,405,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+008,GUNDI 3A,B747-8F,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,310,424,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+008,GUNDI 3A,B747-8F,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,310,432,47,0,"reaches the ceiling at this fix (23,000 ft)"
+008,GUNDI 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+008,GUNDI 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+008,GUNDI 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+008,GUNDI 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+008,GUNDI 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+008,GUNDI 3A,A388,6,NM555,18.191264,72.43235,17.6,75.2,20000 to 23000 ft,<= 250 kt,18730,FL187,300,393,234,1300,"cannot reach the minimum 20000 ft with this type: about 1,754 fpm needed on this leg"
+008,GUNDI 3A,A388,7,NM508,18.11505,72.133114,17.7,92.9,at 23000 ft,<= 250 kt,21860,FL219,300,411,177,900,"cannot reach the minimum 23000 ft with this type: about 1,447 fpm needed on this leg"
+008,GUNDI 3A,A388,8,NM509,17.798444,71.863981,24.4,117.4,at 23000 ft,<= 250 kt,23000,FL230,300,419,47,0,"reaches the ceiling at this fix (23,000 ft)"
+009,AGELA 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+009,AGELA 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+009,AGELA 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+009,AGELA 3A,A320,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+009,AGELA 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+009,AGELA 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+009,AGELA 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+009,AGELA 3A,A321,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+009,AGELA 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+009,AGELA 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+009,AGELA 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+009,AGELA 3A,A359,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+009,AGELA 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+009,AGELA 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+009,AGELA 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+009,AGELA 3A,B787-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+009,AGELA 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+009,AGELA 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+009,AGELA 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+009,AGELA 3A,B787-9,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+009,AGELA 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+009,AGELA 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+009,AGELA 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+009,AGELA 3A,B787-10,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19090,FL191,310,407,312,1750,
+009,AGELA 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+009,AGELA 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+009,AGELA 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+009,AGELA 3A,B777-200,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18870,FL189,310,406,304,1700,
+009,AGELA 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+009,AGELA 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+009,AGELA 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+009,AGELA 3A,B777-200LR,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+009,AGELA 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+009,AGELA 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+009,AGELA 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+009,AGELA 3A,B777-300ER,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+009,AGELA 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+009,AGELA 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+009,AGELA 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+009,AGELA 3A,B777F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+009,AGELA 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+009,AGELA 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+009,AGELA 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+009,AGELA 3A,A350-1000,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18430,FL184,300,391,287,1600,
+009,AGELA 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+009,AGELA 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+009,AGELA 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+009,AGELA 3A,B747-400,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+009,AGELA 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+009,AGELA 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+009,AGELA 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+009,AGELA 3A,B747-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+009,AGELA 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+009,AGELA 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+009,AGELA 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+009,AGELA 3A,B747-8F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,310,395,237,1300,
+009,AGELA 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+009,AGELA 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+009,AGELA 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+009,AGELA 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+009,AGELA 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+009,AGELA 3A,A388,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,300,383,237,1300,
+010,EPKOS 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+010,EPKOS 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+010,EPKOS 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+010,EPKOS 3A,A320,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+010,EPKOS 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+010,EPKOS 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+010,EPKOS 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+010,EPKOS 3A,A321,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+010,EPKOS 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+010,EPKOS 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+010,EPKOS 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+010,EPKOS 3A,A359,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+010,EPKOS 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+010,EPKOS 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+010,EPKOS 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+010,EPKOS 3A,B787-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+010,EPKOS 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+010,EPKOS 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+010,EPKOS 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+010,EPKOS 3A,B787-9,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+010,EPKOS 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+010,EPKOS 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+010,EPKOS 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+010,EPKOS 3A,B787-10,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19090,FL191,310,407,312,1750,
+010,EPKOS 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+010,EPKOS 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+010,EPKOS 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+010,EPKOS 3A,B777-200,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18870,FL189,310,406,304,1700,
+010,EPKOS 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+010,EPKOS 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+010,EPKOS 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+010,EPKOS 3A,B777-200LR,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+010,EPKOS 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+010,EPKOS 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+010,EPKOS 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+010,EPKOS 3A,B777-300ER,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+010,EPKOS 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+010,EPKOS 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+010,EPKOS 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+010,EPKOS 3A,B777F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+010,EPKOS 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+010,EPKOS 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+010,EPKOS 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+010,EPKOS 3A,A350-1000,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18430,FL184,300,391,287,1600,
+010,EPKOS 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+010,EPKOS 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+010,EPKOS 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+010,EPKOS 3A,B747-400,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+010,EPKOS 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+010,EPKOS 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+010,EPKOS 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+010,EPKOS 3A,B747-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+010,EPKOS 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+010,EPKOS 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+010,EPKOS 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+010,EPKOS 3A,B747-8F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,310,395,237,1300,
+010,EPKOS 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+010,EPKOS 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+010,EPKOS 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+010,EPKOS 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+010,EPKOS 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+010,EPKOS 3A,A388,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,300,383,237,1300,
+011,MABTA 3A,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+011,MABTA 3A,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+011,MABTA 3A,A320,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,A320,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+011,MABTA 3A,A320,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+011,MABTA 3A,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+011,MABTA 3A,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+011,MABTA 3A,A321,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,31,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,A321,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+011,MABTA 3A,A321,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+011,MABTA 3A,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+011,MABTA 3A,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+011,MABTA 3A,A359,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,16,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,A359,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+011,MABTA 3A,A359,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+011,MABTA 3A,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+011,MABTA 3A,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+011,MABTA 3A,B787-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,3,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B787-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,16200,FL162,300,378,359,1900,
+011,MABTA 3A,B787-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19740,FL197,300,399,336,1900,
+011,MABTA 3A,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+011,MABTA 3A,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+011,MABTA 3A,B787-9,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,17,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B787-9,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15930,FL159,300,377,341,1800,
+011,MABTA 3A,B787-9,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19310,FL193,300,396,320,1800,
+011,MABTA 3A,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+011,MABTA 3A,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+011,MABTA 3A,B787-10,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B787-10,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15800,FL158,310,388,332,1750,
+011,MABTA 3A,B787-10,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,19090,FL191,310,407,312,1750,
+011,MABTA 3A,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+011,MABTA 3A,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+011,MABTA 3A,B777-200,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,31,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B777-200,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15670,FL157,310,387,323,1700,
+011,MABTA 3A,B777-200,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18870,FL189,310,406,304,1700,
+011,MABTA 3A,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+011,MABTA 3A,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+011,MABTA 3A,B777-200LR,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,81,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B777-200LR,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+011,MABTA 3A,B777-200LR,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+011,MABTA 3A,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+011,MABTA 3A,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+011,MABTA 3A,B777-300ER,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,83,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B777-300ER,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15140,FL151,310,384,286,1500,
+011,MABTA 3A,B777-300ER,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17990,FL180,310,401,271,1500,
+011,MABTA 3A,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+011,MABTA 3A,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+011,MABTA 3A,B777F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B777F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+011,MABTA 3A,B777F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+011,MABTA 3A,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+011,MABTA 3A,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+011,MABTA 3A,A350-1000,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,64,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,A350-1000,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,15400,FL154,300,374,304,1600,
+011,MABTA 3A,A350-1000,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,18430,FL184,300,391,287,1600,
+011,MABTA 3A,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+011,MABTA 3A,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+011,MABTA 3A,B747-400,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B747-400,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+011,MABTA 3A,B747-400,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+011,MABTA 3A,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+011,MABTA 3A,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+011,MABTA 3A,B747-8,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,100,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B747-8,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14870,FL149,310,383,267,1400,
+011,MABTA 3A,B747-8,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17550,FL175,310,398,254,1400,
+011,MABTA 3A,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+011,MABTA 3A,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+011,MABTA 3A,B747-8F,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,280,328,119,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,B747-8F,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,310,381,249,1300,
+011,MABTA 3A,B747-8F,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,310,395,237,1300,
+011,MABTA 3A,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+011,MABTA 3A,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+011,MABTA 3A,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+011,MABTA 3A,A388,4,BB151,18.504781,72.697494,23.6,43.1,at 11000 ft,<= 250 kt,11000,FL110,275,322,117,0,"reaches the ceiling at this fix (11,000 ft)"
+011,MABTA 3A,A388,5,NM554,18.265906,72.731389,14.5,57.6,>=14000 ft,<= 250 kt,14600,FL146,300,369,249,1300,
+011,MABTA 3A,A388,6,BB152,18.092092,72.75845,10.5,68.2,,<= 250 kt,17100,FL171,300,383,237,1300,
+015,NONEN 3A - KAPKO,A320,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,A320,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+015,NONEN 3A - KAPKO,A320,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+015,NONEN 3A - KAPKO,A320,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,101,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,A320,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18970,FL190,300,394,349,1900,
+015,NONEN 3A - KAPKO,A320,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,4,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,A320,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23570,FL236,300,422,265,1500,
+015,NONEN 3A - KAPKO,A320,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,24,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,A321,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,A321,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+015,NONEN 3A - KAPKO,A321,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10270,FL103,257,298,458,1800,
+015,NONEN 3A - KAPKO,A321,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,163,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,A321,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18620,FL186,300,392,331,1800,
+015,NONEN 3A - KAPKO,A321,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,52,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,A321,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23320,FL233,300,421,250,1400,
+015,NONEN 3A - KAPKO,A321,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,28,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,A359,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,A359,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+015,NONEN 3A - KAPKO,A359,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10620,FL106,266,310,474,1900,
+015,NONEN 3A - KAPKO,A359,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,130,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,A359,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18970,FL190,300,394,349,1900,
+015,NONEN 3A - KAPKO,A359,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,4,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,A359,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23570,FL236,300,422,265,1500,
+015,NONEN 3A - KAPKO,A359,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,24,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B787-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,150,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B787-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4720,,250,267,710,2400,
+015,NONEN 3A - KAPKO,B787-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10930,FL109,273,319,482,1900,
+015,NONEN 3A - KAPKO,B787-8,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,101,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B787-8,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18970,FL190,300,394,349,1900,
+015,NONEN 3A - KAPKO,B787-8,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,4,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B787-8,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23570,FL236,300,422,265,1500,
+015,NONEN 3A - KAPKO,B787-8,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,24,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B787-9,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B787-9,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4520,,250,267,679,2300,
+015,NONEN 3A - KAPKO,B787-9,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10600,FL106,265,308,472,1800,
+015,NONEN 3A - KAPKO,B787-9,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,132,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B787-9,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18620,FL186,300,392,331,1800,
+015,NONEN 3A - KAPKO,B787-9,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,52,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B787-9,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23320,FL233,300,421,250,1400,
+015,NONEN 3A - KAPKO,B787-9,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,28,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B787-10,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B787-10,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+015,NONEN 3A - KAPKO,B787-10,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,458,1750,
+015,NONEN 3A - KAPKO,B787-10,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,310,367,164,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B787-10,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18440,FL184,310,403,322,1750,
+015,NONEN 3A - KAPKO,B787-10,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,310,407,76,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B787-10,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23180,FL232,310,433,242,1350,
+015,NONEN 3A - KAPKO,B787-10,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,31,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B777-200,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,155,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B777-200,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4370,,250,266,657,2200,
+015,NONEN 3A - KAPKO,B777-200,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,10260,FL103,258,299,457,1700,
+015,NONEN 3A - KAPKO,B777-200,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,310,367,164,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B777-200,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,18270,FL183,310,402,314,1700,
+015,NONEN 3A - KAPKO,B777-200,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,310,407,100,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B777-200,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,23040,FL230,310,432,234,1300,
+015,NONEN 3A - KAPKO,B777-200,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,33,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B777-200LR,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B777-200LR,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3870,,250,264,581,1900,
+015,NONEN 3A - KAPKO,B777-200LR,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9080,FL091,250,285,404,1900,
+015,NONEN 3A - KAPKO,B777-200LR,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,310,367,276,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B777-200LR,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17560,FL176,310,398,278,1500,
+015,NONEN 3A - KAPKO,B777-200LR,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,310,407,197,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B777-200LR,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22500,FL225,310,428,203,1100,
+015,NONEN 3A - KAPKO,B777-200LR,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,42,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B777-300ER,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B777-300ER,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3820,,250,264,573,1900,
+015,NONEN 3A - KAPKO,B777-300ER,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9030,FL090,250,285,405,1900,
+015,NONEN 3A - KAPKO,B777-300ER,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,310,367,280,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,B777-300ER,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17560,FL176,310,398,278,1500,
+015,NONEN 3A - KAPKO,B777-300ER,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,310,407,197,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,B777-300ER,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22500,FL225,310,428,203,1100,
+015,NONEN 3A - KAPKO,B777-300ER,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,42,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B777F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B777F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+015,NONEN 3A - KAPKO,B777F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+015,NONEN 3A - KAPKO,B777F,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,11910,FL119,307,363,310,1400,
+015,NONEN 3A - KAPKO,B777F,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17120,FL171,310,396,261,1400,
+015,NONEN 3A - KAPKO,B777F,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,18920,FL189,310,406,247,1400,
+015,NONEN 3A - KAPKO,B777F,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22170,FL222,310,426,188,1000,
+015,NONEN 3A - KAPKO,B777F,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,47,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,A350-1000,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,160,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,A350-1000,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,4020,,250,265,604,2000,
+015,NONEN 3A - KAPKO,A350-1000,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,9480,FL095,250,286,424,2000,
+015,NONEN 3A - KAPKO,A350-1000,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,12000,FL120,300,356,238,0,"reaches the ceiling at this fix (12,000 ft)"
+015,NONEN 3A - KAPKO,A350-1000,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17910,FL179,300,388,296,1600,
+015,NONEN 3A - KAPKO,A350-1000,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,19000,FL190,300,394,149,0,"reaches the ceiling at this fix (19,000 ft)"
+015,NONEN 3A - KAPKO,A350-1000,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22790,FL228,300,417,219,1200,
+015,NONEN 3A - KAPKO,A350-1000,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,37,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B747-400,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B747-400,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+015,NONEN 3A - KAPKO,B747-400,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+015,NONEN 3A - KAPKO,B747-400,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,11910,FL119,307,363,310,1400,
+015,NONEN 3A - KAPKO,B747-400,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17120,FL171,310,396,261,1400,
+015,NONEN 3A - KAPKO,B747-400,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,18920,FL189,310,406,247,1400,
+015,NONEN 3A - KAPKO,B747-400,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22170,FL222,310,426,188,1000,
+015,NONEN 3A - KAPKO,B747-400,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,47,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B747-8,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B747-8,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3670,,250,263,550,1800,
+015,NONEN 3A - KAPKO,B747-8,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8630,FL086,250,283,385,1800,
+015,NONEN 3A - KAPKO,B747-8,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,11910,FL119,307,363,310,1400,
+015,NONEN 3A - KAPKO,B747-8,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,17120,FL171,310,396,261,1400,
+015,NONEN 3A - KAPKO,B747-8,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,18920,FL189,310,406,247,1400,
+015,NONEN 3A - KAPKO,B747-8,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,22170,FL222,310,426,188,1000,
+015,NONEN 3A - KAPKO,B747-8,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,47,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,B747-8F,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,170,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,B747-8F,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3460,,250,263,520,1700,
+015,NONEN 3A - KAPKO,B747-8F,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8180,FL082,250,281,366,1700,
+015,NONEN 3A - KAPKO,B747-8F,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,11390,FL114,292,343,303,1300,
+015,NONEN 3A - KAPKO,B747-8F,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,16280,FL163,310,391,245,1300,
+015,NONEN 3A - KAPKO,B747-8F,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,17980,FL180,310,401,233,1300,
+015,NONEN 3A - KAPKO,B747-8F,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,21290,FL213,310,421,192,900,"cannot reach the minimum 22000 ft with this type: about 1,383 fpm needed on this leg"
+015,NONEN 3A - KAPKO,B747-8F,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,310,445,62,0,"reaches the ceiling at this fix (25,000 ft)"
+015,NONEN 3A - KAPKO,A388,1,RWY27,19.0887,72.8679,0.0,0.0,>=1700 ft,<= 250 kt,20,,165,0,0,0,start of take-off roll at the runway point; the >=1700 ft requirement is checked at BB154 (climb-out altitude before the turn)
+015,NONEN 3A - KAPKO,A388,2,BB154,19.08705,72.751211,6.6,6.6,,<= 250 kt,3520,,250,263,527,1700,
+015,NONEN 3A - KAPKO,A388,3,BB150,18.895778,72.6488,12.9,19.5,>=6000 ft,<= 250 kt,8220,FL082,250,281,366,1700,
+015,NONEN 3A - KAPKO,A388,4,BB155,18.720539,72.670886,10.6,30.1,11000 to 12000 ft,<= 250 kt,11440,FL114,286,337,303,1300,
+015,NONEN 3A - KAPKO,A388,5,NM557,18.757989,73.020133,20.0,50.1,>=15000 ft,<= 250 kt,16320,FL163,300,379,244,1300,
+015,NONEN 3A - KAPKO,A388,6,NM503,18.774561,73.147575,7.3,57.4,17000 to 19000 ft,<= 250 kt,18020,FL180,300,388,232,1300,
+015,NONEN 3A - KAPKO,A388,7,NM563,18.992031,73.346422,17.3,74.7,>=22000 ft,<= 250 kt,21330,FL213,300,408,192,900,"cannot reach the minimum 22000 ft with this type: about 1,370 fpm needed on this leg"
+015,NONEN 3A - KAPKO,A388,8,KAPKO,19.76,74.015833,59.7,134.3,at 25000 ft,<= 250 kt,25000,FL250,300,432,61,0,"reaches the ceiling at this fix (25,000 ft)"

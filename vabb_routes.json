@@ -1,208 +1,189 @@
 {
-    "routes": [
-        {
-            "id": "001",
-            "waypoints": [
-                {
-                    "name": "MB379",
-                    "latitude": 19.216667,
-                    "longitude": 72.603333,
-                    "altitude": {
-                        "type": "AT_OR_BELOW",
-                        "feet": 12000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    }
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 11000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 33
-                    }
-                },
-                {
-                    "name": "OLGUS",
-                    "latitude": 19.215000,
-                    "longitude": 73.473333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 8100
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 210
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 155
-                    }
-                }
-            ],
-            "approach_trigger": "OLGUS"
+  "routes": {
+    "001": {
+      "AKTIV": {},
+      "DOBVU": {
+        "altitude": {
+          "type": "AT",
+          "feet": 15000
         },
-        {
-            "id": "002",
-            "waypoints": [
-                {
-                    "name": "MB393",
-                    "latitude": 18.906667,
-                    "longitude": 72.615000,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 11000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    }
-                },
-                {
-                    "name": "LIKTA",
-                    "latitude": 18.926667,
-                    "longitude": 73.151667,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 10000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 33
-                    }
-                },
-                {
-                    "name": "MB395",
-                    "latitude": 18.936667,
-                    "longitude": 73.380000,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 7700
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 210
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 177
-                    }
-                }
-            ],
-            "approach_trigger": "MB395"
-        },
-        {
-            "id": "003",
-            "waypoints": [
-                {
-                    "name": "MB379",
-                    "latitude": 19.216667,
-                    "longitude": 72.603333,
-                    "altitude": {
-                        "type": "AT_OR_BELOW",
-                        "feet": 12000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    }
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 11000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 33
-                    }
-                },
-                {
-                    "name": "OLGUS",
-                    "latitude": 19.215000,
-                    "longitude": 73.473333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 7300
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 210
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 37
-                    }
-                }
-            ],
-            "approach_trigger": "OLGUS"
-        },
-        {
-            "id": "004",
-            "waypoints": [
-                {
-                    "name": "MB392",
-                    "latitude": 19.518333,
-                    "longitude": 73.150000,
-                    "altitude": {
-                        "type": "AT_OR_BELOW",
-                        "feet": 10000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    }
-                },
-                {
-                    "name": "EMROS",
-                    "latitude": 19.211667,
-                    "longitude": 73.143333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 8000
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 230
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 109
-                    }
-                },
-                {
-                    "name": "OLGUS",
-                    "latitude": 19.215000,
-                    "longitude": 73.473333,
-                    "altitude": {
-                        "type": "AT",
-                        "feet": 7300
-                    },
-                    "speed": {
-                        "type": "MAX",
-                        "knots": 210
-                    },
-                    "vertical_profile": {
-                        "descent_ft_per_nm": 37
-                    }
-                }
-            ],
-            "approach_trigger": "OLGUS"
+        "speed": {
+          "type": "MAX",
+          "knots": 230
         }
-    ]
+      },
+      "BB255": {
+        "altitude": {
+          "type": "AT_OR_BELOW",
+          "feet": 9000
+        }
+      },
+      "BB256": {
+        "altitude": {
+          "type": "AT",
+          "feet": 8000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 190
+        }
+      },
+      "BB257": {},
+      "BB266": {}
+    },
+    "002": {
+      "IPNIB": {},
+      "NM625": {
+        "altitude": {
+          "type": "AT",
+          "feet": 28000
+        }
+      },
+      "NM515": {
+        "altitude": {
+          "type": "AT",
+          "feet": 27000
+        }
+      },
+      "NM626": {
+        "altitude": {
+          "type": "AT",
+          "feet": 25000
+        }
+      },
+      "GUTMU": {
+        "speed": {
+          "type": "MAX",
+          "knots": 250
+        }
+      },
+      "NM665": {
+        "altitude": {
+          "type": "AT_OR_ABOVE",
+          "feet": 16000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 230
+        }
+      },
+      "NM667": {
+        "altitude": {
+          "type": "AT",
+          "feet": 16000
+        }
+      },
+      "NM668": {
+        "altitude": {
+          "type": "AT_OR_ABOVE",
+          "feet": 14000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 230
+        }
+      },
+      "BB264": {
+        "altitude": {
+          "type": "AT",
+          "feet": 9000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 190
+        }
+      },
+      "BB257": {},
+      "BB266": {}
+    },
+    "003": {
+      "EXOLU": {},
+      "NM624": {
+        "altitude": {
+          "type": "AT",
+          "feet": 24000
+        }
+      },
+      "GUTMU": {
+        "speed": {
+          "type": "MAX",
+          "knots": 250
+        }
+      },
+      "NM665": {
+        "altitude": {
+          "type": "AT_OR_ABOVE",
+          "feet": 16000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 230
+        }
+      },
+      "NM667": {
+        "altitude": {
+          "type": "AT",
+          "feet": 16000
+        }
+      },
+      "NM668": {
+        "altitude": {
+          "type": "AT_OR_ABOVE",
+          "feet": 14000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 230
+        }
+      },
+      "BB264": {
+        "altitude": {
+          "type": "AT",
+          "feet": 9000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 190
+        }
+      },
+      "BB257": {},
+      "BB266": {}
+    },
+    "004": {
+      "OPAKA": {},
+      "VELKO": {
+        "altitude": {
+          "type": "AT_OR_ABOVE",
+          "feet": 12000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 230
+        }
+      },
+      "BB258": {
+        "altitude": {
+          "type": "AT",
+          "feet": 11000
+        }
+      },
+      "BB259": {
+        "altitude": {
+          "type": "AT",
+          "feet": 11000
+        },
+        "speed": {
+          "type": "MAX",
+          "knots": 190
+        }
+      },
+      "BB257": {
+        "altitude": {
+          "type": "AT",
+          "feet": 10000
+        }
+      },
+      "BB266": {}
+    }
+  }
 }

@@ -1,198 +1,225 @@
-{
-  "holding_routes": [
-    {
-      "id": "H-EMROS",
-      "fix": "EMROS",
-      "trigger_waypoint": "EMROS",
-      "source_routes": ["001", "003", "004"],
-      "capacity": 3,
-      "inbound_course_true": 181.25,
-      "inbound_course_mag": 182.0,
-      "turn_direction": "L",
-      "entry_turn_directions": {
-        "003": "R"
-      },
-      "entry_direct_join_routes": ["003"],
-      "leg_length_nm": 7,
-      "adaptive_leg_length_nm": {
-        "enabled": true,
-        "short_nm": 4,
-        "standard_nm": 7
-      },
-      "upper_limit": "FL110",
-      "lower_limit": "FL80",
-      "max_speed_kt": 230,
-      "turn_radius_nm": 3.66,
-      "waypoints": [
-        {
-          "name": "EMROS",
-          "latitude": 19.211667,
-          "longitude": 73.143333
-        },
-        {
-          "name": "EMROS_OUTBOUND_START",
-          "latitude": 19.209005,
-          "longitude": 73.272517
-        },
-        {
-          "name": "EMROS_OUTBOUND_END",
-          "latitude": 19.325644,
-          "longitude": 73.275304
-        },
-        {
-          "name": "EMROS_INBOUND_START",
-          "latitude": 19.328306,
-          "longitude": 73.146028
-        },
-        {
-          "name": "EMROS",
-          "latitude": 19.211667,
-          "longitude": 73.143333
-        }
-      ]
+[
+  {
+    "id": "H-GUTMU",
+    "fix": "GUTMU",
+    "trigger_waypoint": "GUTMU",
+    "source_routes": ["002", "003"],
+    "waypoints": [{"name": "GUTMU", "latitude": 19.588292, "longitude": 72.269156}],
+    "capacity": 3,
+    "holding_levels_ft": [12000, 14000, 16000, 18000],
+    "inbound_course_mag": 130,
+    "inbound_course_true": 129.25,
+    "turn_direction": "R",
+    "leg_length_nm": 10,
+    "adaptive_leg_length_nm": {
+      "enabled": true,
+      "short_nm": 7,
+      "standard_nm": 10
     },
-    {
-      "id": "H-OLGUS",
-      "fix": "OLGUS",
-      "trigger_waypoint": "OLGUS",
-      "source_routes": ["001", "003", "004"],
-      "capacity": 3,
-      "inbound_course_true": 241.43,
-      "inbound_course_mag": 242.18,
-      "turn_direction": "L",
-      "entry_turn_direction": "R",
-      "leg_length_nm": 7,
-      "adaptive_leg_length_nm": {
-        "enabled": true,
-        "short_nm": 4,
-        "standard_nm": 7
-      },
-      "upper_limit": "FL110",
-      "lower_limit": "FL80",
-      "max_speed_kt": 230,
-      "turn_radius_nm": 3.66,
-      "waypoints": [
-        {
-          "name": "OLGUS",
-          "latitude": 19.215,
-          "longitude": 73.473333
-        },
-        {
-          "name": "OLGUS_OUTBOUND_START",
-          "latitude": 19.107839,
-          "longitude": 73.535129
-        },
-        {
-          "name": "OLGUS_OUTBOUND_END",
-          "latitude": 19.163633,
-          "longitude": 73.643655
-        },
-        {
-          "name": "OLGUS_INBOUND_START",
-          "latitude": 19.270794,
-          "longitude": 73.581838
-        },
-        {
-          "name": "OLGUS",
-          "latitude": 19.215,
-          "longitude": 73.473333
-        }
-      ]
+    "upper_limit": "FL180",
+    "lower_limit": "FL100",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["EXOLU", "IPNIB"],
+    "entry_by_arrival": {"EXOLU": {"course_true": 133, "type": "direct"}, "IPNIB": {"course_true": 170, "type": "direct"}},
+    "route_after_hold": ["NM665", "NM667", "NM668", "BB264", "BB257"],
+    "published": true,
+    "downstream_capacity": 6
+  },
+  {
+    "id": "H-DOBVU",
+    "fix": "DOBVU",
+    "trigger_waypoint": "DOBVU",
+    "source_routes": ["001"],
+    "waypoints": [{"name": "DOBVU", "latitude": 19.806797, "longitude": 73.114522}],
+    "capacity": 3,
+    "holding_levels_ft": [12000, 14000, 16000, 18000],
+    "inbound_course_mag": 198,
+    "inbound_course_true": 197.25,
+    "turn_direction": "L",
+    "leg_length_nm": 10,
+    "adaptive_leg_length_nm": {
+      "enabled": true,
+      "short_nm": 7,
+      "standard_nm": 10
     },
-    {
-      "id": "H-LIKTA",
-      "fix": "LIKTA",
-      "trigger_waypoint": "LIKTA",
-      "source_routes": ["002"],
-      "capacity": 3,
-      "inbound_course_true": 358.57,
-      "inbound_course_mag": 359.32,
-      "turn_direction": "R",
-      "entry_turn_direction": "L",
-      "leg_length_nm": 7,
-      "adaptive_leg_length_nm": {
-        "enabled": true,
-        "short_nm": 4 ,
-        "standard_nm": 7
-      },
-      "upper_limit": "FL110",
-      "lower_limit": "FL70",
-      "max_speed_kt": 230,
-      "turn_radius_nm": 3.66,
-      "waypoints": [
-        {
-          "name": "LIKTA",
-          "latitude": 18.926667,
-          "longitude": 73.151667
-        },
-        {
-          "name": "LIKTA_OUTBOUND_START",
-          "latitude": 18.929712,
-          "longitude": 73.28062
-        },
-        {
-          "name": "LIKTA_OUTBOUND_END",
-          "latitude": 18.813082,
-          "longitude": 73.283608
-        },
-        {
-          "name": "LIKTA_INBOUND_START",
-          "latitude": 18.810037,
-          "longitude": 73.154745
-        },
-        {
-          "name": "LIKTA",
-          "latitude": 18.926667,
-          "longitude": 73.151667
-        }
-      ]
+    "upper_limit": "FL180",
+    "lower_limit": "FL100",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["AKTIV"],
+    "entry_by_arrival": {"AKTIV": {"course_true": 197, "type": "direct"}},
+    "route_after_hold": ["BB255", "BB256", "BB257"],
+    "published": true,
+    "downstream_capacity": 6
+  },
+  {
+    "id": "H-VELKO",
+    "fix": "VELKO",
+    "trigger_waypoint": "VELKO",
+    "source_routes": ["004"],
+    "waypoints": [{"name": "VELKO", "latitude": 19.402567, "longitude": 73.588061}],
+    "capacity": 3,
+    "holding_levels_ft": [12000, 14000, 16000, 18000],
+    "inbound_course_mag": 255,
+    "inbound_course_true": 254.25,
+    "turn_direction": "L",
+    "leg_length_nm": 10,
+    "adaptive_leg_length_nm": {
+      "enabled": true,
+      "short_nm": 7,
+      "standard_nm": 10
     },
-    {
-      "id": "H-EMRAK",
-      "fix": "EMRAK",
-      "trigger_waypoint": "EMRAK",
-      "source_routes": ["005"],
-      "capacity": 3,
-      "inbound_course_true": 253.81,
-      "inbound_course_mag": 254.56,
-      "turn_direction": "L",
-      "leg_length_nm": 10,
-      "adaptive_leg_length_nm": {
-        "enabled": true,
-        "short_nm": 7,
-        "standard_nm": 10
-      },
-      "upper_limit": "FL220",
-      "lower_limit": "FL120",
-      "max_speed_kt": 230,
-      "turn_radius_nm": 3.66,
-      "waypoints": [
-        {
-          "name": "EMRAK",
-          "latitude": 19.420442,
-          "longitude": 73.871094
-        },
-        {
-          "name": "EMRAK_OUTBOUND_START",
-          "latitude": 19.303262,
-          "longitude": 73.907168
-        },
-        {
-          "name": "EMRAK_OUTBOUND_END",
-          "latitude": 19.349733,
-          "longitude": 74.076892
-        },
-        {
-          "name": "EMRAK_INBOUND_START",
-          "latitude": 19.466913,
-          "longitude": 74.040807
-        },
-        {
-          "name": "EMRAK",
-          "latitude": 19.420442,
-          "longitude": 73.871094
-        }
-      ]
-    }
-  ]
-}
+    "upper_limit": "FL180",
+    "lower_limit": "FL100",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["OPAKA"],
+    "entry_by_arrival": {"OPAKA": {"course_true": 258, "type": "direct"}},
+    "route_after_hold": ["BB258", "BB259", "BB257"],
+    "published": true,
+    "downstream_capacity": 6
+  },
+  {
+    "id": "H-AKTOD",
+    "fix": "AKTOD",
+    "trigger_waypoint": "AKTOD",
+    "source_routes": ["009", "010", "011", "012", "013", "014"],
+    "waypoints": [{"name": "AKTOD", "latitude": 18.59205, "longitude": 72.273436}],
+    "capacity": 3,
+    "holding_levels_ft": [12000, 14000, 16000, 18000],
+    "inbound_course_mag": 40,
+    "inbound_course_true": 39.25,
+    "turn_direction": "L",
+    "leg_length_nm": 10,
+    "adaptive_leg_length_nm": {
+      "enabled": true,
+      "short_nm": 7,
+      "standard_nm": 10
+    },
+    "upper_limit": "FL180",
+    "lower_limit": "FL100",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["BISET", "DARMI", "ERVIS", "GUNDI", "KABSO", "SUGID"],
+    "entry_by_arrival": {"BISET": {"course_true": 86, "type": "direct"}, "DARMI": {"course_true": 64, "type": "direct"}, "ERVIS": {"course_true": 16, "type": "direct"}, "GUNDI": {"course_true": 64, "type": "direct"}, "KABSO": {"course_true": 16, "type": "direct"}, "SUGID": {"course_true": 109, "type": "parallel", "note": "borderline, near a sector edge"}},
+    "route_after_hold": ["BB260", "BB261", "BB262", "BB263", "BB253", "BB254"],
+    "published": true,
+    "downstream_capacity": 6
+  },
+  {
+    "id": "H-UKETU",
+    "fix": "UKETU",
+    "trigger_waypoint": "UKETU",
+    "source_routes": ["006", "007", "008"],
+    "waypoints": [{"name": "UKETU", "latitude": 18.424089, "longitude": 73.300225}],
+    "capacity": 3,
+    "holding_levels_ft": [12000, 14000, 16000, 18000],
+    "inbound_course_mag": 335,
+    "inbound_course_true": 334.25,
+    "turn_direction": "R",
+    "leg_length_nm": 10,
+    "adaptive_leg_length_nm": {
+      "enabled": true,
+      "short_nm": 7,
+      "standard_nm": 10
+    },
+    "upper_limit": "FL180",
+    "lower_limit": "FL100",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["EPKOS", "BEDOL", "AGELA"],
+    "entry_by_arrival": {"EPKOS": {"course_true": 318, "type": "direct"}, "BEDOL": {"course_true": 318, "type": "direct"}, "AGELA": {"course_true": 318, "type": "direct"}},
+    "route_after_hold": ["BB251", "BB252", "BB253", "BB254"],
+    "published": true,
+    "downstream_capacity": 6
+  },
+  {
+    "id": "H-BB263-SYN",
+    "fix": "BB263",
+    "trigger_waypoint": "BB263",
+    "source_routes": ["009", "010", "011", "012", "013", "014"],
+    "waypoints": [{"name": "BB263", "latitude": 18.882406, "longitude": 73.030869}],
+    "capacity": 2,
+    "inbound_course_mag": 83,
+    "inbound_course_true": 82.25,
+    "turn_direction": "R",
+    "leg_length_nm": 5,
+    "lower_limit": "FL100",
+    "upper_limit": "FL180",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["BISET", "DARMI", "ERVIS", "GUNDI", "KABSO", "SUGID"],
+    "entry_by_arrival": {"BISET": {"course_true": 82, "type": "direct"}, "DARMI": {"course_true": 82, "type": "direct"}, "ERVIS": {"course_true": 82, "type": "direct"}, "GUNDI": {"course_true": 82, "type": "direct"}, "KABSO": {"course_true": 82, "type": "direct"}, "SUGID": {"course_true": 82, "type": "direct"}},
+    "route_after_hold": ["BB253", "BB254"],
+    "published": false,
+    "synthetic": true,
+    "status": "SYNTHETIC - NOT PUBLISHED"
+  },
+  {
+    "id": "H-NM668-SYN",
+    "fix": "NM668",
+    "trigger_waypoint": "NM668",
+    "source_routes": ["002", "003"],
+    "waypoints": [{"name": "NM668", "latitude": 19.438456, "longitude": 72.779683}],
+    "capacity": 2,
+    "inbound_course_mag": 94,
+    "inbound_course_true": 93.25,
+    "turn_direction": "R",
+    "leg_length_nm": 5,
+    "lower_limit": "FL100",
+    "upper_limit": "FL180",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["IPNIB", "EXOLU"],
+    "entry_by_arrival": {"IPNIB": {"course_true": 93, "type": "direct"}, "EXOLU": {"course_true": 93, "type": "direct"}},
+    "route_after_hold": ["BB264", "BB257", "BB266"],
+    "published": false,
+    "synthetic": true,
+    "status": "SYNTHETIC - NOT PUBLISHED"
+  },
+  {
+    "id": "H-BB256-SYN",
+    "fix": "BB256",
+    "trigger_waypoint": "BB256",
+    "source_routes": ["001"],
+    "waypoints": [{"name": "BB256", "latitude": 19.359756, "longitude": 73.134664}],
+    "capacity": 2,
+    "inbound_course_mag": 178,
+    "inbound_course_true": 177.25,
+    "turn_direction": "R",
+    "leg_length_nm": 5,
+    "lower_limit": "FL100",
+    "upper_limit": "FL180",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["AKTIV"],
+    "entry_by_arrival": {"AKTIV": {"course_true": 177, "type": "direct"}},
+    "route_after_hold": ["BB257", "BB266"],
+    "published": false,
+    "synthetic": true,
+    "status": "SYNTHETIC - NOT PUBLISHED"
+  },
+  {
+    "id": "H-BB252-SYN",
+    "fix": "BB252",
+    "trigger_waypoint": "BB252",
+    "source_routes": ["006", "007", "008"],
+    "waypoints": [{"name": "BB252", "latitude": 18.827858, "longitude": 73.377053}],
+    "capacity": 2,
+    "inbound_course_mag": 3,
+    "inbound_course_true": 2.25,
+    "turn_direction": "R",
+    "leg_length_nm": 5,
+    "lower_limit": "FL100",
+    "upper_limit": "FL180",
+    "max_speed_kt": 230,
+    "turn_radius_nm": 3.66,
+    "entry_fixes": ["AGELA", "BEDOL", "EPKOS"],
+    "entry_by_arrival": {"AGELA": {"course_true": 2, "type": "direct"}, "BEDOL": {"course_true": 2, "type": "direct"}, "EPKOS": {"course_true": 2, "type": "direct"}},
+    "route_after_hold": ["BB253", "BB254"],
+    "published": false,
+    "synthetic": true,
+    "status": "SYNTHETIC - NOT PUBLISHED"
+  }
+]

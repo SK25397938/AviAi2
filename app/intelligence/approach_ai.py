@@ -7,6 +7,7 @@ from math import sqrt
 from math import atan2
 
 from app.intelligence.instruction_manager import instruction_manager
+from app.navigation.speed_conversion import indicated_to_true_airspeed
 
 
 class ApproachAI:
@@ -128,7 +129,10 @@ class ApproachAI:
         if speed is not None:
             sequencing_ceiling = getattr(aircraft, "_sequence_speed_ceiling", None)
             if isinstance(sequencing_ceiling, (int, float)):
-                speed = min(float(speed), float(sequencing_ceiling))
+                speed = min(indicated_to_true_airspeed(speed, point["altitude_ft"]),
+                            float(sequencing_ceiling))
+            else:
+                speed = indicated_to_true_airspeed(speed, point["altitude_ft"])
             aircraft.assign_speed(speed)
 
         distance = self._distance(

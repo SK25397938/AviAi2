@@ -56,6 +56,12 @@
             "type": "RNAV_FIX",
             "lat": 19.453401,
             "lon": 73.462572
+        },
+        {
+            "name": "OLGUS",
+            "type": "RNAV_FIX",
+            "lat": 19.215275,
+            "lon": 73.473181
         }
     ]
 }

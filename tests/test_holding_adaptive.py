@@ -1,4 +1,3 @@
-import json
 import math
 import unittest
 from copy import deepcopy
@@ -6,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.simulation.holding_manager import HoldingManager
+from tests.holding_config import load_holding_routes
 
 
 HOLDING_CONFIG = Path(__file__).resolve().parents[1] / "holding_routes.json"
@@ -20,8 +20,7 @@ class TestGraph:
 
 
 def load_holds():
-    with HOLDING_CONFIG.open(encoding="utf-8") as source:
-        return json.load(source)["holding_routes"]
+    return load_holding_routes(HOLDING_CONFIG)
 
 
 def aircraft_for(holding):
@@ -31,7 +30,9 @@ def aircraft_for(holding):
     previous = f"{trigger}_PREV"
     following = f"{trigger}_NEXT"
     route_id = str(holding.get("source_routes", ["001"])[0])
-    route = [previous, trigger, following]
+    continuation = list(holding.get("route_after_hold", [])) or [following]
+    entry_fix = next(iter(holding.get("entry_fixes", [])), None)
+    route = [previous, *([entry_fix] if entry_fix else []), trigger, *continuation]
     nodes = {
         previous: {"lat": trigger_point["latitude"] - 0.1,
                    "lon": trigger_point["longitude"]},
@@ -40,6 +41,9 @@ def aircraft_for(holding):
         following: {"lat": trigger_point["latitude"] + 0.1,
                     "lon": trigger_point["longitude"]},
     }
+    if entry_fix:
+        nodes[entry_fix] = {"lat": trigger_point["latitude"] - 0.05,
+                            "lon": trigger_point["longitude"] - 0.05}
     aircraft = SimpleNamespace(
         callsign="TEST", arrival_route_id=route_id, route=route, route_index=0,
         assigned_node=previous, target_node=trigger, lat=nodes[previous]["lat"],
@@ -75,6 +79,56 @@ class AdaptiveHoldingTests(unittest.TestCase):
         )
         self.assertTrue(result["success"], result["message"])
         return manager, aircraft, manager.state_for(aircraft)
+
+    def test_hold_instruction_starts_with_exactly_one_circuit_even_if_caller_requests_more(self):
+        holding = load_holds()[0]
+        aircraft, _, graph = aircraft_for(holding)
+        manager = HoldingManager([deepcopy(holding)], graph)
+        result = manager.apply_holding_route(aircraft, holding["id"], circuits=3)
+        self.assertTrue(result["success"], result["message"])
+        state = manager.state_for(aircraft)
+        self.assertEqual(state["requested_circuits"], 1)
+        self.assertEqual(state["scheduled_circuits"], 1)
+        self.assertEqual(manager.holding_status(aircraft)["requested_circuits"], 1)
+
+    def test_one_completed_circuit_is_assessed_once_and_duplicate_boundary_call_is_ignored(self):
+        holding = load_holds()[0]
+        manager, aircraft, state = self.apply_for_delay(holding, 0.0)
+        calls = []
+        early = manager.complete_holding_circuit(aircraft, lambda _: calls.append(1))
+        self.assertFalse(early["success"])
+        self.assertEqual(calls, [])
+        aircraft.route_index = state["next_circuit_end_index"]
+        aircraft.assigned_node = state["rejoin_waypoint"]
+        decision = manager.complete_holding_circuit(aircraft, lambda _: calls.append(1) or {"safe": False})
+        self.assertTrue(decision["success"])
+        self.assertEqual(calls, [1])
+        completed = state["completed_circuits"]
+        duplicate = manager.complete_holding_circuit(aircraft, lambda _: calls.append(1) or {"safe": False})
+        self.assertFalse(duplicate["success"])
+        self.assertEqual(calls, [1])
+        self.assertEqual(state["completed_circuits"], completed)
+
+    def test_fourth_unsafe_circuit_is_explicit_safety_exception_not_forced_release(self):
+        holding = load_holds()[0]
+        manager, aircraft, state = self.apply_for_delay(holding, 0.0)
+        for expected in range(1, 5):
+            aircraft.route_index = state["next_circuit_end_index"]
+            result = manager.complete_holding_circuit(aircraft, lambda _: {"safe": False, "reason": "traffic conflict"})
+            self.assertTrue(result["success"])
+            self.assertFalse(result.get("released", False))
+            self.assertEqual(state["completed_circuits"], expected)
+            self.assertEqual(aircraft.state, "HOLDING")
+        self.assertEqual(state["requested_circuits"], 4)
+        self.assertEqual(state["scheduled_circuits"], 5)
+        self.assertEqual(state["safety_exception_circuits"], 1)
+        self.assertFalse(aircraft.approach_clearance)
+
+    def test_hold_priority_uses_circuit_count_before_age(self):
+        older_low = {"completed_circuits": 1, "holding_since": 1.0}
+        younger_high = {"completed_circuits": 3, "holding_since": 100000.0}
+        self.assertGreater(HoldingManager.holding_priority_score(younger_high, now=100001.0),
+                           HoldingManager.holding_priority_score(older_low, now=100000.0))
 
     def circuit_time_seconds(self, manager, holding, leg_nm, speed_kts=220.0):
         route = dict(holding, leg_length_nm=leg_nm)
@@ -149,6 +203,8 @@ class AdaptiveHoldingTests(unittest.TestCase):
 
     def test_configured_short_and_standard_lengths_select_matching_geometry(self):
         for holding in load_holds():
+            if holding.get("adaptive_leg_length_nm", {}).get("enabled") is not True:
+                continue
             with self.subTest(route=holding["id"]):
                 manager = self.make_manager(holding_id=holding["id"])
                 adaptive = holding["adaptive_leg_length_nm"]
@@ -224,7 +280,7 @@ class AdaptiveHoldingTests(unittest.TestCase):
         for holding in load_holds():
             with self.subTest(route=holding["id"]):
                 legacy = deepcopy(holding)
-                legacy.pop("adaptive_leg_length_nm")
+                legacy.pop("adaptive_leg_length_nm", None)
                 manager, _, state = self.apply_for_delay(legacy, 0.0)
                 distance = read_haversine_nm(
                     state["holding_waypoints"][manager.ARC_SEGMENTS],
@@ -250,14 +306,15 @@ class AdaptiveHoldingTests(unittest.TestCase):
     def test_route_end_hold_requires_configured_continuation(self):
         holding = deepcopy(load_holds()[0])
         aircraft, _, graph = aircraft_for(holding)
-        aircraft.route = ["EMROS_PREV", "EMROS"]
+        trigger = holding["trigger_waypoint"]
+        aircraft.route = [f"{trigger}_PREV", trigger]
         manager = HoldingManager([holding], graph)
         rejected = manager.apply_holding_route(aircraft, holding["id"])
         self.assertFalse(rejected["success"])
         self.assertIn("No configured approach continuation", rejected["message"])
-        self.assertEqual(aircraft.route, ["EMROS_PREV", "EMROS"])
+        self.assertEqual(aircraft.route, [f"{trigger}_PREV", trigger])
 
-        manager.route_continuation_validator = lambda item, fix: fix == "EMROS"
+        manager.route_continuation_validator = lambda item, fix: fix == trigger
         accepted = manager.apply_holding_route(aircraft, holding["id"])
         self.assertTrue(accepted["success"], accepted["message"])
         self.assertIsNone(manager.state_for(aircraft)["rejoin_node"])

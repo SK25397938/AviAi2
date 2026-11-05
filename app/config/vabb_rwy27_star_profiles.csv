@@ -1,0 +1,116 @@
+route_id,route,seq,waypoint,lat,lon,course_mag,course_true,leg_nm,cum_nm,alt_pub,alt_rule,alt_ft,alt_fl,alt_basis,spd_pub,spd_rule,spd_kt,spd_basis,hold,aip_page
+001,AKTIV 3K RWY 27,1,AKTIV,20.248139,73.258194,,,,0.0,,,15000,FL150,level at first published altitude (start),,,,no published limit,,47
+001,AKTIV 3K RWY 27,2,DOBVU,19.806797,73.114522,197.88,197.13,27.6,27.6,@FL150,at,15000,FL150,published,-230,at or below,230,published,"HOLD DOBVU: -FL180/+FL100, max 230 KT",47
+001,AKTIV 3K RWY 27,3,BB255,19.555008,73.125244,178.44,177.69,15.06,42.66,-FL090,at or below,9000,FL090,published,,,230,carried from previous restriction,,47
+001,AKTIV 3K RWY 27,4,BB256,19.359756,73.134664,178.13,177.38,11.68,54.34,@FL080,at,8000,FL080,published,-190,at or below,190,published,,47
+001,AKTIV 3K RWY 27,5,BB257,19.208999,73.14035,178.7,177.95,9.02,63.36,,,8000,FL080,held from previous fix (no published constraint),,,190,carried from previous restriction,,47
+001,AKTIV 3K RWY 27,6,BB266,19.205158,73.311944,,,9.73,73.09,,,8000,FL080,"simulation continuation, held (not published)",,,190,"simulation continuation, carried (not published)",,47
+002,IPNIB 3K RWY 27,1,IPNIB,20.941111,72.400278,,,,0.0,,,28000,FL280,level at first published altitude (start),,,,no published limit,,47
+002,IPNIB 3K RWY 27,2,NM625,20.483842,72.282722,194.37,193.62,28.12,28.12,@FL280,at,28000,FL280,published,,,,no published limit,,47
+002,IPNIB 3K RWY 27,3,NM515,20.070931,72.175086,194.59,193.84,25.42,53.54,@FL270,at,27000,FL270,published,,,,no published limit,,47
+002,IPNIB 3K RWY 27,4,NM626,19.922869,72.204006,170.28,169.53,9.0,62.54,@FL250,at,25000,FL250,published,,,,no published limit,,47
+002,IPNIB 3K RWY 27,5,GUTMU,19.588292,72.269156,170.29,169.54,20.34,82.88,,,25000,FL250,held from previous fix (no published constraint),-250,at or below,250,published,"HOLD GUTMU: -FL180/+FL100, max 230 KT",47
+002,IPNIB 3K RWY 27,6,NM665,19.457933,72.359725,147.36,146.61,9.33,92.21,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,47
+002,IPNIB 3K RWY 27,7,NM667,19.449083,72.552208,93.49,92.74,10.93,103.14,@FL160,at,16000,FL160,published,,,250,carried from previous restriction,,47
+002,IPNIB 3K RWY 27,8,NM668,19.438456,72.779683,93.53,92.78,12.91,116.05,+FL140,at or above,14000,FL140,published,-230,at or below,230,published,,47
+002,IPNIB 3K RWY 27,9,BB264,19.302228,72.994069,124.54,123.79,14.64,130.69,@FL090,at,9000,FL090,published,@190,at,190,published,,47
+002,IPNIB 3K RWY 27,10,BB257,19.208999,73.14035,124.59,123.84,10.0,140.69,,,9000,FL090,held from previous fix (no published constraint),,,190,carried from previous restriction,,47
+002,IPNIB 3K RWY 27,11,BB266,19.205158,73.311944,,,9.73,150.42,,,8000,FL080,"simulation target (not published)",,,190,"simulation continuation, carried (not published)",,47
+003,EXOLU 3K RWY 27,1,EXOLU,20.213833,71.569558,,,,0.0,,,24000,FL240,level at first published altitude (start),,,,no published limit,,47
+003,EXOLU 3K RWY 27,2,NM624,19.826428,72.004433,133.98,133.23,33.76,33.76,@FL240,at,24000,FL240,published,,,,no published limit,,47
+003,EXOLU 3K RWY 27,3,GUTMU,19.588292,72.269156,134.23,133.48,20.67,54.43,,,24000,FL240,held from previous fix (no published constraint),-250,at or below,250,published,"HOLD GUTMU: -FL180/+FL100, max 230 KT",47
+003,EXOLU 3K RWY 27,4,NM665,19.457933,72.359725,147.36,146.61,9.33,63.76,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,47
+003,EXOLU 3K RWY 27,5,NM667,19.449083,72.552208,93.49,92.74,10.93,74.69,@FL160,at,16000,FL160,published,,,250,carried from previous restriction,,47
+003,EXOLU 3K RWY 27,6,NM668,19.438456,72.779683,93.53,92.78,12.91,87.6,+FL140,at or above,14000,FL140,published,-230,at or below,230,published,,47
+003,EXOLU 3K RWY 27,7,BB264,19.302228,72.994069,124.54,123.79,14.64,102.24,@FL090,at,9000,FL090,published,@190,at,190,published,,47
+003,EXOLU 3K RWY 27,8,BB257,19.208999,73.14035,124.59,123.84,10.0,112.24,,,9000,FL090,held from previous fix (no published constraint),,,190,carried from previous restriction,,47
+003,EXOLU 3K RWY 27,9,BB266,19.205158,73.311944,,,9.73,121.97,,,8000,FL080,"simulation target (not published)",,,190,"simulation continuation, carried (not published)",,47
+004,OPAKA 3K RWY 27,1,OPAKA,19.605833,74.549444,,,,0.0,,,12000,FL120,level at first published altitude (start),,,,no published limit,,47
+004,OPAKA 3K RWY 27,2,VELKO,19.402567,73.588061,258.34,257.59,55.83,55.83,+FL120,at or above,12000,FL120,published,-230,at or below,230,published,"HOLD VELKO: -FL180/+FL100, max 230 KT",47
+004,OPAKA 3K RWY 27,3,BB258,19.345511,73.455717,246.34,245.59,8.25,64.08,@FL110,at,11000,FL110,published,,,230,carried from previous restriction,,47
+004,OPAKA 3K RWY 27,4,BB259,19.269244,73.279306,246.3,245.55,11.0,75.08,@FL110,at,11000,FL110,published,@190,at,190,published,,47
+004,OPAKA 3K RWY 27,5,BB257,19.208999,73.14035,246.24,245.49,8.67,83.75,@FL100,at,10000,FL100,published,,,190,carried from previous restriction,,47
+004,OPAKA 3K RWY 27,6,BB266,19.205158,73.311944,,,9.73,93.48,,,8000,FL080,"simulation target (not published)",,,190,"simulation continuation, carried (not published)",,47
+006,AGELA 3K RWY 27,1,AGELA,16.606667,75.465833,,,,0.0,,,24000,FL240,level at first published altitude (start),,,,no published limit,,46
+006,AGELA 3K RWY 27,2,NM601,17.60715,74.133417,308.93,308.18,97.14,97.14,@FL240,at,24000,FL240,published,,,,no published limit,,46
+006,AGELA 3K RWY 27,3,BEDOL,17.760833,73.926389,308.54,307.79,15.0,112.14,@FL240,at,24000,FL240,published,,,,no published limit,,46
+006,AGELA 3K RWY 27,4,UKETU,18.424089,73.300225,318.77,318.02,53.4,165.54,+FL120,at or above,12000,FL120,published,-230,at or below,230,published,"HOLD UKETU: -FL180/+FL100, max 230 KT",46
+006,AGELA 3K RWY 27,5,BB251,18.683444,73.370919,15.31,14.56,16.02,181.56,@FL110,at,11000,FL110,published,-230,at or below,230,published,,46
+006,AGELA 3K RWY 27,6,BB252,18.827858,73.377053,3.07,2.32,8.64,190.2,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+006,AGELA 3K RWY 27,7,BB253,18.925681,73.374786,359.49,358.74,5.85,196.05,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+006,AGELA 3K RWY 27,8,BB254,19.0235,73.372517,359.49,358.74,5.85,201.9,,,8000,FL080,"simulation target (not published)",-210,at or below,210,published,,46
+007,BEDOL 3K RWY 27,1,BEDOL,17.760833,73.926389,,,,0.0,,,12000,FL120,level at first published altitude (start),,,,no published limit,,46
+007,BEDOL 3K RWY 27,2,UKETU,18.424089,73.300225,318.77,318.02,53.4,53.4,+FL120,at or above,12000,FL120,published,-230,at or below,230,published,"HOLD UKETU: -FL180/+FL100, max 230 KT",46
+007,BEDOL 3K RWY 27,3,BB251,18.683444,73.370919,15.31,14.56,16.02,69.42,@FL110,at,11000,FL110,published,-230,at or below,230,published,,46
+007,BEDOL 3K RWY 27,4,BB252,18.827858,73.377053,3.07,2.32,8.64,78.06,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+007,BEDOL 3K RWY 27,5,BB253,18.925681,73.374786,359.49,358.74,5.85,83.91,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+007,BEDOL 3K RWY 27,6,BB254,19.0235,73.372517,359.49,358.74,5.85,89.76,,,8000,FL080,"simulation target (not published)",-210,at or below,210,published,,46
+008,EPKOS 3K RWY 27,1,EPKOS,16.885556,74.120278,,,,0.0,,,25000,FL250,level at first published altitude (start),,,,no published limit,,46
+008,EPKOS 3K RWY 27,2,NM602,17.515344,73.980961,348.77,348.02,38.48,38.48,@FL250,at,25000,FL250,published,,,,no published limit,,46
+008,EPKOS 3K RWY 27,3,BEDOL,17.760833,73.926389,348.73,347.98,15.0,53.48,@FL250,at,25000,FL250,published,,,,no published limit,,46
+008,EPKOS 3K RWY 27,4,UKETU,18.424089,73.300225,318.77,318.02,53.4,106.88,+FL120,at or above,12000,FL120,published,-230,at or below,230,published,"HOLD UKETU: -FL180/+FL100, max 230 KT",46
+008,EPKOS 3K RWY 27,5,BB251,18.683444,73.370919,15.31,14.56,16.02,122.9,@FL110,at,11000,FL110,published,-230,at or below,230,published,,46
+008,EPKOS 3K RWY 27,6,BB252,18.827858,73.377053,3.07,2.32,8.64,131.54,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+008,EPKOS 3K RWY 27,7,BB253,18.925681,73.374786,359.49,358.74,5.85,137.39,,,11000,FL110,held from previous fix (no published constraint),,,230,carried from previous restriction,,46
+008,EPKOS 3K RWY 27,8,BB254,19.0235,73.372517,359.49,358.74,5.85,143.24,,,8000,FL080,"simulation target (not published)",-210,at or below,210,published,,46
+009,BISET 3K RWY 27,1,BISET,18.389269,69.301794,,,,0.0,,,20000,FL200,level at first published altitude (start),,,,no published limit,,48
+009,BISET 3K RWY 27,2,NM614,18.551694,71.622969,86.19,85.44,132.73,132.73,@FL200,at,20000,FL200,published,,,,no published limit,,48
+009,BISET 3K RWY 27,3,AKTOD,18.59205,72.273436,86.92,86.17,37.15,169.88,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",48
+009,BISET 3K RWY 27,4,BB260,18.826667,72.600033,53.69,52.94,23.29,193.17,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,48
+009,BISET 3K RWY 27,5,BB261,18.853508,72.796478,82.55,81.8,11.29,204.46,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,48
+009,BISET 3K RWY 27,6,BB262,18.864583,72.892072,83.8,83.05,5.48,209.94,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,48
+009,BISET 3K RWY 27,7,BB263,18.882406,73.030869,83.04,82.29,7.97,217.91,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,48
+009,BISET 3K RWY 27,8,BB253,18.925681,73.374786,83.16,82.41,19.73,237.64,@FL100,at,10000,FL100,published,-200,at or below,200,published,,48
+009,BISET 3K RWY 27,9,BB254,19.0235,73.372517,359.49,358.74,5.85,243.49,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,48
+010,DARMI 3K RWY 27,1,DARMI,17.794875,70.577461,,,,0.0,,,21000,FL210,level at first published altitude (start),,,,no published limit,,48
+010,DARMI 3K RWY 27,2,NM615,18.195569,71.421642,64.24,63.49,53.89,53.89,@FL210,at,21000,FL210,published,,,,no published limit,,48
+010,DARMI 3K RWY 27,3,NM616,18.297286,71.640781,64.81,64.06,13.91,67.8,@FL210,at,21000,FL210,published,,,,no published limit,,48
+010,DARMI 3K RWY 27,4,AKTOD,18.59205,72.273436,64.63,63.88,40.16,107.96,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",48
+010,DARMI 3K RWY 27,5,BB260,18.826667,72.600033,53.69,52.94,23.29,131.25,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,48
+010,DARMI 3K RWY 27,6,BB261,18.853508,72.796478,82.55,81.8,11.29,142.54,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,48
+010,DARMI 3K RWY 27,7,BB262,18.864583,72.892072,83.8,83.05,5.48,148.02,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,48
+010,DARMI 3K RWY 27,8,BB263,18.882406,73.030869,83.04,82.29,7.97,155.99,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,48
+010,DARMI 3K RWY 27,9,BB253,18.925681,73.374786,83.16,82.41,19.73,175.72,@FL100,at,10000,FL100,published,-200,at or below,200,published,,48
+010,DARMI 3K RWY 27,10,BB254,19.0235,73.372517,359.49,358.74,5.85,181.57,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,48
+011,ERVIS 3K RWY 27,1,ERVIS,17.09105,72.053944,,,,0.0,,,28000,FL280,level at first published altitude (start),,,,no published limit,,48
+011,ERVIS 3K RWY 27,2,NM617,17.659308,72.217247,16.15,15.4,35.23,35.23,@FL280,at,28000,FL280,published,,,,no published limit,,48
+011,ERVIS 3K RWY 27,3,NM508,18.11505,72.133114,350.74,349.99,27.66,62.89,+FL250,at or above,25000,FL250,published,,,,no published limit,,48
+011,ERVIS 3K RWY 27,4,NM618,18.276553,72.178892,15.9,15.15,10.0,72.89,@FL240,at,24000,FL240,published,,,,no published limit,,48
+011,ERVIS 3K RWY 27,5,AKTOD,18.59205,72.273436,16.7,15.95,19.61,92.5,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",48
+011,ERVIS 3K RWY 27,6,BB260,18.826667,72.600033,53.69,52.94,23.29,115.79,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,48
+011,ERVIS 3K RWY 27,7,BB261,18.853508,72.796478,82.55,81.8,11.29,127.08,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,48
+011,ERVIS 3K RWY 27,8,BB262,18.864583,72.892072,83.8,83.05,5.48,132.56,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,48
+011,ERVIS 3K RWY 27,9,BB263,18.882406,73.030869,83.33,82.58,13.45,146.01,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,48
+011,ERVIS 3K RWY 27,10,BB253,18.925681,73.374786,83.16,82.41,19.73,165.74,@FL100,at,10000,FL100,published,-200,at or below,200,published,,48
+011,ERVIS 3K RWY 27,11,BB254,19.0235,73.372517,359.49,358.74,5.85,171.59,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,48
+012,GUNDI 3K RWY 27,1,GUNDI,17.360192,71.493456,,,,0.0,,,25000,FL250,level at first published altitude (start),,,,no published limit,,49
+012,GUNDI 3K RWY 27,2,NM619,17.790694,71.560942,9.29,8.54,26.02,26.02,@FL250,at,25000,FL250,published,,,,no published limit,,49
+012,GUNDI 3K RWY 27,3,NM616,18.297286,71.640781,9.31,8.56,30.62,56.64,@FL250,at,25000,FL250,published,,,,no published limit,,49
+012,GUNDI 3K RWY 27,4,AKTOD,18.59205,72.273436,64.63,63.88,40.16,96.8,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",49
+012,GUNDI 3K RWY 27,5,BB260,18.826667,72.600033,53.69,52.94,23.29,120.09,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,49
+012,GUNDI 3K RWY 27,6,BB261,18.853508,72.796478,82.55,81.8,11.29,131.38,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,49
+012,GUNDI 3K RWY 27,7,BB262,18.864583,72.892072,83.8,83.05,5.48,136.86,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,49
+012,GUNDI 3K RWY 27,8,BB263,18.882406,73.030869,83.04,82.29,7.97,144.83,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,49
+012,GUNDI 3K RWY 27,9,BB253,18.925681,73.374786,83.16,82.41,19.73,164.56,@FL100,at,10000,FL100,published,-200,at or below,200,published,,49
+012,GUNDI 3K RWY 27,10,BB254,19.0235,73.372517,359.49,358.74,5.85,170.41,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,49
+013,KABSO 3K RWY 27,1,KABSO,17.087444,72.819389,,,,0.0,,,29000,FL290,level at first published altitude (start),,,,no published limit,,49
+013,KABSO 3K RWY 27,2,NM617,17.659308,72.217247,315.52,314.77,48.6,48.6,@FL290,at,29000,FL290,published,,,,no published limit,,49
+013,KABSO 3K RWY 27,3,NM508,18.11505,72.133114,350.74,349.99,27.66,76.26,+FL250,at or above,25000,FL250,published,,,,no published limit,,49
+013,KABSO 3K RWY 27,4,NM618,18.276553,72.178892,15.9,15.15,10.0,86.26,@FL240,at,24000,FL240,published,,,,no published limit,,49
+013,KABSO 3K RWY 27,5,AKTOD,18.59205,72.273436,16.7,15.95,19.61,105.87,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",49
+013,KABSO 3K RWY 27,6,BB260,18.826667,72.600033,53.69,52.94,23.29,129.16,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,49
+013,KABSO 3K RWY 27,7,BB261,18.853508,72.796478,82.55,81.8,11.29,140.45,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,49
+013,KABSO 3K RWY 27,8,BB262,18.864583,72.892072,83.8,83.05,5.48,145.93,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,49
+013,KABSO 3K RWY 27,9,BB263,18.882406,73.030869,83.33,82.58,13.45,159.38,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,49
+013,KABSO 3K RWY 27,10,BB253,18.925681,73.374786,83.16,82.41,19.73,179.11,@FL100,at,10000,FL100,published,-200,at or below,200,published,,49
+013,KABSO 3K RWY 27,11,BB254,19.0235,73.372517,359.49,358.74,5.85,184.96,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,49
+014,SUGID 3K RWY 27,1,SUGID,19.550833,69.349842,,,,0.0,,,29000,FL290,level at first published altitude (start),,,,no published limit,,49
+014,SUGID 3K RWY 27,2,NM620,18.892892,71.374692,109.3,108.55,121.51,121.51,@FL290,at,29000,FL290,published,,,,no published limit,,49
+014,SUGID 3K RWY 27,3,NM621,18.823211,71.584319,109.97,109.22,12.63,134.14,@FL250,at,25000,FL250,published,,,,no published limit,,49
+014,SUGID 3K RWY 27,4,AKTOD,18.59205,72.273436,110.03,109.28,41.61,175.75,+FL160,at or above,16000,FL160,published,-250,at or below,250,published,"HOLD AKTOD: -FL180/+FL100, max 230 KT",49
+014,SUGID 3K RWY 27,5,BB260,18.826667,72.600033,53.69,52.94,23.29,199.04,+FL160,at or above,16000,FL160,published,,,250,carried from previous restriction,,49
+014,SUGID 3K RWY 27,6,BB261,18.853508,72.796478,82.55,81.8,11.29,210.33,+FL140,at or above,14000,FL140,published,,,250,carried from previous restriction,,49
+014,SUGID 3K RWY 27,7,BB262,18.864583,72.892072,83.8,83.05,5.48,215.81,@FL130,at,13000,FL130,published,,,250,carried from previous restriction,,49
+014,SUGID 3K RWY 27,8,BB263,18.882406,73.030869,83.04,82.29,7.97,223.78,-FL110,at or below,11000,FL110,published,-220,at or below,220,published,,49
+014,SUGID 3K RWY 27,9,BB253,18.925681,73.374786,83.16,82.41,19.73,243.51,@FL100,at,10000,FL100,published,-200,at or below,200,published,,49
+014,SUGID 3K RWY 27,10,BB254,19.0235,73.372517,359.49,358.74,5.85,249.36,,,8000,FL080,"simulation target (not published)",@190,at,190,published,,49

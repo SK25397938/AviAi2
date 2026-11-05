@@ -4,7 +4,7 @@ from pathlib import Path
 
 class AircraftDatabase:
 
-    def __init__(self):
+    def __init__(self, database_path="data/simulation/aircraft.sqlite"):
 
         Path("data/simulation").mkdir(
             parents=True,
@@ -12,7 +12,8 @@ class AircraftDatabase:
         )
 
         self.conn = sqlite3.connect(
-            "data/simulation/aircraft.sqlite"
+            database_path,
+            check_same_thread=False,
         )
 
         self.cursor = self.conn.cursor()

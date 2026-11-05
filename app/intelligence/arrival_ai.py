@@ -98,6 +98,6 @@ class ArrivalAI:
 
                 "Arrival",
 
-                "Awaiting AI Arrival Clearance."
+                "Follow assigned arrival route; approach clearance is assessed at the route trigger."
 
             )

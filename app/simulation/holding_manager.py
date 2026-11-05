@@ -1,9 +1,15 @@
+import logging
 import math
 import time
+from threading import RLock
 
 
 class HoldingManager:
+    MAX_PLANNED_CIRCUITS = 4
     ARC_SEGMENTS = 12
+    BOUNDARY_DIAGNOSTIC_INTERVAL_SECONDS = 30.0
+    MIN_HOLD_VERTICAL_SEPARATION_FT = 1000.0
+    PREFERRED_HOLD_VERTICAL_SEPARATION_FT = 2000.0
 
     def __init__(self, holding_routes, graph=None):
         if isinstance(holding_routes, dict):
@@ -12,7 +18,68 @@ class HoldingManager:
         self.graph = graph
         self.route_continuation_validator = None
         self._active_holds = {}
+        self._capacity_lock = RLock()
         self._temporary_node_references = {}
+        self._reported_geometry_diagnostics = set()
+        self._boundary_diagnostic_last = {}
+
+    def _geometry_diagnostic(self, route, message):
+        route_id = route.get("id", "<unknown>") if isinstance(route, dict) else "<unknown>"
+        key = (str(route_id), message)
+        if key not in self._reported_geometry_diagnostics:
+            logging.getLogger(__name__).warning(
+                "Holding geometry unavailable for %s: %s", route_id, message
+            )
+            self._reported_geometry_diagnostics.add(key)
+
+    def _inbound_course_true(self, route):
+        """Resolve true degrees, requiring explicit provenance for magnetic input.
+
+        Signed magnetic variation is east-positive, so true = magnetic + variation.
+        Magnetic conversion is accepted only when the per-hold variation is marked
+        verified and has a non-empty source reference. No airport-wide variation is
+        inferred or applied to a hold.
+        """
+        raw_course = route.get("inbound_course_true")
+        if raw_course is None:
+            raw_course = route.get("inbound_course_mag")
+            if raw_course is None:
+                self._geometry_diagnostic(route, "missing inbound_course_true (or convertible inbound_course_mag)")
+                return None
+            raw_variation = route.get("magnetic_variation_deg")
+            source = route.get("magnetic_variation_source")
+            if (route.get("magnetic_variation_verified") is not True
+                    or not isinstance(source, str) or not source.strip()
+                    or isinstance(raw_variation, bool)):
+                self._geometry_diagnostic(
+                    route,
+                    "inbound_course_mag requires verified magnetic_variation_deg and magnetic_variation_source",
+                )
+                return None
+            try:
+                variation = float(raw_variation)
+            except (TypeError, ValueError):
+                self._geometry_diagnostic(route, "magnetic_variation_deg is not numeric")
+                return None
+            if not math.isfinite(variation) or not -180.0 <= variation <= 180.0:
+                self._geometry_diagnostic(route, "magnetic_variation_deg must be finite and within [-180, 180]")
+                return None
+        else:
+            # Existing true-course configurations retain precedence and behavior.
+            variation = 0.0
+
+        if isinstance(raw_course, bool):
+            self._geometry_diagnostic(route, "inbound course must be numeric degrees")
+            return None
+        try:
+            course = float(raw_course)
+        except (TypeError, ValueError):
+            self._geometry_diagnostic(route, "inbound course must be numeric degrees")
+            return None
+        if not math.isfinite(course) or not 0.0 <= course <= 360.0:
+            self._geometry_diagnostic(route, "inbound course must be finite and within [0, 360]")
+            return None
+        return (course + variation) % 360.0
 
     @staticmethod
     def _result(success, message, **values):
@@ -30,25 +97,154 @@ class HoldingManager:
                      if isinstance(route, dict) and str(route.get("id")) == str(holding_route_id)), None)
 
     def holding_occupancy(self, holding_route_id):
-        return sum(1 for state in self._active_holds.values()
-                   if str(state.get("holding_route_id")) == str(holding_route_id))
+        with self._capacity_lock:
+            return sum(1 for state in self._active_holds.values()
+                       if str(state.get("holding_route_id")) == str(holding_route_id))
 
     def has_capacity(self, holding_route_id):
-        route = self._holding_route_by_id(holding_route_id)
-        if route is None:
-            return False
-        capacity = route.get("capacity", 1)
-        try:
-            capacity = max(1, int(capacity))
-        except (TypeError, ValueError):
-            capacity = 1
-        return self.holding_occupancy(holding_route_id) < capacity
+        with self._capacity_lock:
+            route = self._holding_route_by_id(holding_route_id)
+            if route is None:
+                return False
+            capacity = route.get("capacity", 1)
+            try:
+                capacity = max(1, int(capacity))
+            except (TypeError, ValueError):
+                capacity = 1
+            return self.holding_occupancy(holding_route_id) < capacity
+
+    def _holding_levels(self, holding, lower, upper):
+        configured = holding.get("holding_levels_ft")
+        if isinstance(configured, list):
+            levels = sorted({float(level) for level in configured
+                             if isinstance(level, (int, float)) and not isinstance(level, bool)
+                             and lower <= float(level) <= upper})
+            return levels
+        return [float(level) for level in range(lower + 1000, upper + 1, 1000)]
+
+    @staticmethod
+    def _vertical_profile(aircraft, target_altitude_ft):
+        current = float(getattr(aircraft, "altitude_ft", target_altitude_ft) or 0)
+        target = float(target_altitude_ft)
+        current_rate = float(getattr(aircraft, "vertical_speed_fpm", 0) or 0)
+        raw_target_rate = getattr(aircraft, "target_vertical_speed_fpm", None)
+        has_target_rate = (isinstance(raw_target_rate, (int, float))
+                           and not isinstance(raw_target_rate, bool))
+        target_rate = (max(-1500.0, min(1500.0, float(raw_target_rate)))
+                       if has_target_rate else math.copysign(1500.0, target - current))
+        if target_rate * (target - current) <= 0:
+            target_rate = math.copysign(1500.0, target - current)
+        return current, current_rate, target, target_rate, has_target_rate
+
+    @classmethod
+    def _predicted_altitude(cls, aircraft, target_altitude_ft, seconds):
+        current, current_rate, target, target_rate, has_target_rate = cls._vertical_profile(
+            aircraft, target_altitude_ft
+        )
+        delta = target - current
+        if abs(delta) < 1.0:
+            return target
+        duration = max(0.0, float(seconds))
+        if not has_target_rate:
+            change = math.copysign(min(abs(delta), 1500.0 * duration / 60.0), delta)
+        else:
+            ramp = min(duration, abs(target_rate - current_rate) / 180.0)
+            ramp_end = current_rate + math.copysign(180.0 * ramp, target_rate - current_rate)
+            change = (current_rate + ramp_end) * 0.5 * ramp / 60.0
+            change += target_rate * max(0.0, duration - ramp) / 60.0
+            change = math.copysign(min(abs(delta), abs(change)), delta)
+        return min(max(current + change, min(current, target)), max(current, target))
+
+    def _level_transition_is_safe(self, aircraft, target_level, other_states):
+        duration = 0.0
+        own_current = float(getattr(aircraft, "altitude_ft", target_level) or 0)
+        own_duration = abs(float(target_level) - own_current) / 1500.0 * 60.0
+        duration = max(duration, own_duration)
+        profiles = []
+        for state in other_states:
+            other = state["aircraft"]
+            other_target = float(state.get("target_holding_level_ft")
+                                 or state.get("assigned_holding_level_ft")
+                                 or getattr(other, "target_altitude_ft", getattr(other, "altitude_ft", 0)))
+            profiles.append((other, other_target))
+            other_current = float(getattr(other, "altitude_ft", other_target) or 0)
+            duration = max(duration, abs(other_target - other_current) / 1500.0 * 60.0)
+        horizon = int(math.ceil(min(1800.0, duration + 5.0)))
+        for other, other_target in profiles:
+            previous = (self._predicted_altitude(aircraft, target_level, 0.0)
+                        - self._predicted_altitude(other, other_target, 0.0))
+            for second in range(1, horizon + 1):
+                difference = (self._predicted_altitude(aircraft, target_level, second)
+                              - self._predicted_altitude(other, other_target, second))
+                if previous == 0 or difference == 0 or previous * difference < 0:
+                    return False
+                if min(abs(previous), abs(difference)) < self.MIN_HOLD_VERTICAL_SEPARATION_FT:
+                    return False
+                previous = difference
+        return True
+
+    def _select_holding_level(self, aircraft, holding, lower, upper,
+                              exclude_aircraft=None, exclude_level=None,
+                              preferred_level=None):
+        levels = self._holding_levels(holding, lower, upper)
+        others = [state for state in self._active_holds.values()
+                  if state.get("holding_route_id") == holding.get("id")
+                  and state.get("aircraft") is not exclude_aircraft]
+        current_altitude = float(getattr(aircraft, "altitude_ft", lower) or lower)
+        current_target = float(getattr(aircraft, "target_altitude_ft", current_altitude)
+                               or current_altitude)
+        direction = (current_target - current_altitude
+                     or float(getattr(aircraft, "vertical_speed_fpm", 0) or 0))
+        assigned = [float(state.get("target_holding_level_ft")
+                           or state.get("assigned_holding_level_ft")
+                           or getattr(state["aircraft"], "target_altitude_ft", 0))
+                    for state in others]
+        ranked = []
+        for level in levels:
+            if exclude_level is not None and abs(level - float(exclude_level)) < 1.0:
+                continue
+            if not self._level_transition_is_safe(aircraft, level, others):
+                continue
+            spacing = min((abs(level - occupied) for occupied in assigned), default=float("inf"))
+            spacing_penalty = int(spacing < self.PREFERRED_HOLD_VERTICAL_SEPARATION_FT)
+            direction_penalty = int((direction > 0 and level < current_altitude)
+                                    or (direction < 0 and level > current_altitude))
+            ranked.append((spacing_penalty, abs(level - current_altitude),
+                           direction_penalty, level))
+        if preferred_level is not None:
+            preferred = next((item for item in ranked
+                              if abs(item[-1] - float(preferred_level)) < 1.0), None)
+            return preferred[-1] if preferred is not None else None
+        return min(ranked)[-1] if ranked else None
+
+    def safe_holding_levels(self, aircraft, holding_route_id, exclude_current=True):
+        """List currently safe primary-hold levels; callers still revalidate before applying."""
+        with self._capacity_lock:
+            holding = self._holding_route_by_id(holding_route_id)
+            if not isinstance(holding, dict) or not isinstance(holding.get("holding_levels_ft"), list):
+                return []
+            lower = self._flight_level(holding.get("lower_limit"))
+            upper = self._flight_level(holding.get("upper_limit"))
+            if lower is None or upper is None or upper <= lower:
+                return []
+            state = self.state_for(aircraft)
+            current = (state.get("target_holding_level_ft") if state else
+                       getattr(aircraft, "holding_altitude_ft", None))
+            return [level for level in self._holding_levels(holding, lower, upper)
+                    if (not exclude_current or current is None or abs(level - float(current)) >= 1.0)
+                    and self._level_transition_is_safe(
+                        aircraft, level,
+                        [item for item in self._active_holds.values()
+                         if item.get("holding_route_id") == holding_route_id
+                         and item.get("aircraft") is not aircraft],
+                    )]
 
     @staticmethod
     def _fix_point(route):
-        fix = str(route.get("fix", route.get("trigger_waypoint", ""))).upper()
+        names = [str(route.get(key, "")).strip().upper()
+                 for key in ("fix", "trigger_waypoint") if route.get(key)]
         for point in route.get("waypoints", []):
-            if isinstance(point, dict) and str(point.get("name", "")).upper() == fix:
+            if isinstance(point, dict) and str(point.get("name", "")).strip().upper() in names:
                 try:
                     lat, lon = float(point["latitude"]), float(point["longitude"])
                 except (KeyError, TypeError, ValueError):
@@ -60,16 +256,31 @@ class HoldingManager:
     def racetrack_waypoints(self, route):
         """Create a closed, sampled racetrack from configured course and dimensions."""
         fix = self._fix_point(route)
+        course = self._inbound_course_true(route)
+        if fix is None:
+            fix_names = "/".join(
+                str(route.get(key, ""))
+                for key in ("fix", "trigger_waypoint") if route.get(key)
+            )
+            self._geometry_diagnostic(
+                route,
+                "waypoints has no valid coordinate anchor matching fix/trigger "
+                f"{fix_names or '<missing>'}",
+            )
+            return []
+        if course is None:
+            return []
         try:
-            course = float(route["inbound_course_true"])
             leg = float(route["leg_length_nm"])
             radius = float(route["turn_radius_nm"])
             direction = str(route["turn_direction"]).upper()
         except (KeyError, TypeError, ValueError):
+            self._geometry_diagnostic(route, "missing or invalid leg_length_nm, turn_radius_nm, or turn_direction")
             return []
-        if (fix is None or not math.isfinite(course) or not math.isfinite(leg)
+        if (not math.isfinite(course) or not math.isfinite(leg)
                 or not math.isfinite(radius) or leg <= 0 or radius <= 0
                 or direction not in {"L", "R"}):
+            self._geometry_diagnostic(route, "course or racetrack dimensions are outside valid ranges")
             return []
 
         fix_name, lat0, lon0 = fix
@@ -134,7 +345,9 @@ class HoldingManager:
             return False
         try:
             leg = float(route["leg_length_nm"])
-            course = float(route["inbound_course_true"]) % 360.0
+            course = self._inbound_course_true(route)
+            if course is None:
+                return False
             radius = float(route["turn_radius_nm"])
         except (KeyError, TypeError, ValueError):
             return False
@@ -223,41 +436,12 @@ class HoldingManager:
         direction = str(route_directions.get(route_id, holding.get("entry_turn_direction", ""))).upper()
         if direction not in {"L", "R"} or rejoin_index <= 0:
             return None
-        graph_nodes = getattr(self.graph, "nodes", {})
-        previous = graph_nodes.get(route[rejoin_index - 1]) if isinstance(graph_nodes, dict) else None
-        trigger = graph_nodes.get(route[rejoin_index]) if isinstance(graph_nodes, dict) else None
-        if not isinstance(previous, dict) or not isinstance(trigger, dict):
-            return None
-        try:
-            inbound = self._bearing(
-                {"latitude": float(previous["lat"]), "longitude": float(previous["lon"])},
-                {"latitude": float(trigger["lat"]), "longitude": float(trigger["lon"])},
-            )
-            radius = float(holding["turn_radius_nm"])
-            latitude, longitude = float(trigger["lat"]), float(trigger["lon"])
-        except (KeyError, TypeError, ValueError):
-            return None
-        if not math.isfinite(radius) or radius <= 0:
-            return None
-
-        bearing = math.radians((inbound + (-90.0 if direction == "L" else 90.0)) % 360.0)
-        angular_distance = radius / 3440.065
-        lat1 = math.radians(latitude)
-        lon1 = math.radians(longitude)
-        lat2 = math.asin(
-            math.sin(lat1) * math.cos(angular_distance)
-            + math.cos(lat1) * math.sin(angular_distance) * math.cos(bearing)
-        )
-        lon2 = lon1 + math.atan2(
-            math.sin(bearing) * math.sin(angular_distance) * math.cos(lat1),
-            math.cos(angular_distance) - math.sin(lat1) * math.sin(lat2),
-        )
-        fix_name = str(holding.get("trigger_waypoint", "HOLD"))
-        return {
-            "name": f"{fix_name}_{route_id}_ENTRY_{direction}",
-            "latitude": math.degrees(lat2),
-            "longitude": (math.degrees(lon2) + 540.0) % 360.0 - 180.0,
-        }
+        # The route transition must join the generated racetrack itself. The
+        # former independently calculated radius point used the arrival leg's
+        # bearing, which did not generally coincide with the first sampled
+        # turn waypoint and created a visible dogleg beside the intended hold.
+        geometry = self.racetrack_waypoints(holding)
+        return dict(geometry[1]) if len(geometry) > 1 else None
 
     def configured_holding_points(self):
         points = []
@@ -317,8 +501,17 @@ class HoldingManager:
             if (not isinstance(trigger, str) or trigger.strip().upper() != str(rejoin_waypoint).strip().upper()
                     or not points):
                 continue
+            source_routes = holding.get("source_routes", [])
+            aircraft_route_id = str(getattr(aircraft, "arrival_route_id", ""))
+            if source_routes and aircraft_route_id not in {str(item) for item in source_routes}:
+                continue
             if any(str(node).strip().upper() == trigger.strip().upper() for node in route[route_index:]):
-                compatible.append(holding.get("id"))
+                trigger_index = next(i for i in range(route_index, len(route))
+                                     if str(route[i]).strip().upper() == trigger.strip().upper())
+                entry_fixes = {str(name).strip().upper() for name in holding.get("entry_fixes", [])}
+                route_prefix = {str(node).strip().upper() for node in route[:trigger_index + 1]}
+                if not entry_fixes or route_prefix.intersection(entry_fixes):
+                    compatible.append(holding.get("id"))
         return compatible
 
     def expected_rejoin_node(self, aircraft, holding_route_id):
@@ -360,6 +553,10 @@ class HoldingManager:
             aircraft_route_id = str(getattr(aircraft, "arrival_route_id", ""))
             if source_routes and aircraft_route_id not in {str(item) for item in source_routes}:
                 continue
+            entry_fixes = {str(name).strip().upper() for name in holding.get("entry_fixes", [])}
+            route_prefix = {str(node).strip().upper() for node in route[:trigger_index + 1]}
+            if entry_fixes and not route_prefix.intersection(entry_fixes):
+                continue
             options.append({
                 "holding_route_id": route_id,
                 "holding_fix": trigger,
@@ -371,7 +568,15 @@ class HoldingManager:
                                                     str(option["holding_route_id"])))
 
     def apply_holding_route(self, aircraft, holding_route_id, circuits=1,
-                            required_delay_seconds=None):
+                            required_delay_seconds=None, preferred_level_ft=None):
+        with self._capacity_lock:
+            return self._apply_holding_route(
+                aircraft, holding_route_id, circuits, required_delay_seconds,
+                preferred_level_ft
+            )
+
+    def _apply_holding_route(self, aircraft, holding_route_id, circuits=1,
+                             required_delay_seconds=None, preferred_level_ft=None):
         holding = self._holding_route_by_id(holding_route_id)
         if holding is None:
             return self._result(False, f"Unknown holding route: {holding_route_id}")
@@ -394,6 +599,19 @@ class HoldingManager:
                              if str(original_route[i]).upper() == trigger.upper()), None)
         if rejoin_index is None:
             return self._result(False, "Rejoin waypoint is not ahead on the aircraft route")
+        source_routes = holding.get("source_routes", [])
+        active_route_id = str(getattr(aircraft, "arrival_route_id", ""))
+        if source_routes and active_route_id not in {str(item) for item in source_routes}:
+            return self._result(False, f"Holding route {holding_route_id} is not configured for arrival route {active_route_id or '<missing>'}")
+        entry_fixes = {str(name).strip().upper() for name in holding.get("entry_fixes", [])}
+        route_prefix = {str(node).strip().upper() for node in original_route[:rejoin_index + 1]}
+        if entry_fixes and rejoin_index + 1 < len(original_route) and not route_prefix.intersection(entry_fixes):
+            return self._result(False, f"No configured entry fix for holding route {holding_route_id} exists on the active route")
+        expected_after = holding.get("route_after_hold")
+        if isinstance(expected_after, list) and expected_after:
+            actual_after = original_route[rejoin_index + 1:rejoin_index + 1 + len(expected_after)]
+            if actual_after and [str(node).upper() for node in actual_after] != [str(node).upper() for node in expected_after]:
+                return self._result(False, f"Route after {trigger} is incompatible with holding route {holding_route_id}")
         if (rejoin_index + 1 >= len(original_route)
                 and (self.route_continuation_validator is None
                      or not self.route_continuation_validator(aircraft, trigger))):
@@ -407,26 +625,19 @@ class HoldingManager:
         upper = self._flight_level(holding.get("upper_limit"))
         if lower is None or upper is None or upper <= lower:
             return self._result(False, "Holding altitude limits are missing or invalid")
-        occupied_altitudes = {
-            getattr(state["aircraft"], "target_altitude_ft", None)
-            for state in self._active_holds.values()
-            if state.get("holding_route_id") == holding.get("id")
-        }
-        altitude = next((level for level in range(lower + 1000, upper + 1, 1000)
-                         if level not in occupied_altitudes), None)
+        altitude = self._select_holding_level(
+            aircraft, holding, lower, upper, preferred_level=preferred_level_ft
+        )
         if altitude is None:
-            return self._result(False, "No separated altitude slot is available in this holding pattern")
+            return self._result(False, "No safe holding level is available with 1,000 ft vertical separation")
         hold_names = [point["name"] for point in hold_points]
         entry_point = self._entry_transition(aircraft, original_route, rejoin_index, holding)
         entry_names = [entry_point["name"]] if entry_point else []
-        already_at_trigger = str(getattr(aircraft, "assigned_node", "")).upper() == trigger.upper()
-        if already_at_trigger:
-            prefix = list(original_route[:rejoin_index + 1])
-        else:
-            prefix = list(original_route[:rejoin_index])
-        # Enter the racetrack from its outbound leg so the aircraft does not
-        # fly through the protected merge fix before it starts holding.
-        circuit_names = hold_names[1:]
+        # Keep the configured trigger fix in the route. Skipping it and aiming
+        # directly at the first racetrack point creates a chord across the
+        # pattern and makes the flown track look translated from its geometry.
+        prefix = list(original_route[:rejoin_index + 1])
+        circuit_names = hold_names[2:] if entry_point else hold_names[1:]
         circuit_points = hold_points[1:]
         holding_nodes = self._activate_holding_nodes(hold_points + ([entry_point] if entry_point else []))
         active_route = (prefix + entry_names + circuit_names
@@ -443,6 +654,7 @@ class HoldingManager:
                                         if route_index + 1 < len(original_route) else None),
             "merge_point": trigger,
             "original_target_altitude": getattr(aircraft, "target_altitude_ft", None),
+            "original_target_vertical_speed": getattr(aircraft, "target_vertical_speed_fpm", None),
             "original_target_speed": getattr(aircraft, "target_speed_kts", None),
             "original_state": getattr(aircraft, "state", "ENROUTE"),
             "original_controller": getattr(aircraft, "controller", ""),
@@ -453,10 +665,20 @@ class HoldingManager:
             "holding_node_ids": holding_nodes, "holding_waypoints": hold_points,
             "holding_circuit_waypoints": circuit_points,
             "repeat_circuit_waypoints": hold_points[1:],
-            "circuit_length": len(circuit_names), "requested_circuits": circuits,
+            # A hold instruction authorizes one circuit at a time. Future
+            # circuits are only added after the circuit-boundary assessment.
+            "circuit_length": len(circuit_names), "requested_circuits": 1,
             "scheduled_circuits": 1, "completed_circuits": 0,
             "next_circuit_end_index": hold_start + len(circuit_names) - 1,
+            "assigned_holding_level_ft": altitude,
+            "target_holding_level_ft": altitude,
+            "required_delay_seconds": required_delay_seconds,
+            "last_level_change_circuit": 0,
             "holding_since": time.monotonic(),
+            "hold_episode_id": f"{getattr(aircraft, 'callsign', '<unknown>')}:{time.monotonic_ns()}",
+            "last_release_evaluation_at": None,
+            "last_release_rejection_reason": None,
+            "safety_exception_circuits": 0,
         }
         aircraft.route = active_route
         # Keep the navigation cursor anchored to the aircraft's current fix,
@@ -479,15 +701,17 @@ class HoldingManager:
         aircraft.holding_circuits_completed = 0
         aircraft.approach_clearance = False
         aircraft.assign_altitude(altitude)
+        aircraft.target_vertical_speed_fpm = None
         speed = min(float(getattr(aircraft, "speed_kts", holding.get("max_speed_kt", 230))),
                     float(holding.get("max_speed_kt", 230)))
         aircraft.assign_speed(speed)
         aircraft.holding_altitude_ft = altitude
         aircraft.holding_speed_kts = speed
         aircraft.last_instruction = f"Hold at {trigger}, maintain {altitude} feet and {speed:g} knots"
-        print(f"HOLD ENTRY | callsign={aircraft.callsign} fix={trigger} route={holding.get('id')}")
+        print(f"HOLD ENTRY | callsign={aircraft.callsign} fix={trigger} route={holding.get('id')} "
+              f"level={altitude}ft occupancy={self.holding_occupancy(holding_route_id)}/{holding.get('capacity', 1)}")
         print(f"HOLD | callsign={aircraft.callsign} fix={trigger} altitude={altitude}ft speed={speed:g}kt")
-        print(f"HOLD CIRCUIT START | callsign={aircraft.callsign} circuit=1/{circuits}")
+        print(f"HOLD CIRCUIT START | callsign={aircraft.callsign} circuit=1/1")
         print(f"HOLD ACTIVATION | callsign={aircraft.callsign} "
               f"holding_route={holding.get('id')} hold_fix={trigger} hold_active=true")
         print(f"AIRCRAFT ROUTE | callsign={aircraft.callsign} "
@@ -513,9 +737,20 @@ class HoldingManager:
             "rejoin_node": state["rejoin_node"],
             "circuits_completed": state["completed_circuits"],
             "requested_circuits": state["requested_circuits"],
+            "holding_age_seconds": max(0.0, time.monotonic() - state["holding_since"]),
+            "priority_score": self.holding_priority_score(state),
         }
 
-    def complete_holding_circuit(self, aircraft, can_release):
+    @staticmethod
+    def holding_priority_score(state, now=None):
+        """Deterministic queue rank: each completed circuit outweighs age drift."""
+        if not isinstance(state, dict):
+            return 0.0
+        now = time.monotonic() if now is None else now
+        age = max(0.0, now - state.get("holding_since", now))
+        return int(state.get("completed_circuits", 0)) * 1_000_000.0 + age
+
+    def complete_holding_circuit(self, aircraft, can_release, level_decider=None):
         state = self.state_for(aircraft)
         if state is None:
             return self._result(False, "Aircraft has no active holding route")
@@ -524,31 +759,154 @@ class HoldingManager:
             return self._result(False, "Aircraft has not completed a holding circuit")
         state["completed_circuits"] += 1
         aircraft.holding_circuits_completed = state["completed_circuits"]
+        state["last_release_evaluation_at"] = time.monotonic()
+        state["priority_score"] = self.holding_priority_score(state)
+        logging.getLogger(__name__).info(
+            "HOLD_CIRCUIT_COMPLETED",
+            extra={"event": "HOLD_CIRCUIT_COMPLETED", "aircraft_callsign": aircraft.callsign,
+                   "hold_id": state["holding_route_id"], "holding_fix": state["rejoin_waypoint"],
+                   "completed_circuits": state["completed_circuits"],
+                   "holding_age_seconds": max(0.0, time.monotonic() - state.get("holding_since", time.monotonic())),
+                   "holding_level_ft": state.get("assigned_holding_level_ft")})
         print(f"HOLD CIRCUIT COMPLETE | callsign={aircraft.callsign} "
               f"circuit={state['completed_circuits']}/{state['requested_circuits']} fix={state['rejoin_waypoint']}")
         safety = can_release(aircraft) if can_release is not None else {"safe": True, "reason": "No release validator configured"}
         if isinstance(safety, bool):
             safety = {"safe": safety, "reason": "Downstream route check"}
+        entry_index = safety.get("approach_entry_index")
+        entry_node = safety.get("approach_entry_node")
+        if (safety.get("safe")
+                and (not isinstance(entry_index, int) or isinstance(entry_index, bool)
+                     or entry_index < 0 or not isinstance(entry_node, str)
+                     or not entry_node.strip())):
+            safety = {**safety, "safe": False,
+                      "reason": "No committed safe approach entry is available for holding release"}
         print(f"APPROACH CLEARANCE CHECK | callsign={aircraft.callsign} "
               f"result={'GRANTED' if safety.get('safe') else 'DENIED'} reason={safety.get('reason', '')}")
+        if not safety.get("safe"):
+            state["last_release_rejection_reason"] = safety.get("reason", "release unsafe")
         if safety.get("safe"):
-            aircraft.approach_clearance = True
-            if isinstance(safety.get("approach_entry_index"), int):
-                aircraft._approach_entry_index = safety["approach_entry_index"]
-                aircraft._approach_entry_node = safety.get("approach_entry_node")
-            print(f"APPROACH CLEARANCE GRANTED | callsign={aircraft.callsign}")
+            previous_route = list(getattr(aircraft, "route", []) or [])
+            previous_cursor = getattr(aircraft, "route_index", None)
+            previous_target = getattr(aircraft, "target_node", None)
+            previous_state = getattr(aircraft, "state", None)
+            previous_hold = state.get("holding_route_id")
             released = self.restore_original_route(aircraft, circuit_boundary=True)
-            released.update({"released": released.get("success", False), "safety": safety,
+            if not released.get("success"):
+                # A safe approach decision is not a committed clearance until
+                # the permanent route has actually replaced the hold route.
+                aircraft.approach_clearance = False
+                for name in ("_approach_entry_index", "_approach_entry_node"):
+                    if hasattr(aircraft, name):
+                        delattr(aircraft, name)
+                logging.getLogger(__name__).error(
+                    "Holding release rejected after route restoration failed",
+                    extra={
+                        "event": "holding_release_route_restore_failed",
+                        "aircraft_callsign": aircraft.callsign,
+                        "holding_route_id": previous_hold,
+                        "route_restore_reason": released.get("message"),
+                        "route_cursor": getattr(aircraft, "route_index", None),
+                        "assigned_waypoint": getattr(aircraft, "assigned_node", None),
+                        "target_waypoint": getattr(aircraft, "target_node", None),
+                    },
+                )
+                released.update({"released": False, "release_attempted": True,
+                                 "safety": safety, "holding_route_id": previous_hold,
+                                 "old_route": previous_route, "old_route_index": previous_cursor,
+                                 "old_target_node": previous_target,
+                                 "old_state": previous_state,
+                                 "new_state": getattr(aircraft, "state", None),
+                                 "hold_active": self.has_active_holding_route(aircraft)})
+                return released
+
+            aircraft.approach_clearance = True
+            aircraft._approach_entry_index = entry_index
+            aircraft._approach_entry_node = entry_node
+            print(f"APPROACH CLEARANCE GRANTED | callsign={aircraft.callsign}")
+            released.update({"released": True, "safety": safety,
                              "completed_circuits": state["completed_circuits"],
-                             "holding_route_id": state["holding_route_id"]})
+                             "holding_route_id": previous_hold,
+                             "old_route": previous_route, "old_route_index": previous_cursor,
+                             "old_target_node": previous_target, "old_state": previous_state,
+                             "new_route": list(getattr(aircraft, "route", []) or []),
+                             "new_route_index": getattr(aircraft, "route_index", None),
+                             "new_target_node": getattr(aircraft, "target_node", None),
+                             "new_state": getattr(aircraft, "state", None),
+                             "hold_active": self.has_active_holding_route(aircraft),
+                             "approach_entry_node": safety.get("approach_entry_node")})
             return released
 
         print(f"APPROACH CLEARANCE DENIED | callsign={aircraft.callsign} reason={safety.get('reason', '')}")
+        aircraft.approach_clearance = False
         if state["completed_circuits"] >= state["requested_circuits"]:
-            state["requested_circuits"] += 1
+            if state["completed_circuits"] < self.MAX_PLANNED_CIRCUITS:
+                state["requested_circuits"] = state["completed_circuits"] + 1
+            else:
+                state["safety_exception_circuits"] += 1
+                logging.getLogger(__name__).critical(
+                    "HOLD_SAFETY_EXCEPTION",
+                    extra={"event": "HOLD_SAFETY_EXCEPTION", "aircraft_callsign": aircraft.callsign,
+                           "hold_id": state["holding_route_id"], "holding_fix": state["rejoin_waypoint"],
+                           "completed_circuits": state["completed_circuits"],
+                           "reason": safety.get("reason", "release unsafe")})
+        if state["completed_circuits"] == self.MAX_PLANNED_CIRCUITS:
+            logging.getLogger(__name__).error(
+                "HOLD_LIMIT_REACHED",
+                extra={"event": "HOLD_LIMIT_REACHED", "aircraft_callsign": aircraft.callsign,
+                       "hold_id": state["holding_route_id"], "holding_fix": state["rejoin_waypoint"],
+                       "completed_circuits": state["completed_circuits"],
+                       "decision": "release unsafe; safety exception reassessment"})
+        current_level = state.get("target_holding_level_ft")
+        holding = self._holding_route_by_id(state.get("holding_route_id")) or {}
+        level_change_due = (
+            isinstance(current_level, (int, float))
+            and state["completed_circuits"] >= 2
+            and state["completed_circuits"] - state.get("last_level_change_circuit", 0) >= 2
+            and isinstance(holding.get("holding_levels_ft"), list)
+        )
+        if level_change_due:
+            lower = self._flight_level(holding.get("lower_limit"))
+            upper = self._flight_level(holding.get("upper_limit"))
+            if level_decider is not None:
+                recommendation = level_decider(aircraft, state)
+                next_level = recommendation.get("level_ft") if isinstance(recommendation, dict) else None
+                if next_level is not None:
+                    with self._capacity_lock:
+                        next_level = self._select_holding_level(
+                            aircraft, holding, lower, upper,
+                            exclude_aircraft=aircraft, exclude_level=current_level,
+                            preferred_level=next_level,
+                        )
+                if (isinstance(recommendation, dict)
+                        and recommendation.get("choice") == "REMAIN"):
+                    next_level = None
+            else:
+                with self._capacity_lock:
+                    next_level = (self._select_holding_level(
+                        aircraft, holding, lower, upper,
+                        exclude_aircraft=aircraft, exclude_level=current_level,
+                    ) if lower is not None and upper is not None else None)
+            if next_level is not None:
+                previous_level = current_level
+                state["previous_holding_level_ft"] = previous_level
+                state["assigned_holding_level_ft"] = next_level
+                state["target_holding_level_ft"] = next_level
+                state["last_level_change_circuit"] = state["completed_circuits"]
+                aircraft.holding_altitude_ft = next_level
+                aircraft.assign_altitude(next_level)
+                aircraft.target_vertical_speed_fpm = None
+                print(f"HOLD LEVEL CHANGE | callsign={aircraft.callsign} "
+                      f"fix={state['rejoin_waypoint']} circuit={state['completed_circuits']} "
+                      f"from={previous_level}ft to={next_level}ft reason=continued delay "
+                      f"after {safety.get('reason', 'release remains unsafe')}")
+            elif level_decider is not None:
+                print(f"HOLD LEVEL DECISION | callsign={aircraft.callsign} "
+                      f"level={current_level}ft action=REMAIN_OR_REJECTED")
         state["scheduled_circuits"] += 1
         state["next_circuit_end_index"] = index + len(state["repeat_circuit_waypoints"])
-        print(f"ADDITIONAL HOLD CIRCUIT | callsign={aircraft.callsign} next={state['scheduled_circuits']}")
+        print(f"ADDITIONAL HOLD CIRCUIT | callsign={aircraft.callsign} next={state['scheduled_circuits']} "
+              f"planned={state['requested_circuits']} safety_exception={state['completed_circuits'] >= self.MAX_PLANNED_CIRCUITS}")
         self._schedule_holding_circuit(aircraft, state, index)
         state["holding_rejoin_index"] += state["circuit_length"]
         return self._result(True, "Downstream traffic unsafe; continue holding", released=False,
@@ -572,7 +930,51 @@ class HoldingManager:
         index = getattr(aircraft, "route_index", -1)
         return index == state.get("next_circuit_end_index")
 
+    def report_boundary_capture_rejection(self, aircraft, reason, **capture_details):
+        """Emit a throttled diagnostic if the current target is the hold boundary."""
+        state = self.state_for(aircraft)
+        if state is None:
+            return False
+        boundary_index = state.get("next_circuit_end_index")
+        route_index = getattr(aircraft, "route_index", -1)
+        target_waypoint = getattr(aircraft, "target_node", None)
+        target_index = route_index + 1
+        route = getattr(aircraft, "route", [])
+        if (not isinstance(boundary_index, int) or target_index != boundary_index
+                or target_index < 0 or target_index >= len(route)
+                or str(route[target_index]).upper() != str(target_waypoint).upper()):
+            return False
+
+        callsign = str(getattr(aircraft, "callsign", "<unknown>"))
+        hold_id = str(state.get("holding_route_id", "<unknown>"))
+        now = time.monotonic()
+        key = (callsign, hold_id, boundary_index, str(reason))
+        previous = self._boundary_diagnostic_last.get(key)
+        if (previous is not None
+                and now - previous < self.BOUNDARY_DIAGNOSTIC_INTERVAL_SECONDS):
+            return True
+        self._boundary_diagnostic_last[key] = now
+        logging.getLogger(__name__).warning(
+            "Holding circuit boundary waypoint was not captured",
+            extra={
+                "event": "holding_boundary_capture_rejected",
+                "aircraft_callsign": callsign,
+                "hold_id": hold_id,
+                "route_cursor": route_index,
+                "target_waypoint": target_waypoint,
+                "assigned_node": getattr(aircraft, "assigned_node", None),
+                "boundary_index": boundary_index,
+                "capture_rejection_reason": reason,
+                **capture_details,
+            },
+        )
+        return True
+
     def restore_original_route(self, aircraft, circuit_boundary=False):
+        with self._capacity_lock:
+            return self._restore_original_route(aircraft, circuit_boundary)
+
+    def _restore_original_route(self, aircraft, circuit_boundary=False):
         state = self.state_for(aircraft)
         if state is None:
             return self._result(False, "Aircraft has no active holding route")
@@ -590,12 +992,14 @@ class HoldingManager:
         altitude, speed = state.get("original_target_altitude"), state.get("original_target_speed")
         if altitude is not None:
             aircraft.assign_altitude(altitude)
+        aircraft.target_vertical_speed_fpm = state.get("original_target_vertical_speed")
         if speed is not None:
             aircraft.assign_speed(speed)
         aircraft.state = state.get("original_state", "ENROUTE")
         aircraft.controller = state.get("original_controller", "")
         aircraft.last_instruction = state.get("original_instruction", "")
-        for name in ("holding_fix", "holding_route_id", "holding_rejoin_node", "holding_circuits_completed"):
+        for name in ("holding_fix", "holding_route_id", "holding_rejoin_node", "holding_circuits_completed",
+                     "holding_altitude_ft", "holding_level_transition"):
             if hasattr(aircraft, name):
                 delattr(aircraft, name)
         self._release_holding_nodes(state.get("holding_node_ids", []))
@@ -607,16 +1011,57 @@ class HoldingManager:
         return self._result(True, f"Original route restored at {state['rejoin_waypoint']}",
                             rejoin_waypoint=state["rejoin_waypoint"], rejoin_node=state["rejoin_node"])
 
+    def cancel_holding_route(self, aircraft, reason="holding assignment cancelled"):
+        with self._capacity_lock:
+            state = self.state_for(aircraft)
+            if state is None:
+                return self._result(False, "Aircraft has no active holding route")
+            self._release_holding_nodes(state.get("holding_node_ids", []))
+            del self._active_holds[id(aircraft)]
+            for name in ("holding_fix", "holding_route_id", "holding_rejoin_node",
+                         "holding_circuits_completed", "holding_altitude_ft", "holding_level_transition"):
+                if hasattr(aircraft, name):
+                    delattr(aircraft, name)
+            if getattr(aircraft, "state", None) == "HOLDING":
+                aircraft.state = state.get("original_state", "ENROUTE")
+            logging.getLogger(__name__).info(
+                "Holding reservation released callsign=%s hold=%s reason=%s occupancy=%s/%s",
+                aircraft.callsign, state.get("holding_route_id"), reason,
+                self.holding_occupancy(state.get("holding_route_id")),
+                (self._holding_route_by_id(state.get("holding_route_id")) or {}).get("capacity", 1),
+            )
+            return self._result(True, reason, holding_route_id=state.get("holding_route_id"))
+
+    def prune_inactive_holds(self, active_aircraft):
+        active = {id(aircraft): aircraft for aircraft in active_aircraft}
+        with self._capacity_lock:
+            inactive = [state["aircraft"] for key, state in self._active_holds.items()
+                        if key not in active or active[key] is not state.get("aircraft")]
+            for aircraft in inactive:
+                self.cancel_holding_route(aircraft, "aircraft no longer active")
+        return len(inactive)
+
     def active_holding_routes(self):
         result = []
         for state in self._active_holds.values():
             aircraft = state["aircraft"]
             result.append({
                 "type": "holding_route", "callsign": aircraft.callsign,
+                "aircraft_type": getattr(aircraft, "aircraft_type", None),
+                "position": {"latitude": getattr(aircraft, "lat", None),
+                             "longitude": getattr(aircraft, "lon", None)},
+                "altitude_ft": getattr(aircraft, "altitude_ft", None),
+                "target_altitude_ft": getattr(aircraft, "target_altitude_ft", None),
+                "speed_kts": getattr(aircraft, "speed_kts", None),
+                "heading_deg": getattr(aircraft, "heading_deg", None),
+                "route": list(getattr(aircraft, "route", []) or []),
+                "route_index": getattr(aircraft, "route_index", None),
+                "target_waypoint": getattr(aircraft, "target_node", None),
                 "holding_route_id": state["holding_route_id"], "fix": state["rejoin_waypoint"],
                 "active": True, "waypoints": list(state["holding_waypoints"]),
                 "circuits_completed": state["completed_circuits"],
                 "requested_circuits": state["requested_circuits"],
+                "holding_level_ft": getattr(aircraft, "holding_altitude_ft", None),
                 "rejoin_node": state["rejoin_node"],
             })
         return result

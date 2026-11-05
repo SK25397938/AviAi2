@@ -128,6 +128,9 @@ class TrafficManager:
 
     INITIAL_ARRIVALS = 1
     MAX_ACTIVE_AIRCRAFT = 13
+    # Reduce each configured wave gap by 10%; wave durations and caps remain
+    # authoritative, so this modestly increases flow without continuous spawn.
+    ARRIVAL_INTERVAL_SCALE = 0.90
     # Each phase is (name, duration, arrival-gap range, active-aircraft cap).
     TRAFFIC_WAVES = (
         ("LOW", 210.0, (70.0, 105.0), 5),
@@ -135,19 +138,21 @@ class TrafficManager:
         ("HIGH", 120.0, (28.0, 48.0), 13),
     )
 
-    def __init__(self):
+    def __init__(self, rng=None, seed_database=True, database_path="data/simulation/traffic.sqlite"):
 
-        self.db = TrafficDatabase()
+        self.db = TrafficDatabase(database_path)
+        self.random = rng if rng is not None else random
 
         self.arrival_timer = 0.0
         self.wave_index = 0
         self.wave_timer = 0.0
 
         self.initial_arrivals_spawned = False
-        self.initial_arrival_delay = random.uniform(2.0, 18.0)
+        self.initial_arrival_delay = self.random.uniform(2.0, 18.0)
         self.next_arrival_interval = self._next_arrival_interval()
 
-        self.seed_test_aircraft()
+        if seed_database:
+            self.seed_test_aircraft()
 
     @property
     def active_wave(self):
@@ -159,7 +164,8 @@ class TrafficManager:
 
     def _next_arrival_interval(self):
         low, high = self.active_wave[2]
-        return random.uniform(low, high)
+        scale = min(1.0, max(0.5, float(self.ARRIVAL_INTERVAL_SCALE)))
+        return self.random.uniform(low, high) * scale
 
     def _advance_wave(self, dt):
         self.wave_timer += max(0.0, float(dt))
@@ -268,7 +274,7 @@ class TrafficManager:
             )
 
         waiting = self.get_waiting_arrivals()
-        selected = random.sample(waiting, min(self.INITIAL_ARRIVALS, len(waiting)))
+        selected = self.random.sample(waiting, min(self.INITIAL_ARRIVALS, len(waiting)))
 
         spawned = []
 
@@ -285,9 +291,7 @@ class TrafficManager:
 
         self.arrival_timer = 0.0
 
-        self.next_arrival_interval = random.uniform(
-            *self.active_wave[2]
-        )
+        self.next_arrival_interval = self._next_arrival_interval()
 
         return spawned
 
@@ -339,7 +343,7 @@ class TrafficManager:
 
             return spawned
 
-        aircraft = random.choice(
+        aircraft = self.random.choice(
             waiting
         )
 
@@ -357,9 +361,7 @@ class TrafficManager:
 
         self.arrival_timer = 0.0
 
-        self.next_arrival_interval = random.uniform(
-            *self.active_wave[2]
-        )
+        self.next_arrival_interval = self._next_arrival_interval()
 
         return spawned
 

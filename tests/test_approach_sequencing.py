@@ -1,11 +1,13 @@
 import unittest
+import json
 from threading import Barrier, RLock, Thread
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from app.intelligence.guidance_ai import GuidanceAI
 from app.intelligence.approach_ai import ApproachAI
 from app.intelligence.mistral.controller import MistralController
+from app.intelligence.mistral import client as mistral_client
 from app.simulation.engine import SimulationEngine
 from app.simulation.holding_manager import HoldingManager
 from app.navigation.loader import load_arrival_routes
@@ -68,6 +70,416 @@ def sequencing_engine(traffic=(), entry_etas=None, route_preferences=None):
 
 
 class ApproachCoordinationTests(unittest.TestCase):
+    def test_all_three_entries_are_reported_with_transition_rejection_reason(self):
+        own = aircraft("CANDIDATE-DIAG")
+        engine = sequencing_engine([own])
+
+        result = engine._can_approach_handoff(own)
+
+        considered = {item["node"]: item for item in result["approach_candidates_considered"]}
+        self.assertEqual(set(considered), {"APP25", "APP32", "APP38"})
+        self.assertTrue(considered["APP32"]["eligible"])
+        self.assertTrue(considered["APP38"]["eligible"])
+        self.assertFalse(considered["APP25"]["eligible"])
+        self.assertIn("no supported transition", considered["APP25"]["reason"])
+
+    def test_app25_remains_a_candidate_when_route_preferences_only_rank_app32_app38(self):
+        own = aircraft("APP25-ELIGIBLE")
+        app38_owner = aircraft("APP38-OWNER", phase="FINAL")
+        app32_owner = aircraft("APP32-OWNER", phase="FINAL")
+        engine = sequencing_engine(
+            [own, app38_owner, app32_owner], route_preferences=["APP32", "APP38"]
+        )
+        engine.approach_ai.approach_points[2]["arrival_entry_transition"] = {
+            "type": "DIRECT_FROM_ARRIVAL_TRIGGER"
+        }
+        engine.approach_reservations.update({
+            "APP38": app38_owner, "APP32": app32_owner,
+        })
+        app38_owner._approach_entry_index = 0
+        app38_owner._approach_entry_node = "APP38"
+        app32_owner._approach_entry_index = 1
+        app32_owner._approach_entry_node = "APP32"
+        engine.approach_reservation_status = {"APP38": "active", "APP32": "active"}
+        engine._approach_entry_eta_seconds = lambda *_args, **_kwargs: 150.0
+
+        result = engine._can_approach_handoff(own)
+
+        self.assertTrue(result["safe"], result["reason"])
+        self.assertEqual(result["approach_entry_node"], "APP25")
+        self.assertIs(engine.approach_reservations["APP25"], own)
+
+    def test_ai_can_select_a_different_safe_entry_with_provisional_reservation(self):
+        own = aircraft("AI-TRAIL")
+        leader = aircraft("AI-LEAD", phase="FINAL")
+        leader.approach_index = 0
+        leader._approach_entry_index = 0
+        leader._approach_entry_node = "APP38"
+        engine = sequencing_engine(
+            [own, leader], route_preferences=["APP25", "APP32", "APP38"]
+        )
+        engine.holding_manager.state_for = lambda _item: None
+        engine.ai_arrival_decisions_enabled = True
+        engine.approach_ai.approach_points[2]["arrival_entry_transition"] = {
+            "type": "DIRECT_FROM_ARRIVAL_TRIGGER"
+        }
+        engine.approach_reservations["APP38"] = leader
+        engine.approach_reservation_status = {"APP38": "active"}
+        etas = {"APP25": 150.0, "APP32": 120.0, "APP38": 90.0}
+        engine._approach_entry_eta_seconds = lambda *args, **kwargs: etas[args[4]["id"]]
+        controller = MistralController()
+        self.addCleanup(controller._executor.shutdown, wait=True)
+
+        with patch("app.simulation.engine.mistral_controller", controller), \
+             patch.object(mistral_client, "client", object()), \
+             patch.object(mistral_client, "generate", return_value=json.dumps({
+                 "choice": "APP25", "reason": "Keeps one entry between the leading and trailing arrivals"
+             })):
+            waiting = engine._can_approach_handoff(own)
+            self.assertTrue(waiting["safe"])
+            self.assertEqual(waiting["decision_source"], "DETERMINISTIC_PENDING_FALLBACK")
+            self.assertEqual(waiting["approach_entry_node"], "APP25")
+            self.assertIs(engine.approach_reservations["APP25"], own)
+            self.assertEqual(engine.approach_reservation_status["APP25"], "active")
+            pending = next(iter(controller._operational_pending.values()))
+            pending["future"].result(timeout=2)
+
+            selected = engine._can_approach_handoff(own)
+
+        self.assertTrue(selected["safe"])
+        self.assertEqual(selected["approach_entry_node"], "APP25")
+        self.assertEqual(selected["decision_source"], "Mistral")
+        self.assertIs(engine.approach_reservations["APP25"], own)
+
+    def test_pending_fallback_replaces_owners_now_unsafe_reservation(self):
+        import app.simulation.engine as engine_module
+
+        own = aircraft("RESERVATION-REPLACE")
+        own.altitude_ft = 11000.0
+        own._approach_entry_index = 0
+        own._approach_entry_node = "APP38"
+        engine = sequencing_engine([own], route_preferences=["APP32", "APP38"])
+        engine.ai_arrival_decisions_enabled = True
+        engine.approach_reservations["APP38"] = own
+        engine.approach_reservation_status = {"APP38": "active"}
+
+        with patch.object(engine_module.mistral_controller, "operational_choice",
+                          return_value={"status": "pending", "choice": None}):
+            result = engine._can_approach_handoff(own)
+
+        self.assertTrue(result["safe"])
+        self.assertEqual(result["approach_entry_node"], "APP32")
+        self.assertEqual(engine.approach_reservations, {"APP32": own})
+        self.assertEqual(engine.approach_reservation_status, {"APP32": "active"})
+        self.assertEqual(own._approach_entry_node, "APP32")
+
+    def test_late_ai_preference_cannot_replace_committed_safe_fallback(self):
+        own = aircraft("LATE-TRAIL")
+        own.target_node = "TRIG"
+        leader = aircraft("LATE-LEAD", phase="FINAL")
+        leader.approach_index = 0
+        leader._approach_entry_index = 0
+        leader._approach_entry_node = "APP38"
+        engine = sequencing_engine(
+            [own, leader], route_preferences=["APP25", "APP32", "APP38"]
+        )
+        engine.holding_manager.state_for = lambda _item: None
+        engine.ai_arrival_decisions_enabled = True
+        engine.approach_ai.approach_points[2]["arrival_entry_transition"] = {
+            "type": "DIRECT_FROM_ARRIVAL_TRIGGER"
+        }
+        engine.approach_reservations["APP38"] = leader
+        engine.approach_reservation_status = {"APP38": "active"}
+        engine._approach_entry_eta_seconds = lambda _item, _route, _progress, _speed, point, from_fallback=False: {
+            "APP25": 150.0, "APP32": 120.0, "APP38": 90.0
+        }[point["id"]]
+        controller = MistralController()
+        self.addCleanup(controller._executor.shutdown, wait=True)
+        nodes = {"TRIG": {"lat": 19.1, "lon": 73.4}}
+        nodes.update({point["id"]: {"lat": point["latitude"], "lon": point["longitude"]}
+                      for point in engine.approach_ai.approach_points})
+        guidance = GuidanceAI(
+            SimpleNamespace(get_node=lambda name: nodes[name], nodes=nodes),
+            holding_manager=engine.holding_manager,
+            arrival_routes=engine.arrival_routes,
+            approach_handoff_validator=engine._can_approach_handoff,
+        )
+        guidance.apply_route_constraints = lambda _item: None
+
+        with patch("app.simulation.engine.mistral_controller", controller), \
+             patch.object(mistral_client, "client", object()), \
+             patch.object(mistral_client, "generate", return_value=json.dumps({
+                 "choice": "APP32", "reason": "Late model preference"
+             })):
+            guidance.update(own)
+            self.assertEqual(own.phase, "FINAL")
+            self.assertEqual(own.target_node, "APP25")
+            self.assertTrue(own.approach_clearance)
+            self.assertIs(engine.approach_reservations["APP25"], own)
+            pending = next(iter(controller._operational_pending.values()))
+            pending["future"].result(timeout=2)
+            engine._prune_approach_reservations()
+
+        self.assertEqual(own.target_node, "APP25")
+        self.assertEqual(own._approach_entry_node, "APP25")
+        self.assertIs(engine.approach_reservations["APP25"], own)
+        self.assertEqual(engine.approach_reservation_status["APP25"], "active")
+
+    def test_safe_trigger_capture_atomically_enters_selected_approach(self):
+        item = aircraft("HANDOFF")
+        item.target_node = "TRIG"
+        item.route_index = 1
+        graph = SimpleNamespace(get_node=lambda name: {
+            "TRIG": {"lat": 19.1, "lon": 73.4},
+            "APP32": {"lat": 19.09, "lon": 73.35},
+        }[name])
+        guidance = object.__new__(GuidanceAI)
+        guidance.graph = graph
+        guidance.holding_manager = None
+        guidance.arrival_routes = {"r1": {"approach_trigger": "TRIG"}}
+        guidance.arrival_profiles = {}
+        guidance.decision_event_callback = None
+        guidance.approach_handoff_validator = lambda _aircraft: {
+            "safe": True, "approach_entry_index": 1, "approach_entry_node": "APP32"
+        }
+        guidance.navigator = SimpleNamespace(heading_to_node=lambda _aircraft, _node: 90.0)
+        guidance.apply_route_constraints = lambda _aircraft: None
+        guidance._progress = {}
+
+        guidance.update(item)
+
+        self.assertTrue(item.approach_clearance)
+        self.assertEqual(item.phase, "FINAL")
+        self.assertEqual(item.route_index, len(item.route))
+        self.assertEqual(item.assigned_node, "TRIG")
+        self.assertEqual(item.target_node, "APP32")
+        self.assertEqual(item.clearance.direct_node, "APP32")
+        self.assertEqual(item._approach_entry_index, 1)
+
+    def test_missing_or_incomplete_handoff_validation_cannot_clear_at_trigger(self):
+        for validator in (None, lambda _item: {"safe": True}):
+            with self.subTest(validator_configured=validator is not None):
+                item = aircraft("FAIL-CLOSED")
+                item.route = ["IN", "TRIG"]
+                item.route_index = 1
+                item.assigned_node = "IN"
+                item.target_node = "TRIG"
+                item.lat, item.lon = 19.1, 73.4
+                nodes = {"TRIG": {"lat": 19.1, "lon": 73.4}}
+                guidance = object.__new__(GuidanceAI)
+                guidance.graph = SimpleNamespace(get_node=lambda name: nodes[name], nodes=nodes)
+                guidance.navigator = SimpleNamespace(heading_to_node=lambda *_: 90.0)
+                guidance.holding_manager = None
+                guidance.arrival_routes = {"r1": {"approach_trigger": "TRIG"}}
+                guidance.arrival_profiles = {}
+                guidance.decision_event_callback = None
+                guidance.approach_handoff_validator = validator
+                guidance.apply_route_constraints = lambda _item: None
+                guidance._progress = {}
+
+                guidance.update(item)
+
+                self.assertFalse(item.approach_clearance)
+                self.assertEqual(item.phase, "ARRIVAL")
+                self.assertEqual(item.target_node, "TRIG")
+                self.assertFalse(hasattr(item, "_approach_entry_node"))
+
+    def test_route_end_trigger_without_committed_entry_cannot_enter_final(self):
+        item = aircraft("ROUTE-END-UNCLEARED")
+        item.route = ["IN", "TRIG"]
+        item.route_index = 2
+        item.assigned_node = "TRIG"
+        item.target_node = None
+        guidance = object.__new__(GuidanceAI)
+        guidance.holding_manager = None
+        guidance.arrival_routes = {"r1": {"approach_trigger": "TRIG"}}
+        guidance.approach_handoff_validator = None
+        guidance.decision_event_callback = None
+
+        guidance.update(item)
+
+        self.assertEqual(item.phase, "ARRIVAL")
+        self.assertFalse(item.approach_clearance)
+        self.assertIsNone(item.target_node)
+
+    def test_route_end_allocates_validated_dynamic_approach_entry_before_fallback(self):
+        for entry_index, entry_node in ((0, "APP38"), (1, "APP32"), (2, "APP25")):
+            with self.subTest(entry=entry_node):
+                item = aircraft("ROUTE-END-" + entry_node)
+                item.route = ["IN", "TRIG"]
+                item.route_index = len(item.route)
+                item.assigned_node = "TRIG"
+                item.target_node = None
+                nodes = {
+                    "TRIG": {"lat": 19.1, "lon": 73.4},
+                    "APP38": {"lat": 19.09, "lon": 73.45},
+                    "APP32": {"lat": 19.08, "lon": 73.35},
+                    "APP25": {"lat": 19.07, "lon": 73.25},
+                    "OLGUS": {"lat": 19.215275, "lon": 73.473181},
+                    "MB398": {"lat": 19.453401, "lon": 73.462572},
+                }
+                heading_calls = []
+                guidance = object.__new__(GuidanceAI)
+                guidance.graph = SimpleNamespace(get_node=lambda name: nodes.get(name), nodes=nodes)
+                guidance.navigator = SimpleNamespace(
+                    heading_to_node=lambda _item, target: heading_calls.append(target) or 90.0
+                )
+                guidance.holding_manager = None
+                guidance.arrival_routes = {"r1": {
+                    "approach_trigger": "TRIG",
+                    "approach_fallback_preferences": ["OLGUS", "MB398"],
+                }}
+                guidance.arrival_profiles = {}
+                guidance.decision_event_callback = None
+                guidance.approach_handoff_validator = lambda _item: {
+                    "safe": True, "approach_entry_index": entry_index,
+                    "approach_entry_node": entry_node,
+                }
+                guidance._record_progress = lambda *_args, **_kwargs: None
+
+                guidance.update(item)
+
+                self.assertEqual(item.phase, "FINAL")
+                self.assertTrue(item.approach_clearance)
+                self.assertEqual(item._approach_entry_node, entry_node)
+                self.assertEqual(item.target_node, entry_node)
+                self.assertEqual(item.clearance.direct_node, entry_node)
+                self.assertEqual(heading_calls, [entry_node])
+                self.assertEqual(item.route, ["IN", "TRIG"])
+
+    def test_route_end_uses_reachable_configured_fallback_only_when_entries_unsafe(self):
+        item = aircraft("ROUTE-END-FALLBACK")
+        item.route = ["IN", "TRIG"]
+        item.route_index = len(item.route)
+        item.assigned_node = "TRIG"
+        item.target_node = None
+        nodes = {
+            "TRIG": {"lat": 19.21, "lon": 73.31},
+            "OLGUS": {"lat": 19.215275, "lon": 73.473181},
+            "MB398": {"lat": 19.453401, "lon": 73.462572},
+            "DOGAP": {"lat": 18.809143, "lon": 73.416653},
+        }
+        heading_calls = []
+        guidance = object.__new__(GuidanceAI)
+        guidance.graph = SimpleNamespace(get_node=lambda name: nodes.get(name), nodes=nodes)
+        guidance.navigator = SimpleNamespace(
+            heading_to_node=lambda _item, target: heading_calls.append(target) or 80.0
+        )
+        guidance.holding_manager = None
+        guidance.arrival_routes = {"r1": {
+            "approach_trigger": "TRIG",
+            "approach_fallback_preferences": ["DOGAP", "MB398", "OLGUS"],
+        }}
+        guidance.arrival_profiles = {}
+        guidance.decision_event_callback = None
+        guidance.approach_handoff_validator = lambda _item: {
+            "safe": False, "reason": "All approach entries currently unsafe",
+        }
+        guidance.apply_route_constraints = lambda _item: None
+        guidance._record_progress = lambda *_args, **_kwargs: None
+
+        guidance.update(item)
+
+        self.assertFalse(item.approach_clearance)
+        self.assertEqual(item.phase, "ARRIVAL")
+        self.assertEqual(item.route[-2:], ["OLGUS", "TRIG"])
+        self.assertEqual(item.target_node, "OLGUS")
+        self.assertEqual(item.clearance.direct_node, "OLGUS")
+        self.assertEqual(heading_calls, ["OLGUS"])
+
+        committed_route = list(item.route)
+        guidance.update(item)
+        self.assertEqual(item.route, committed_route)
+        self.assertEqual(item.route_index, len(["IN", "TRIG"]))
+        self.assertEqual(item.target_node, "OLGUS")
+        self.assertEqual(item.clearance.direct_node, "OLGUS")
+        self.assertEqual(heading_calls[-1], "OLGUS")
+
+    def test_ai_wait_with_compatible_hold_keeps_aircraft_out_of_approach(self):
+        item = aircraft("WAIT-HOLD")
+        item.route = ["IN", "TRIG"]
+        item.route_index = 1
+        item.assigned_node = "IN"
+        item.target_node = "TRIG"
+        item.lat, item.lon = 19.1, 73.4
+        nodes = {"TRIG": {"lat": 19.1, "lon": 73.4}}
+        active = {"hold": False}
+        manager = Mock()
+        manager.state_for.side_effect = lambda _item: ({"holding_waypoints": []}
+                                                        if active["hold"] else None)
+        manager.has_active_holding_route.side_effect = lambda _item: active["hold"]
+        manager.compatible_holding_options.return_value = [{"holding_route_id": "H1"}]
+
+        def apply_hold(aircraft_item, hold_id, **kwargs):
+            active["hold"] = True
+            aircraft_item.state = "HOLDING"
+            aircraft_item.target_node = "H1_P01"
+            aircraft_item.clearance.direct_node = "H1_P01"
+            return {"success": True}
+
+        manager.apply_holding_route.side_effect = apply_hold
+        guidance = object.__new__(GuidanceAI)
+        guidance.graph = SimpleNamespace(get_node=lambda name: nodes[name], nodes=nodes)
+        guidance.navigator = SimpleNamespace(heading_to_node=lambda *_: 90.0)
+        guidance.holding_manager = manager
+        guidance.arrival_routes = {"r1": {"approach_trigger": "TRIG"}}
+        guidance.arrival_profiles = {}
+        guidance.decision_event_callback = None
+        guidance.approach_handoff_validator = lambda _item: {
+            "safe": False, "ai_action": "WAIT", "reason": "No safe entry"
+        }
+        guidance.apply_route_constraints = lambda _item: None
+        guidance._progress = {}
+
+        guidance.update(item)
+
+        manager.apply_holding_route.assert_called_once_with(item, "H1", circuits=1,
+                                                            required_delay_seconds=None)
+        self.assertTrue(active["hold"])
+        self.assertEqual(item.phase, "ARRIVAL")
+        self.assertEqual(item.state, "HOLDING")
+        self.assertFalse(item.approach_clearance)
+
+    def test_pending_wait_without_hold_follows_configured_route_extension(self):
+        item = aircraft("PENDING-WAIT")
+        item.route = ["IN", "TRIG", "MB398"]
+        item.route_index = 1
+        item.assigned_node = "IN"
+        item.target_node = "TRIG"
+        item.lat, item.lon = 19.1, 73.4
+        nodes = {
+            "TRIG": {"lat": 19.1, "lon": 73.4},
+            "MB398": {"lat": 19.2, "lon": 73.5},
+        }
+        manager = Mock()
+        manager.state_for.return_value = None
+        manager.has_active_holding_route.return_value = False
+        manager.compatible_holding_options.return_value = []
+        guidance = object.__new__(GuidanceAI)
+        guidance.graph = SimpleNamespace(get_node=lambda name: nodes[name], nodes=nodes)
+        guidance.navigator = SimpleNamespace(heading_to_node=lambda *_: 90.0)
+        guidance.holding_manager = manager
+        guidance.arrival_routes = {"r1": {
+            "approach_trigger": "TRIG",
+            "approach_fallback_preferences": ["MB398"],
+        }}
+        guidance.arrival_profiles = {}
+        guidance.decision_event_callback = None
+        guidance.approach_handoff_validator = lambda _item, **_kwargs: {
+            "safe": False, "ai_pending": True, "reason": "Model decision pending",
+        }
+        guidance.apply_route_constraints = lambda _item: None
+        guidance._record_progress = lambda *_args, **_kwargs: None
+        guidance._progress = {}
+
+        guidance.update(item)
+
+        self.assertEqual(item.assigned_node, "TRIG")
+        self.assertEqual(item.target_node, "MB398")
+        self.assertEqual(item.clearance.direct_node, "MB398")
+        self.assertTrue(item._approach_ai_waiting)
+        self.assertFalse(item.approach_clearance)
+
     def test_vabb_route_preferences_reference_configured_direct_entries(self):
         routes = load_arrival_routes()
         approach_points = ApproachAI(None).approach_points
@@ -82,6 +494,27 @@ class ApproachCoordinationTests(unittest.TestCase):
             elif trigger == "MB395":
                 self.assertEqual(preferences, ["APP32", "APP38"])
             self.assertTrue(set(preferences).issubset(point_ids))
+
+    def test_bb254_and_bb266_routes_have_connected_direct_transitions_to_all_three_entries(self):
+        routes = load_arrival_routes()
+        points = {point["id"]: point for point in ApproachAI(None).approach_points}
+        required = {"APP25", "APP32", "APP38"}
+        for route in routes.values():
+            if route.get("approach_trigger") not in {"BB254", "BB266"}:
+                continue
+            endpoint = route["waypoints"][-1]
+            self.assertEqual(endpoint["name"], route["approach_trigger"])
+            for node in required:
+                point = points[node]
+                self.assertEqual(
+                    point.get("arrival_entry_transition", {}).get("type"),
+                    "DIRECT_FROM_ARRIVAL_TRIGGER",
+                )
+                self.assertLessEqual(
+                    SimulationEngine._route_segment_length_nm(endpoint, point),
+                    SimulationEngine.SEQUENCING_WINDOW_NM,
+                    f"{route['id']} cannot connect {endpoint['name']} to {node}",
+                )
 
     def test_olgus_route_prefers_app32_when_both_entries_are_safe(self):
         own = aircraft("OLGUS")
@@ -212,7 +645,7 @@ class ApproachCoordinationTests(unittest.TestCase):
         result = engine._can_approach_handoff(own)
 
         self.assertFalse(result["safe"])
-        self.assertIn("predicted inside 5 NM at APP25", result["reason"])
+        self.assertIn("predicted inside 6 NM at APP25", result["reason"])
 
     def test_waiting_aircraft_can_reassess_after_entry_reservation_clears(self):
         own = aircraft("OWN")
@@ -318,6 +751,45 @@ class ApproachCoordinationTests(unittest.TestCase):
         self.assertIs(engine.approach_reservations["APP38"], own)
         self.assertIs(engine.approach_reservations["APP32"], other)
 
+    def test_app25_occupied_app32_available_selects_app32(self):
+        own = aircraft("TRAILING")
+        holder = aircraft("APP25-HOLDER", phase="FINAL")
+        engine = sequencing_engine([own, holder], route_preferences=["APP25", "APP32", "APP38"])
+        engine.approach_ai.approach_points[2]["arrival_entry_transition"] = {
+            "type": "DIRECT_FROM_ARRIVAL_TRIGGER"
+        }
+        engine.approach_reservations["APP25"] = holder
+        holder._approach_entry_index = 2
+        holder._approach_entry_node = "APP25"
+
+        result = engine._can_approach_handoff(own)
+
+        self.assertTrue(result["safe"], result["reason"])
+        self.assertEqual(result["approach_entry_node"], "APP32")
+        self.assertIs(engine.approach_reservations["APP25"], holder)
+        self.assertIs(engine.approach_reservations["APP32"], own)
+
+    def test_app25_and_app32_occupied_app38_available_selects_app38(self):
+        own = aircraft("TRAILING")
+        app25_owner = aircraft("APP25-HOLDER", phase="FINAL")
+        app32_owner = aircraft("APP32-HOLDER", phase="FINAL")
+        engine = sequencing_engine([own, app25_owner, app32_owner],
+                                   route_preferences=["APP25", "APP32", "APP38"])
+        engine.approach_ai.approach_points[2]["arrival_entry_transition"] = {
+            "type": "DIRECT_FROM_ARRIVAL_TRIGGER"
+        }
+        engine.approach_reservations.update({"APP25": app25_owner, "APP32": app32_owner})
+        app25_owner._approach_entry_index, app25_owner._approach_entry_node = 2, "APP25"
+        app32_owner._approach_entry_index, app32_owner._approach_entry_node = 1, "APP32"
+
+        result = engine._can_approach_handoff(own)
+
+        self.assertTrue(result["safe"], result["reason"])
+        self.assertEqual(result["approach_entry_node"], "APP38")
+        self.assertIs(engine.approach_reservations["APP25"], app25_owner)
+        self.assertIs(engine.approach_reservations["APP32"], app32_owner)
+        self.assertIs(engine.approach_reservations["APP38"], own)
+
     def test_app38_occupied_app32_safe_selects_app32(self):
         own = aircraft("OWN")
         holder = aircraft("HOLDER")
@@ -348,6 +820,21 @@ class ApproachCoordinationTests(unittest.TestCase):
 
         self.assertTrue(result["safe"], result["reason"])
         self.assertEqual(result["approach_entry_node"], "APP38")
+        self.assertIs(engine.approach_reservations["APP32"], established)
+
+    def test_committed_approach_target_reclaims_missing_reservation_ownership(self):
+        own = aircraft("OWN")
+        established = aircraft("ESTABLISHED", phase="FINAL")
+        established.approach_clearance = True
+        established.target_node = "APP32"
+        established.approach_index = 1
+        engine = sequencing_engine([own, established], route_preferences=["APP32", "APP38"])
+
+        result = engine._can_approach_handoff(own)
+
+        self.assertTrue(result["safe"], result["reason"])
+        self.assertEqual(result["approach_entry_node"], "APP38")
+        self.assertEqual(established._approach_entry_node, "APP32")
         self.assertIs(engine.approach_reservations["APP32"], established)
 
     def test_concurrent_pending_clearances_cannot_both_claim_app32(self):
@@ -466,8 +953,8 @@ class ArrivalSequencingBoundsTests(unittest.TestCase):
         engine = object.__new__(SimulationEngine)
         engine._minimum_sequencing_speed = lambda _: 170.0
 
-        # This ETA calls for a 210 kt target, a 10 kt reduction from baseline.
-        leader_eta = 20.0 * 3600.0 / 210.0 - 72.0
+        # This ETA calls for a 210 kt target at the current 6 NM minimum gap.
+        leader_eta = 20.0 * 3600.0 / 210.0 - 6.0 * 3600.0 / 250.0
         applied = engine._apply_merge_speed_delay(item, 20.0, leader_eta, 250.0)
 
         self.assertTrue(applied)
@@ -476,9 +963,9 @@ class ArrivalSequencingBoundsTests(unittest.TestCase):
 
     def test_active_route_eta_uses_route_changes_and_fallback_waypoints(self):
         item = aircraft("ROUTE")
-        item.route = ["IN", "DOGAP", "TRIG"]
+        item.route = ["IN", "MB398", "TRIG"]
         item.route_index = 1
-        item.target_node = "DOGAP"
+        item.target_node = "MB398"
         item.lat, item.lon = 19.0, 73.0
         route = {"approach_trigger": "TRIG", "waypoints": [
             {"name": "IN", "latitude": 19.0, "longitude": 72.9},
@@ -486,7 +973,7 @@ class ArrivalSequencingBoundsTests(unittest.TestCase):
         ]}
         engine = object.__new__(SimulationEngine)
         engine.graph = SimpleNamespace(nodes={
-            "DOGAP": {"lat": 19.0, "lon": 73.1},
+            "MB398": {"lat": 19.0, "lon": 73.1},
             "TRIG": {"lat": 19.0, "lon": 73.2},
         })
         engine.holding_manager = SimpleNamespace(has_active_holding_route=lambda _: False)
@@ -521,12 +1008,12 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_safe_fallback_reassessment_continues_to_route_trigger(self):
         item = aircraft("FALLBACK")
-        item.route = ["TRIG", "DOGAP", "TRIG"]
+        item.route = ["TRIG", "MB398", "TRIG"]
         item.route_index = 1
         item.assigned_node = "TRIG"
-        item.target_node = "DOGAP"
+        item.target_node = "MB398"
         item._approach_extension_used = True
-        item._approach_extension_fix = "DOGAP"
+        item._approach_extension_fix = "MB398"
         item._approach_extension_index = 1
         guidance = self.guidance({
             "safe": True, "approach_entry_index": 0, "approach_entry_node": "APP38"
@@ -535,8 +1022,8 @@ class FallbackReleaseTests(unittest.TestCase):
         guidance.update(item)
 
         self.assertEqual(item.phase, "ARRIVAL")
-        self.assertEqual(item.assigned_node, "DOGAP")
-        self.assertEqual(item.route, ["TRIG", "DOGAP", "TRIG"])
+        self.assertEqual(item.assigned_node, "MB398")
+        self.assertEqual(item.route, ["TRIG", "MB398", "TRIG"])
         self.assertEqual(item.route_index, 2)
         self.assertEqual(item.target_node, "TRIG")
         self.assertEqual(item.clearance.direct_node, "TRIG")
@@ -545,12 +1032,12 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_unsafe_fallback_remains_on_existing_loop(self):
         item = aircraft("FALLBACK")
-        item.route = ["TRIG", "DOGAP", "TRIG"]
+        item.route = ["TRIG", "MB398", "TRIG"]
         item.route_index = 1
         item.assigned_node = "TRIG"
-        item.target_node = "DOGAP"
+        item.target_node = "MB398"
         item._approach_extension_used = True
-        item._approach_extension_fix = "DOGAP"
+        item._approach_extension_fix = "MB398"
         item._approach_extension_index = 1
         guidance = self.guidance({"safe": False})
         guidance.decision_event_callback = Mock()
@@ -558,32 +1045,32 @@ class FallbackReleaseTests(unittest.TestCase):
         guidance.update(item)
 
         self.assertEqual(item.phase, "ARRIVAL")
-        self.assertEqual(item.route, ["TRIG", "DOGAP", "TRIG"])
+        self.assertEqual(item.route, ["TRIG", "MB398", "TRIG"])
         self.assertEqual(item.route_index, 1)
-        self.assertEqual(item.assigned_node, "DOGAP")
-        self.assertEqual(item.target_node, "DOGAP")
-        self.assertEqual(item.clearance.direct_node, "DOGAP")
+        self.assertEqual(item.assigned_node, "MB398")
+        self.assertEqual(item.target_node, "MB398")
+        self.assertEqual(item.clearance.direct_node, "MB398")
         self.assertTrue(item._approach_extension_used)
         guidance.decision_event_callback.assert_called_once_with(
-            item, "APPROACH CLEARANCE WITHHELD", "DOGAP",
+            item, "APPROACH CLEARANCE WITHHELD", "MB398",
             "Approach handoff validator withheld clearance"
         )
 
     def test_waiting_fallback_is_reassessed_and_resumes_when_safe(self):
         item = aircraft("FALLBACK")
-        item.route = ["TRIG", "DOGAP", "TRIG"]
+        item.route = ["TRIG", "MB398", "TRIG"]
         item.route_index = 1
         item.assigned_node = "TRIG"
-        item.target_node = "DOGAP"
+        item.target_node = "MB398"
         item._approach_extension_used = True
-        item._approach_extension_fix = "DOGAP"
+        item._approach_extension_fix = "MB398"
         item._approach_extension_index = 1
         state = {"safe": False, "reason": "APP38 reserved for LEADER"}
         guidance = self.guidance(state)
 
         guidance.update(item)
         self.assertEqual(item.route_index, 1)
-        self.assertEqual(item.target_node, "DOGAP")
+        self.assertEqual(item.target_node, "MB398")
 
         state.update(safe=True, approach_entry_index=0, approach_entry_node="APP38")
         guidance.update(item)
@@ -594,12 +1081,12 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_denied_fallback_is_reassessed_without_repeated_capture(self):
         item = aircraft("WAIT")
-        item.route = ["TRIG", "DOGAP", "TRIG"]
+        item.route = ["TRIG", "MB398", "TRIG"]
         item.route_index = 1
-        item.assigned_node = "DOGAP"
-        item.target_node = "DOGAP"
+        item.assigned_node = "MB398"
+        item.target_node = "MB398"
         item._approach_extension_used = True
-        item._approach_extension_fix = "DOGAP"
+        item._approach_extension_fix = "MB398"
         item._approach_extension_index = 1
         item._approach_clearance_waiting = True
         checks = []
@@ -607,18 +1094,18 @@ class FallbackReleaseTests(unittest.TestCase):
         guidance.approach_handoff_validator = lambda item, **kwargs: checks.append(item.target_node) or {"safe": False}
         guidance.update(item)
         guidance.update(item)
-        self.assertEqual(checks, ["DOGAP", "DOGAP"])
+        self.assertEqual(checks, ["MB398", "MB398"])
         self.assertEqual(item.route_index, 1)
-        self.assertEqual(item.target_node, "DOGAP")
+        self.assertEqual(item.target_node, "MB398")
 
     def test_waiting_fallback_advances_only_after_validator_allows_it(self):
         item = aircraft("RESUME")
-        item.route = ["TRIG", "DOGAP", "TRIG"]
+        item.route = ["TRIG", "MB398", "TRIG"]
         item.route_index = 1
-        item.assigned_node = "DOGAP"
-        item.target_node = "DOGAP"
+        item.assigned_node = "MB398"
+        item.target_node = "MB398"
         item._approach_extension_used = True
-        item._approach_extension_fix = "DOGAP"
+        item._approach_extension_fix = "MB398"
         item._approach_extension_index = 1
         item._approach_clearance_waiting = True
         state = {"safe": False}
@@ -627,15 +1114,15 @@ class FallbackReleaseTests(unittest.TestCase):
         state["safe"] = True
         guidance.update(item)
         self.assertEqual(item.route_index, 2)
-        self.assertEqual(item.assigned_node, "DOGAP")
+        self.assertEqual(item.assigned_node, "MB398")
         self.assertEqual(item.target_node, "TRIG")
 
     def test_navigation_watchdog_repairs_only_stale_self_target(self):
         item = aircraft("STALL")
-        item.route = ["IN", "DOGAP", "TRIG"]
+        item.route = ["IN", "MB398", "TRIG"]
         item.route_index = 1
-        item.assigned_node = "DOGAP"
-        item.target_node = "DOGAP"
+        item.assigned_node = "MB398"
+        item.target_node = "MB398"
         item.current_distance = 1.0
         events = []
         guidance = self.guidance({"safe": True})
@@ -648,6 +1135,24 @@ class FallbackReleaseTests(unittest.TestCase):
 
 
 class ReservationRetentionTests(unittest.TestCase):
+    def test_active_hold_releases_obsolete_entry_reservation(self):
+        held = aircraft("HELD")
+        other = aircraft("OTHER")
+        engine = sequencing_engine([held, other])
+        engine.holding_manager = SimpleNamespace(
+            has_active_holding_route=lambda item: item is held
+        )
+        engine.approach_reservations["APP32"] = held
+        engine.approach_reservation_status = {"APP32": "pending"}
+        held._approach_entry_node = "APP32"
+        held._approach_entry_index = 1
+
+        engine._prune_approach_reservations()
+
+        self.assertNotIn("APP32", engine.approach_reservations)
+        self.assertNotIn("APP32", engine.approach_reservation_status)
+        self.assertFalse(hasattr(held, "_approach_entry_node"))
+
     def test_temporarily_unsafe_owner_keeps_its_valid_reservation(self):
         own = aircraft("OWN")
         conflict = aircraft("CONFLICT")
@@ -710,6 +1215,21 @@ class HoldingFairnessTests(unittest.TestCase):
         }
         return engine, own, other
 
+    def test_priority_merge_clearance_still_requires_safe_approach_handoff(self):
+        engine, own, _other = self.release_engine(10.0, 20.0)
+        state = engine.holding_manager.state_for(own)
+        state["priority_callsign"] = "CLEARED-LEADER"
+        state["protected_merge_point"] = "MERGE"
+        engine.manager.all = lambda: [own]
+        engine._can_approach_handoff = lambda _item: {
+            "safe": False, "reason": "No approach entry passed safety validation"
+        }
+
+        result = engine._can_release_holding(own)
+
+        self.assertFalse(result["safe"])
+        self.assertIn("No approach entry passed safety validation", result["reason"])
+
     def test_holding_release_still_requires_circuit_boundary_and_safety(self):
         manager = HoldingManager([])
         item = aircraft("HOLD")
@@ -728,10 +1248,67 @@ class HoldingFairnessTests(unittest.TestCase):
         item.route_index = 4
         manager._schedule_holding_circuit = Mock()
         manager.restore_original_route = Mock(return_value={"success": True})
-        result = manager.complete_holding_circuit(item, lambda _: {"safe": True})
+        result = manager.complete_holding_circuit(item, lambda _: {
+            "safe": True, "approach_entry_index": 0, "approach_entry_node": "APP38"
+        })
 
         self.assertTrue(result["released"])
         manager.restore_original_route.assert_called_once_with(item, circuit_boundary=True)
+
+    def test_failed_route_restore_does_not_commit_approach_clearance(self):
+        manager = HoldingManager([])
+        item = aircraft("RESTORE-FAIL")
+        item.route = ["TRIG", "H1_P01", "H1_P02", "TRIG"]
+        item.route_index = 3
+        item.assigned_node = "TRIG"
+        item.approach_clearance = False
+        state = {
+            "aircraft": item, "next_circuit_end_index": 3,
+            "completed_circuits": 0, "requested_circuits": 1,
+            "holding_route_id": "H1", "rejoin_waypoint": "TRIG",
+            "original_route": ["TRIG"], "rejoin_index": 0,
+            "holding_node_ids": [],
+        }
+        manager._active_holds[id(item)] = state
+        manager.restore_original_route = Mock(return_value={
+            "success": False, "message": "Aircraft has not reached rejoin waypoint TRIG"
+        })
+
+        result = manager.complete_holding_circuit(item, lambda _: {
+            "safe": True, "approach_entry_index": 1, "approach_entry_node": "APP32"
+        })
+
+        self.assertTrue(result["release_attempted"])
+        self.assertFalse(result["released"])
+        self.assertFalse(item.approach_clearance)
+        self.assertTrue(manager.has_active_holding_route(item))
+        self.assertFalse(hasattr(item, "_approach_entry_node"))
+
+    def test_holding_release_rejects_safe_result_without_committed_entry(self):
+        manager = HoldingManager([])
+        item = aircraft("NO-ENTRY-RELEASE")
+        item.route = ["TRIG", "H1_P01"]
+        item.route_index = 1
+        item.assigned_node = "TRIG"
+        item.approach_clearance = False
+        state = {
+            "aircraft": item, "next_circuit_end_index": 1,
+            "completed_circuits": 0, "requested_circuits": 1,
+            "scheduled_circuits": 1, "holding_route_id": "H1",
+            "rejoin_waypoint": "TRIG", "original_route": ["TRIG"],
+            "rejoin_index": 0, "holding_node_ids": [],
+            "repeat_circuit_waypoints": [{"name": "H1_P01"}],
+            "holding_circuit_waypoints": [{"name": "H1_P01"}],
+            "circuit_length": 1, "holding_rejoin_index": 1,
+        }
+        manager._active_holds[id(item)] = state
+        manager._schedule_holding_circuit = Mock()
+
+        result = manager.complete_holding_circuit(item, lambda _: {"safe": True})
+
+        self.assertFalse(result["released"])
+        self.assertTrue(manager.has_active_holding_route(item))
+        self.assertFalse(item.approach_clearance)
 
     def test_active_hold_target_is_synchronized_to_route_cursor(self):
         manager = HoldingManager([])
@@ -801,7 +1378,7 @@ class HoldingFairnessTests(unittest.TestCase):
         result = engine._can_release_holding(own)
 
         self.assertFalse(result["safe"])
-        self.assertIn("waited longer", result["reason"])
+        self.assertIn("higher circuit-and-age holding priority", result["reason"])
 
     def test_older_candidate_can_release_before_newer_same_merge_hold(self):
         engine, own, _ = self.release_engine(10.0, 20.0)
@@ -828,6 +1405,34 @@ class HoldingFairnessTests(unittest.TestCase):
         result = engine._can_release_holding(own)
 
         self.assertTrue(result["safe"])
+
+    def _ai_release_choice(self, action):
+        engine, own, _ = self.release_engine(10.0, 20.0)
+        engine.ai_arrival_decisions_enabled = True
+        engine.approach_reservations = {}
+        engine.approach_reservation_status = {}
+        engine.ai_decision_log = []
+        engine._last_separation_event_at = {}
+        controller = MistralController()
+        self.addCleanup(controller._executor.shutdown, wait=True)
+        with patch("app.simulation.engine.mistral_controller", controller), \
+             patch.object(mistral_client, "client", object()), \
+             patch.object(mistral_client, "generate", return_value=json.dumps({
+                 "choice": action, "reason": "Sequencing policy decision"
+             })):
+            first = engine._can_release_holding(own)
+            second = engine._can_release_holding(own)
+        return second
+
+    def test_ai_continue_recommendation_cannot_veto_deterministic_safe_release(self):
+        result = self._ai_release_choice("CONTINUE")
+        self.assertTrue(result["safe"])
+        self.assertEqual(result["decision_source"], "deterministic_safety_validation")
+
+    def test_ai_can_choose_release_after_deterministic_safety_approval(self):
+        result = self._ai_release_choice("RELEASE")
+        self.assertTrue(result["safe"])
+        self.assertEqual(result["decision_source"], "deterministic_safety_validation")
 
     def test_pending_model_decision_does_not_block_deterministic_release(self):
         engine, own, _ = self.release_engine(10.0, 20.0)
@@ -914,7 +1519,7 @@ class StaleConflictDecisionTests(unittest.TestCase):
 
 
 class HoldingRouteEndTests(unittest.TestCase):
-    def test_route_end_continuation_uses_published_arrival_trigger_and_approach(self):
+    def test_route_end_continuation_uses_route_trigger_not_standalone_olgus(self):
         from app.navigation.loader import load_arrival_routes
 
         engine = object.__new__(SimulationEngine)
@@ -922,7 +1527,8 @@ class HoldingRouteEndTests(unittest.TestCase):
         engine.approach_ai = ApproachAI(None)
         item = aircraft("OLGUS-ARRIVAL", route_id="001")
 
-        self.assertTrue(engine._has_configured_holding_continuation(item, "OLGUS"))
+        self.assertTrue(engine._has_configured_holding_continuation(item, "BB266"))
+        self.assertFalse(engine._has_configured_holding_continuation(item, "OLGUS"))
         self.assertFalse(engine._has_configured_holding_continuation(item, "EMROS"))
 
     def test_route_end_hold_release_restores_trigger_and_selected_approach(self):

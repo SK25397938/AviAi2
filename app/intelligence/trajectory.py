@@ -4,10 +4,11 @@ import time
 from collections import deque
 from app.aircraft.aircraft_type import get_aircraft_performance
 from app.core.config import redis_client
+from app.config.separation import MIN_HORIZONTAL_SEPARATION_NM
 
 MAX_POINTS = 6
 WINDOW_SECONDS = 40
-MIN_ARRIVAL_SEPARATION_NM = 5.0
+MIN_ARRIVAL_SEPARATION_NM = MIN_HORIZONTAL_SEPARATION_NM
 SEPARATION_SPEED_GAIN = 12.0
 
 

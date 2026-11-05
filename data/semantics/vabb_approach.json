@@ -178,7 +178,8 @@
         "distance_dme": null,
         "latitude": 19.094706731897773,
         "longitude": 73.25672452639625,
-        "altitude_ft": 5000
+    "altitude_ft": 5000,
+    "arrival_entry_transition": { "type": "DIRECT_FROM_ARRIVAL_TRIGGER" }
     },
     {
         "id": "APP18",

@@ -182,9 +182,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 .layer-ctrl{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:410;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .layer-menu[open] .layer-ctrl{display:block}
 .layer-menu[open] .nav-ctrl{display:flex;flex-direction:column;gap:6px;min-width:140px}
-.terrain-status{display:none;max-width:250px;color:#ff9b7b;font:9px var(--font-mono);margin-top:6px;white-space:normal}
-.terrain-controls{margin:5px 0 2px 19px;color:var(--muted);font:9px var(--font-mono)}
-.terrain-controls select{margin-left:5px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);color:var(--fg);font:9px var(--font-mono)}
 .nav-ctrl .btn{justify-content:center}
 .lc-title{font-family:var(--font-mono);font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
 .lc-item{display:flex;align-items:center;gap:8px;padding:3px 0}
@@ -237,7 +234,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <div class="lc-item"><label><input type="checkbox" checked data-layer="holdpts" onchange="toggleLayer(this)"> Holding Points</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="weather" onchange="toggleLayer(this)"> Weather</label></div>
 <div class="lc-item"><label><input type="checkbox" data-layer="conflictzones" onchange="toggleLayer(this)"> Conflict Zones</label></div>
-<div class="lc-item"><label><input type="checkbox" data-layer="terrain" onchange="toggleLayer(this)"> Terrain Elevation</label><div class="terrain-controls"><select id="terrainThreshold" aria-label="Contour threshold in metres" title="Contour threshold in metres" onchange="setTerrainThreshold(this.value)"><option value="300">300 m</option><option value="500" selected>500 m</option><option value="750">750 m</option><option value="1000">1,000 m</option></select></div><div id="terrainStatus" class="terrain-status" role="status" aria-live="polite"></div></div>
 </div>
 </details>
 <details class="layer-menu" id="navMenu">
@@ -251,6 +247,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;backgroun
 <a href="/map/" class="btn btn--sm">Live Map</a>
 <button id="semanticModeBtn" class="top-btn">Semantic Edit</button>
 <button id="holdingModeBtn">Holding Mode</button>
+<button id="testModeBtn" class="top-btn" onclick="toggleTestMode()">Test Mode</button>
 </div>
 </header>
 <div id="simMap"></div>
@@ -464,7 +461,6 @@ Apply Weather
 </div>
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <script src="/static/js/runway_renderer.js"></script>
-<script src="/static/js/terrain_elevation.js"></script>
 <script>
 const VABB=[72.8656,19.0896];
 let acData=[];
@@ -477,12 +473,43 @@ let simRunning=true,simSpeed=1,selectedCs=null,lastFrame=performance.now();
 let simTime=14*3600+30*60;
 let map,markers={},atcOpen=false;
 let guidanceFeatures = {};
+let graphNodeById=new Map(),approachWaypointById=new Map();
+let testSessionId=null,testSpawnNodes=[],testNodesLoading=false;
+const wsTextEncoder=new TextEncoder();
+const aviPerf = (function(){
+  if(!new URLSearchParams(location.search).has("perf")) return null;
+  const samples=Object.create(null),events=Object.create(null);
+  function observe(name,value){
+    const entry=samples[name]||(samples[name]={count:0,total:0,max:0,last:0});
+    const number=Number(value)||0;
+    entry.count++;entry.total+=number;entry.max=Math.max(entry.max,number);entry.last=number;
+  }
+  function event(name){events[name]=(events[name]||0)+1;}
+  setInterval(function(){
+    const report={interval_ms:5000,events:Object.assign({},events),measurements:{}};
+    Object.keys(samples).forEach(function(name){
+      const item=samples[name];
+      report.measurements[name]={count:item.count,avg:+(item.total/Math.max(1,item.count)).toFixed(2),
+        max:+item.max.toFixed(2),last:+item.last.toFixed(2)};
+      item.count=0;item.total=0;item.max=0;
+    });
+    Object.keys(events).forEach(name=>events[name]=0);
+    console.info("[AviAi perf]",report);
+  },5000);
+  if(window.PerformanceObserver){
+    try{new PerformanceObserver(list=>list.getEntries().forEach(entry=>observe("longTask",entry.duration)))
+      .observe({type:"longtask",buffered:true});}catch(_e){}
+    try{new PerformanceObserver(list=>list.getEntries().forEach(entry=>observe("inputEventMs",entry.duration)))
+      .observe({type:"event",buffered:true,durationThreshold:16});}catch(_e){}
+  }
+  window.aviPerf={observe,event};
+  return window.aviPerf;
+})();
 const AIRCRAFT_HISTORY_LIMIT=1200;
 const aircraftPathHistory=Object.create(null);
 let atisExpanded=false;
 let atisMessage="";
-let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false,terrain:false};
-let terrainController=null;
+let layers={aircraft:true,labels:true,runways:true,taxiways:true,aprons:true,gates:true,holdpts:true,weather:false,conflictzones:false};
 let semanticMode=false;
 let holdingMode=false;
 let configuredHoldingPatterns=[];
@@ -555,6 +582,7 @@ async function loadApproachVisualization(){
 
         const points = data.approach || [];
         approachWaypoints = points;
+        approachWaypointById=new Map(points.map(point=>[point.id,point]));
 
         const coordinates = points.map(function(point){
             return [
@@ -609,6 +637,17 @@ async function loadApproachVisualization(){
 
     }
 
+}
+
+function appendMapReferenceWaypoints(waypointFeatures){
+    // Verified OLGUS coordinates from the project's prior navigation route definition.
+    [{name:"OLGUS",latitude:19.215000,longitude:73.473333}].forEach(function(point){
+        waypointFeatures.push({
+            type:"Feature",
+            properties:{name:point.name,route_id:"NAVIGATION_REFERENCE"},
+            geometry:{type:"Point",coordinates:[point.longitude,point.latitude]}
+        });
+    });
 }
 
 async function loadRouteVisualization(){
@@ -745,6 +784,8 @@ async function loadRouteVisualization(){
 
         });
 
+        appendMapReferenceWaypoints(waypointFeatures);
+
         // Sequencing fixes are not part of the published arrival routes, but
         // should still be visible on the map for controllers.
         [
@@ -821,18 +862,25 @@ function initMap(){
   pitch:0,
   antialias:false
 });
-  terrainController=TerrainElevation.createController(map,function(){return layers.terrain;},function(message,isError){
-    var status=document.getElementById("terrainStatus");
-    status.textContent=isError?message:"";
-    status.style.display=isError?"block":"none";
+  ["zoomstart","zoom","zoomend","move","moveend","resize","render","idle"].forEach(function(name){
+    map.on(name,function(){
+      if(!aviPerf) return;
+      const started=performance.now();
+      aviPerf.event("map:"+name);
+      aviPerf.observe("mapDiagnosticCallbackMs",performance.now()-started);
+    });
   });
-  map.on("style.load",function(){if(terrainController) terrainController.styleLoaded();});
   map.addControl(new maplibregl.NavigationControl(),"top-left");
   map.on("load",async()=>{
     await loadAirport();
     await loadGraph();
     addAirportFeatures();
     drawGraph();
+    map.addSource("test-spawn-nodes",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+    map.addLayer({id:"test-spawn-nodes",type:"circle",source:"test-spawn-nodes",paint:{"circle-radius":7,"circle-color":"#42d392","circle-stroke-color":"#10251c","circle-stroke-width":2}});
+    map.on("click","test-spawn-nodes",spawnTestAtMapNode);
+    map.on("mouseenter","test-spawn-nodes",()=>{map.getCanvas().style.cursor="crosshair";});
+    map.on("mouseleave","test-spawn-nodes",()=>{map.getCanvas().style.cursor="";});
     map.on("mouseenter","graph-nodes",e=>{
       if(!semanticMode) return;
       map.getCanvas().style.cursor="pointer";
@@ -1050,9 +1098,9 @@ map.addLayer({
     type:"line",
     source:"holding-patterns",
     paint:{
-        "line-color":["case",["get","active"],"#d34332","#607783"],
-        "line-width":["case",["get","active"],3,2],
-        "line-opacity":["case",["get","active"],0.92,0.55]
+        "line-color":["case",["get","active"],"#e53935","#77818a"],
+        "line-width":["case",["get","active"],4,2],
+        "line-opacity":["case",["get","active"],1,0.55]
     }
 });
 map.addSource("short-holding-patterns",{
@@ -1063,7 +1111,7 @@ map.addLayer({
     id:"short-holding-pattern-lines",
     type:"line",
     source:"short-holding-patterns",
-    paint:{"line-color":"#607783","line-width":4,"line-opacity":0.55,"line-dasharray":[1,1]},
+    paint:{"line-color":["case",["get","active"],"#e53935","#77818a"],"line-width":4,"line-opacity":0.9,"line-dasharray":[1,1]},
     layout:{"line-cap":"round","line-join":"round"}
 });
 map.addSource("configured-holding-fixes",{
@@ -1074,14 +1122,14 @@ map.addLayer({
     id:"configured-holding-fix-markers",
     type:"circle",
     source:"configured-holding-fixes",
-    paint:{"circle-radius":["case",["get","active"],7,5],"circle-color":["case",["get","active"],"#d34332","#607783"],"circle-stroke-color":"#ffffff","circle-stroke-width":2}
+    paint:{"circle-radius":["case",["get","active"],7,5],"circle-color":"#77818a","circle-stroke-color":"#ffffff","circle-stroke-width":2}
 });
 map.addLayer({
     id:"configured-holding-fix-labels",
     type:"symbol",
     source:"configured-holding-fixes",
     layout:{"text-field":["get","fix"],"text-size":10,"text-offset":[0,1.2]},
-    paint:{"text-color":["case",["get","active"],"#b51f1a","#40565f"],"text-halo-color":"#ffffff","text-halo-width":2}
+    paint:{"text-color":"#77818a","text-halo-color":"#ffffff","text-halo-width":2}
 });
 map.addSource("aircraft-history",{
     type:"geojson",
@@ -1121,17 +1169,15 @@ function loadAircraft(){
     };
 
     socket.onmessage = function(event){
-
+        const messageStart=performance.now();
+        const payloadBytes=wsTextEncoder.encode(event.data).byteLength;
+        const parseStart=performance.now();
         const state = JSON.parse(event.data);
+        if(aviPerf){aviPerf.observe("wsPayloadBytes",payloadBytes);aviPerf.observe("wsParseMs",performance.now()-parseStart);}
 
         acData = state.aircraft;
+        applyTestSessionState(state.session || {session_mode:"NORMAL"});
         recordAircraftPositions(acData);
-
-        console.log(
-            "Aircraft received:",
-            acData.length,
-            acData
-        );
 
         if(state.instruction_log){
 
@@ -1171,6 +1217,8 @@ function loadAircraft(){
 
         }
 
+        if(aviPerf){aviPerf.observe("wsProcessMs",performance.now()-messageStart);aviPerf.observe("simAircraftCount",acData.length);}
+
     };
 
     socket.onerror = function(error){
@@ -1193,36 +1241,85 @@ function loadAircraft(){
 
 }
 
-function renderInstructionLog(log){
+async function toggleTestMode(){
+  const button=document.getElementById("testModeBtn");
+  button.disabled=true;
+  try{
+    if(testSessionId){
+      const response=await fetch("/simulation/test-session",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:testSessionId})});
+      if(!response.ok) throw new Error((await response.json()).detail||"Could not exit Test Mode");
+      testSessionId=null;testSpawnNodes=[];setTestSpawnNodes([]);
+    }else{
+      const response=await fetch("/simulation/test-session",{method:"POST"});
+      if(!response.ok) throw new Error((await response.json()).detail||"Could not start Test Mode");
+      const session=await response.json();
+      testSessionId=session.session_id;
+      await loadTestSpawnNodes();
+    }
+  }catch(error){alert(error.message||"Test Mode transition failed");}
+  finally{button.disabled=false;applyTestSessionState({session_mode:testSessionId?"TEST":"NORMAL",session_id:testSessionId});}
+}
 
+function applyTestSessionState(session){
+  const active=session.session_mode==="TEST"&&!!session.session_id;
+  const changed=testSessionId!==(active?session.session_id:null);
+  testSessionId=active?session.session_id:null;
+  const button=document.getElementById("testModeBtn");
+  if(button){button.textContent=active?"Exit Test":"Test Mode";button.classList.toggle("top-btn--active",active);}
+  if(!active){testSpawnNodes=[];setTestSpawnNodes([]);}
+  else if(changed&&!testNodesLoading) loadTestSpawnNodes();
+}
+
+async function loadTestSpawnNodes(){
+  if(!testSessionId||testNodesLoading) return;
+  testNodesLoading=true;
+  try{
+    const response=await fetch("/simulation/test-session/nodes");
+    if(!response.ok) throw new Error("Unable to load eligible arrival nodes");
+    const result=await response.json();
+    if(result.session_id!==testSessionId) return;
+    testSpawnNodes=result.nodes||[];setTestSpawnNodes(testSpawnNodes);
+  }catch(error){console.error(error);}
+  finally{testNodesLoading=false;}
+}
+
+function setTestSpawnNodes(nodes){
+  const source=map&&map.getSource("test-spawn-nodes");
+  if(!source)return;
+  source.setData({type:"FeatureCollection",features:nodes.map(item=>({
+    type:"Feature",properties:{node:item.node,route_id:item.route_id},
+    geometry:{type:"Point",coordinates:[item.longitude,item.latitude]}
+  }))});
+}
+
+async function spawnTestAtMapNode(event){
+  if(!testSessionId)return;
+  const feature=event.features&&event.features[0];if(!feature)return;
+  const payload={session_id:testSessionId,node:feature.properties.node,route_id:feature.properties.route_id};
+  const response=await fetch("/simulation/test-session/spawn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(!response.ok){const error=await response.json();alert(error.detail||"Test aircraft spawn rejected");}
+}
+
+function renderInstructionLog(log){
     const body =
         document.getElementById("logBody");
-
-    body.innerHTML = "";
-
-    log.slice().reverse().forEach(function(item){
-
-        body.innerHTML +=
-
-        '<div class="log-entry">'+
-
-        '<span class="log-time">'+
-        item.time+
-        '</span>'+
-
-        '<span class="log-src log-src--approach">'+
-        item.controller+
-        '</span>'+
-
-        '<span class="log-text">'+
-        item.text+
-        '</span>'+
-
-        '</div>';
-
-    });
-
+    const entries = Array.isArray(log) ? log : [];
+    const first = entries[0] || {};
+    const last = entries[entries.length - 1] || {};
+    const signature = [entries.length, first.time, first.callsign, first.controller, first.instruction,
+        last.time, last.callsign, last.controller, last.instruction].join("|");
+    if (signature === lastInstructionLogSignature) return;
+    lastInstructionLogSignature = signature;
+    body.innerHTML = entries.slice().reverse().map(function(item){
+        return '<div class="log-entry">'+
+            '<span class="log-time">'+escapeLogText(item.time)+'</span>'+
+            '<span class="log-src log-src--approach">'+escapeLogText(item.controller)+'</span>'+
+            '<span class="log-text">'+escapeLogText(item.instruction)+'</span>'+
+            '</div>';
+    }).join("");
 }
+
+let lastInstructionLogSignature = null;
 
 function escapeLogText(value){
     return String(value == null ? "" : value).replace(/[&<>"']/g,function(ch){
@@ -1232,6 +1329,8 @@ function escapeLogText(value){
 
 let latestDecisionEntries=[];
 let latestAircraftStatuses=[];
+let lastHoldingVisualizationSignature=null;
+let lastAircraftHistorySignature=null;
 
 function renderSafetyCommands(entries){
     const container=document.getElementById("opSafetyActions");
@@ -1338,12 +1437,19 @@ async function loadHoldingPatternGeometry(){
 }
 
 function updateHoldingVisualization(holds, configuredPoints){
+    const signature=JSON.stringify([
+        configuredHoldingPatterns.map(function(pattern){return pattern.holding_route_id;}),
+        (holds||[]).map(function(hold){return [hold.holding_route_id,hold.callsign];}),
+        (configuredPoints||[]).map(function(point){return [point.holding_route_id,!!point.active];})
+    ]);
+    if(signature===lastHoldingVisualizationSignature) return;
+    lastHoldingVisualizationSignature=signature;
     const activeIds=new Set((holds||[]).map(function(hold){return String(hold.holding_route_id);}));
     const shortHolds=new Set();
     const shortFeatures=configuredHoldingPatterns.map(function(pattern){
         const coordinates=Array.isArray(pattern.short_coordinates)?pattern.short_coordinates.map(function(point){return [Number(point[0]),Number(point[1])];}):[];
         if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return null;
-        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id},geometry:{type:"LineString",coordinates:coordinates}};
+        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:false,synthetic:pattern.synthetic===true,status:pattern.status},geometry:{type:"LineString",coordinates:coordinates}};
     }).filter(Boolean);
     (holds||[]).forEach(function(hold){
         const pattern=configuredHoldingPatterns.find(function(item){return String(item.holding_route_id)===String(hold.holding_route_id);});
@@ -1357,20 +1463,21 @@ function updateHoldingVisualization(holds, configuredPoints){
         if(!matchesStandard){
             shortHolds.add(String(hold.holding_route_id));
             const feature=shortFeatures.find(function(item){return String(item.properties.holding_route_id)===String(hold.holding_route_id);});
-            if(feature) feature.geometry.coordinates=coordinates;
+            if(feature){feature.geometry.coordinates=coordinates;feature.properties.active=true;}
         }
     });
     const features=configuredHoldingPatterns.map(function(pattern){
         const coordinates=Array.isArray(pattern.coordinates)?pattern.coordinates.map(function(point){return [Number(point[0]),Number(point[1])];}):[];
         if(coordinates.length<2||coordinates.some(function(point){return !Number.isFinite(point[0])||!Number.isFinite(point[1]);})) return null;
-        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:activeIds.has(String(pattern.holding_route_id))&&!shortHolds.has(String(pattern.holding_route_id))},geometry:{type:"LineString",coordinates:coordinates}};
+        return {type:"Feature",properties:{fix:pattern.fix,holding_route_id:pattern.holding_route_id,active:activeIds.has(String(pattern.holding_route_id))&&!shortHolds.has(String(pattern.holding_route_id)),synthetic:pattern.synthetic===true,status:pattern.status},geometry:{type:"LineString",coordinates:coordinates}};
     }).filter(Boolean);
     const source=map.getSource("holding-patterns");
     if(source) source.setData({type:"FeatureCollection",features:features});
     const shortSource=map.getSource("short-holding-patterns");
     if(shortSource) shortSource.setData({type:"FeatureCollection",features:shortFeatures});
     const pointFeatures=(configuredPoints||[]).map(function(point){
-        return {type:"Feature",properties:{fix:point.fix,holding_route_id:point.holding_route_id,active:!!point.active},geometry:{type:"Point",coordinates:[Number(point.longitude),Number(point.latitude)]}};
+        const pattern=configuredHoldingPatterns.find(function(item){return String(item.holding_route_id)===String(point.holding_route_id);});
+        return {type:"Feature",properties:{fix:point.fix,holding_route_id:point.holding_route_id,active:!!point.active,synthetic:!!(pattern&&pattern.synthetic),status:pattern&&pattern.status},geometry:{type:"Point",coordinates:[Number(point.longitude),Number(point.latitude)]}};
     }).filter(function(feature){return Number.isFinite(feature.geometry.coordinates[0])&&Number.isFinite(feature.geometry.coordinates[1]);});
     const fixSource=map.getSource("configured-holding-fixes");
     if(fixSource) fixSource.setData({type:"FeatureCollection",features:pointFeatures});
@@ -1384,6 +1491,7 @@ async function loadAirport(){
 async function loadGraph(){
   var response=await fetch("/airport/VABB/graph");
   airportGraph=await response.json();
+  graphNodeById=new Map(airportGraph.nodes.map(node=>[node.id,node]));
 }
 
 function drawGraph(){
@@ -1496,6 +1604,10 @@ function updateSelectedAircraftHistory(){
     const source=map&&map.getSource("aircraft-history");
     if(!source) return;
     const points=selectedCs&&aircraftPathHistory[selectedCs];
+    const last=points&&points.length?points[points.length-1]:null;
+    const signature=selectedCs?selectedCs+":"+(points?points.length:0)+":"+(last?last.join(","):""):"";
+    if(signature===lastAircraftHistorySignature) return;
+    lastAircraftHistorySignature=signature;
     const features=points&&points.length>1?[{
         type:"Feature",
         properties:{callsign:selectedCs},
@@ -1572,7 +1684,7 @@ function addAirportFeatures(){
   map.addLayer({id:"parking-labels",type:"symbol",source:"parking",layout:{"text-field":["get","name"],"text-size":9,"text-offset":[0,1]},paint:{"text-color":"#cccccc"}});
   map.addLayer({id:"gates",type:"circle",source:"gates",paint:{"circle-radius":4,"circle-color":"#0066ff"}});
   map.addLayer({id:"gate-labels",type:"symbol",source:"gates",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1.2]},paint:{"text-color":"#ffffff"}});
-  map.addLayer({id:"holding",type:"circle",source:"holding",paint:{"circle-radius":4,"circle-color":"#ff0000"}});
+  map.addLayer({id:"holding",type:"circle",source:"holding",paint:{"circle-radius":4,"circle-color":"#77818a"}});
   map.on("click","holding",async e=>{
     if(!holdingMode) return;
     var feature=e.features[0];
@@ -1589,7 +1701,7 @@ function addAirportFeatures(){
     await fetch("/semantics/VABB/holding-point",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,node:node})});
     alert(name+" saved");
   });
-  map.addLayer({id:"holding-labels",type:"symbol",source:"holding",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1]},paint:{"text-color":"#ff4444"}});
+  map.addLayer({id:"holding-labels",type:"symbol",source:"holding",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1]},paint:{"text-color":"#77818a"}});
   var runwayLabels=[];
   airportData.runways.forEach(function(r){
     if(!r.geometry.length) return;
@@ -1600,26 +1712,18 @@ function addAirportFeatures(){
 }
 
 function updateAircraftMarkers(){
-
+    const updateStart=performance.now();
+    const aircraftByCallsign=new Map(acData.map(ac=>[ac.callsign,ac]));
+    const guidanceStart=performance.now();
     Object.keys(markers).forEach(function(id){
 
         var m = markers[id];
 
-        var ac = acData.find(function(a){
-            return a.callsign === id;
-        });
+        var ac = aircraftByCallsign.get(id);
 
         if(!ac){
 
             delete guidanceFeatures[id];
-
-            map.getSource("guidance-lines").setData({
-
-                type:"FeatureCollection",
-
-                features:Object.values(guidanceFeatures)
-
-            });
 
             return;
 
@@ -1675,18 +1779,14 @@ function updateAircraftMarkers(){
         );
 
     });
-
-}
-
-function interpolateAircraftMarkers(now){
-    Object.keys(markers).forEach(function(id){
-        const m=markers[id];
-        if(!m.to||!m.from) return;
-        const progress=Math.max(0,Math.min(1,(now-m.start)/m.duration));
-        const lon=m.from[0]+(m.to[0]-m.from[0])*progress;
-        const lat=m.from[1]+(m.to[1]-m.from[1])*progress;
-        m.marker.setLngLat([lon,lat]);
-    });
+    if(aviPerf) aviPerf.observe("markerAndGuidanceBuildMs",performance.now()-guidanceStart);
+    const source=map.getSource("guidance-lines");
+    if(source){
+      const sourceStart=performance.now();
+      source.setData({type:"FeatureCollection",features:Object.values(guidanceFeatures)});
+      if(aviPerf) aviPerf.observe("guidanceSetData",performance.now()-sourceStart);
+    }
+    if(aviPerf){aviPerf.observe("mapUpdateMs",performance.now()-updateStart);aviPerf.observe("renderedMarkerCount",acData.length);}
 }
 
 function updateGuidance(ac){
@@ -1697,28 +1797,14 @@ function updateGuidance(ac){
     if(!ac.target_node){
 
     delete guidanceFeatures[ac.callsign];
-
-    map.getSource("guidance-lines").setData({
-        type:"FeatureCollection",
-        features:Object.values(guidanceFeatures)
-    });
-
     return;
 }
 
-    const node = airportGraph.nodes.find(function(n){
-        return n.id === ac.target_node;
-    });
-    const approachPoint = approachWaypoints.find(function(point){
-        return point.id === ac.target_node;
-    });
+    const node = graphNodeById.get(ac.target_node);
+    const approachPoint = approachWaypointById.get(ac.target_node);
 
     if(!node&&!approachPoint){
         delete guidanceFeatures[ac.callsign];
-        map.getSource("guidance-lines").setData({
-            type:"FeatureCollection",
-            features:Object.values(guidanceFeatures)
-        });
         return;
     }
 
@@ -1743,24 +1829,16 @@ function updateGuidance(ac){
 
     };
 
-    map.getSource("guidance-lines").setData({
-
-        type:"FeatureCollection",
-
-        features:Object.values(guidanceFeatures)
-
-    });
-
 }
 
 async function tick(now){
   var realDt=Math.min((now-lastFrame)/1000,0.1);
+  if(aviPerf) aviPerf.observe("rafIntervalMs",realDt*1000);
   lastFrame=now;
   if(simRunning){
     simTime+=realDt;
     document.getElementById("simClock").textContent=fmtTime(simTime);
   }
-  interpolateAircraftMarkers(now);
   requestAnimationFrame(tick);
 }
 
@@ -1801,6 +1879,7 @@ function renderTrafficList(){
             '<span class="tq-type">'+ac.type+'</span>' +
 
             '<span class="tq-info">'+ac.phase+'</span>' +
+            (testSessionId&&ac.test_spawned?'<button class="btn btn--sm btn--danger" onclick="removeTestAircraft(event,\''+ac.callsign+'\')">REMOVE</button>':'') +
 
         '</div>';
 
@@ -1810,6 +1889,13 @@ function renderTrafficList(){
 
     body.innerHTML = html;
 
+}
+
+async function removeTestAircraft(event,callsign){
+  event.stopPropagation();
+  if(!testSessionId)return;
+  const response=await fetch("/simulation/test-session/aircraft",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:testSessionId,callsign:callsign})});
+  if(!response.ok){const error=await response.json();alert(error.detail||"Aircraft removal failed");}
 }
 
 function selectAircraft(cs){
@@ -1970,9 +2056,6 @@ function emergencyPause(){
 function toggleLayer(cb){
   var layer=cb.dataset.layer;
   layers[layer]=cb.checked;
-  if(layer==='terrain'){
-    if(terrainController) terrainController.setVisible(cb.checked);
-  }
   if(layer==='aircraft'){
     Object.values(markers).forEach(function(m){m.marker.getElement().style.display=cb.checked?'':'none';});
   }
@@ -2004,10 +2087,6 @@ function toggleLayer(cb){
   if(layer==='labels'){
     updateAircraftMarkers();
   }
-}
-
-function setTerrainThreshold(value){
-  if(terrainController) terrainController.setThreshold(Number(value));
 }
 
 document.addEventListener('click',function(event){

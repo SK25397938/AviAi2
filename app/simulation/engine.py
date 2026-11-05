@@ -1,7 +1,9 @@
 
 import json
+import logging
 import math
 import random
+import time
 from threading import RLock
 from pathlib import Path
 from datetime import datetime
@@ -9,11 +11,11 @@ from datetime import datetime
 from app.simulation.manager import AircraftManager
 from app.simulation.holding_manager import HoldingManager
 from app.simulation.spawn import spawn_aircraft
-from app.simulation.physics import move_aircraft
+from app.simulation.physics import move_aircraft, TURN_RATE_DEG_PER_SEC
 from app.simulation.aircraft_db import AircraftDatabase
 from app.simulation.traffic_manager import TrafficManager
 from app.simulation.traffic_scheduler import TrafficScheduler
-from app.aircraft.aircraft_type import get_aircraft_performance
+from app.aircraft.aircraft_type import AIRCRAFT_PERFORMANCE, get_aircraft_performance
 
 from app.intelligence.arrival_manager import ArrivalManager
 from app.intelligence.arrival_ai import ArrivalAI
@@ -28,13 +30,24 @@ from app.navigation.runway import Runway
 from app.navigation.centerline import build_centerline
 from app.navigation.grid_builder import build_grid
 from app.navigation.graph_builder import build_graph
-from app.navigation.loader import load_arrival_profiles, load_arrival_routes, load_departure_routes
+from app.navigation.loader import (load_arrival_profiles, load_arrival_routes,
+                                   load_departure_routes, load_departure_profiles,
+                                   load_departure_destination_map)
+from app.navigation.arrival_profile import (arrival_schedule_groundspeed,
+                                            resolve_spawn_altitude,
+                                            resolve_spawn_speed)
+from app.navigation.departure_profile import (departure_speed_limit_gs,
+                                              match_departure_profile)
+from app.navigation.speed_conversion import (indicated_to_true_airspeed,
+                                             true_to_indicated_airspeed)
+from app.navigation.vectoring import heading_between
+from app.config.separation import MIN_HORIZONTAL_SEPARATION_NM
 
 
 class SimulationEngine:
 
     SEQUENCING_WINDOW_NM = 35.0
-    MIN_MERGE_SEPARATION_NM = 5.0
+    MIN_MERGE_SEPARATION_NM = MIN_HORIZONTAL_SEPARATION_NM
     MIN_VERTICAL_SEPARATION_FT = 1000
     CONFLICT_WARNING_DISTANCE_NM = 6.0
     PREDICTION_LOOKAHEAD_SECONDS = 120.0
@@ -45,16 +58,33 @@ class SimulationEngine:
     def __init__(
         self,
         airport_lat=19.0887,
-        airport_lon=72.8679
+        airport_lon=72.8679,
+        session_mode="NORMAL",
+        session_id=None,
     ):
+
+        self.session_mode = str(session_mode).upper()
+        self.session_id = session_id
+        self.normal_generation_allowed = lambda: True
+        self._test_spawn_sequence = 0
 
         self.manager = AircraftManager()
 
-        self.aircraft_db = AircraftDatabase()
+        self.aircraft_db = AircraftDatabase(
+            ":memory:" if self.session_mode == "TEST" else "data/simulation/aircraft.sqlite"
+        )
 
-        self.traffic_manager = TrafficManager()
+        traffic_database_path = (":memory:" if self.session_mode == "TEST"
+                                  else "data/simulation/traffic.sqlite")
+        self.traffic_manager = TrafficManager(
+            seed_database=self.session_mode != "TEST",
+            database_path=traffic_database_path,
+        )
 
-        self.scheduler = TrafficScheduler()
+        if self.session_mode == "TEST":
+            self.scheduler = TrafficScheduler(initialize=False, database_path=":memory:")
+        else:
+            self.scheduler = TrafficScheduler()
 
         self.airport_lat = airport_lat
         self.airport_lon = airport_lon
@@ -83,6 +113,8 @@ class SimulationEngine:
         self.arrival_routes = load_arrival_routes()
         self.arrival_profiles = load_arrival_profiles()
         self.departure_routes = load_departure_routes()
+        self.departure_profiles = load_departure_profiles()
+        self.departure_destination_map = load_departure_destination_map()
         self.departure_waypoints = {}
         self.shared_arrival_waypoint_groups = self._shared_arrival_waypoint_groups()
         self.shared_arrival_waypoints = {
@@ -112,9 +144,14 @@ class SimulationEngine:
         # be evaluated by concurrent callers, so allocation and pruning share
         # this reentrant lock.
         self.approach_reservations = {}
+        self.approach_reservation_status = {}
+        self.ai_arrival_decisions_enabled = True
         self._approach_allocation_lock = RLock()
         self.ai_decision_log = []
+        self.decision_audit_counts = {}
+        self.departure_diagnostics = []
         self._last_separation_event_at = {}
+        self._last_holding_release_diagnostic_at = {}
 
         for route in self.departure_routes.values():
             for waypoint in route["waypoints"]:
@@ -131,10 +168,26 @@ class SimulationEngine:
                     waypoint["longitude"]
                 )
 
-        # Temporary sequencing fixes are navigable graph nodes, but are not
-        # inserted into permanent arrival routes.
-        self.graph.add_node("DOGAP", 18.809143, 73.416653)
+        # MB398 is available only to routes that explicitly include it as a
+        # compatible fallback; it is never inserted into a route by default.
         self.graph.add_node("MB398", 19.453401, 73.462572)
+        fallback_waypoints_path = (
+            Path(__file__).resolve().parents[2]
+            / "data" / "navigation" / "VABB" / "waypoints.json"
+        )
+        try:
+            with fallback_waypoints_path.open("r", encoding="utf-8") as file:
+                fallback_waypoints = json.load(file).get("waypoints", [])
+        except (OSError, json.JSONDecodeError, AttributeError):
+            fallback_waypoints = []
+        for waypoint in fallback_waypoints:
+            if (isinstance(waypoint, dict)
+                    and str(waypoint.get("name", "")).upper() in {"MB398", "OLGUS"}
+                    and waypoint.get("lat") is not None and waypoint.get("lon") is not None):
+                self.graph.add_node(
+                    str(waypoint["name"]).upper(),
+                    float(waypoint["lat"]), float(waypoint["lon"]),
+                )
 
         self.arrival = ArrivalManager(
             self.graph
@@ -151,6 +204,8 @@ class SimulationEngine:
             self.arrival_profiles,
             self._record_guidance_event,
             self._can_approach_handoff,
+            self._choose_holding_level,
+            self._validate_arrival_fallback,
         )
 
         self.approach_ai = ApproachAI(
@@ -163,12 +218,120 @@ class SimulationEngine:
             self.graph
         )
 
+    def _decision_session_scope(self):
+        """Unique simulation scope for decisions stored by the shared controller."""
+        return (str(getattr(self, "session_mode", "NORMAL")),
+                str(getattr(self, "session_id", None) or "default"))
+
+    def _validate_arrival_fallback(self, aircraft, fallback_name):
+        """Validate a global delay-fix transition before it is spliced into a route."""
+        fallback_name = str(fallback_name).strip().upper()
+        if fallback_name not in {"MB398", "OLGUS"}:
+            return {"safe": False, "reason": "Fallback is not in the configured global candidate set"}
+        route_definition = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
+        if not isinstance(route_definition, dict):
+            return {"safe": False, "reason": "Arrival route is unavailable"}
+        trigger = str(route_definition.get("approach_trigger", "")).upper()
+        trigger_point = self.graph.get_node(trigger) if trigger else None
+        fallback_point = self.graph.get_node(fallback_name)
+        if trigger_point is None or fallback_point is None:
+            return {"safe": False, "reason": "Fallback or route trigger is missing from navigation data"}
+        try:
+            own_lat, own_lon = float(aircraft.lat), float(aircraft.lon)
+            speed = float(getattr(aircraft, "target_speed_kts", None)
+                          or getattr(aircraft, "speed_kts", 0))
+            heading = float(getattr(aircraft, "heading_deg", 0)) % 360.0
+            own_altitude = float(getattr(aircraft, "altitude_ft", 0))
+            own_vertical_speed = float(getattr(aircraft, "vertical_speed_fpm", 0) or 0)
+            fallback_lat, fallback_lon = float(fallback_point["lat"]), float(fallback_point["lon"])
+            trigger_lat, trigger_lon = float(trigger_point["lat"]), float(trigger_point["lon"])
+        except (TypeError, ValueError, KeyError, AttributeError):
+            return {"safe": False, "reason": "Fallback transition geometry is incomplete"}
+        if speed <= 0:
+            return {"safe": False, "reason": "Aircraft speed is unavailable for fallback reachability"}
+
+        def local_xy(latitude, longitude):
+            mean_latitude = math.radians((own_lat + latitude) / 2.0)
+            return ((longitude - own_lon) * 60.0 * math.cos(mean_latitude),
+                    (latitude - own_latitude) * 60.0)
+
+        own_latitude = own_lat
+        fallback_xy = local_xy(fallback_lat, fallback_lon)
+        trigger_xy = local_xy(trigger_lat, trigger_lon)
+        legs = [(0.0, 0.0, *fallback_xy), (*fallback_xy, *trigger_xy)]
+        leg_lengths = [math.hypot(leg[2] - leg[0], leg[3] - leg[1]) for leg in legs]
+        if not leg_lengths or any(length < 0.05 or length > 35.0 for length in leg_lengths):
+            return {"safe": False, "reason": "Fallback route legs are not within reachable geometry"}
+        total_distance = sum(leg_lengths)
+        turn_rate = math.radians(TURN_RATE_DEG_PER_SEC)
+        turn_radius_nm = speed / 3600.0 / max(turn_rate, 1e-6)
+        bearings = [math.degrees(math.atan2(leg[2] - leg[0], leg[3] - leg[1])) % 360.0
+                    for leg in legs]
+        turns = [abs((bearings[0] - heading + 180.0) % 360.0 - 180.0),
+                 abs((bearings[1] - bearings[0] + 180.0) % 360.0 - 180.0)]
+        if any(turn_radius_nm * math.radians(turn) > leg_lengths[index] + 1e-6
+               for index, turn in enumerate(turns)):
+            return {"safe": False, "reason": "Aircraft cannot make the fallback turn within the available leg"}
+
+        duration = total_distance * 3600.0 / speed
+        for other in self.manager.all():
+            if (other is aircraft or getattr(other, "phase", "")
+                    not in {"ARRIVAL", "FINAL", "DEPARTURE"}):
+                continue
+            try:
+                other_speed = max(0.0, float(getattr(other, "speed_kts", 0) or 0))
+                other_heading = math.radians(float(getattr(other, "heading_deg", 0) or 0))
+                other_lat, other_lon = float(other.lat), float(other.lon)
+                other_altitude = float(getattr(other, "altitude_ft", 0))
+                other_vs = float(getattr(other, "vertical_speed_fpm", 0) or 0)
+            except (TypeError, ValueError, AttributeError):
+                return {"safe": False, "reason": "Nearby traffic state is incomplete"}
+            other_x, other_y = local_xy(other_lat, other_lon)
+            other_vx = other_speed / 3600.0 * math.sin(other_heading)
+            other_vy = other_speed / 3600.0 * math.cos(other_heading)
+            steps = min(120, max(1, int(math.ceil((duration + 60.0) / 15.0))) )
+            for step in range(steps + 1):
+                seconds = min(duration + 60.0, step * 15.0)
+                travel_nm = min(total_distance, speed * seconds / 3600.0)
+                if travel_nm <= leg_lengths[0]:
+                    fraction = travel_nm / leg_lengths[0]
+                    own_x, own_y = fallback_xy[0] * fraction, fallback_xy[1] * fraction
+                else:
+                    fraction = min(1.0, (travel_nm - leg_lengths[0]) / leg_lengths[1])
+                    own_x = fallback_xy[0] + (trigger_xy[0] - fallback_xy[0]) * fraction
+                    own_y = fallback_xy[1] + (trigger_xy[1] - fallback_xy[1]) * fraction
+                other_dx = other_vx * seconds
+                other_dy = other_vy * seconds
+                other_x_t = other_x + other_dx
+                other_y_t = other_y + other_dy
+                separation_nm = math.hypot(
+                    own_x - other_x_t, own_y - other_y_t,
+                )
+                vertical_separation = abs(
+                    own_altitude + own_vertical_speed * seconds / 60.0
+                    - other_altitude - other_vs * seconds / 60.0
+                )
+                if (separation_nm < self.MIN_MERGE_SEPARATION_NM
+                        and vertical_separation < self.MIN_VERTICAL_SEPARATION_FT):
+                    return {"safe": False, "reason": (
+                        f"Fallback path predicts {separation_nm:.2f} NM / "
+                        f"{vertical_separation:.0f} ft separation from {other.callsign}"
+                    ), "other_aircraft": other.callsign,
+                        "predicted_separation_nm": round(separation_nm, 2)}
+        return {"safe": True, "distance_nm": round(total_distance, 2),
+                "reason": "Fallback geometry and predicted traffic separation validated"}
+
     def spawn(
         self,
         aircraft_type,
         callsign,
         route_id
     ):
+
+        if getattr(self, "session_mode", "NORMAL") == "TEST":
+            raise RuntimeError("Scheduled aircraft spawning is disabled in TEST sessions")
+        if not getattr(self, "normal_generation_allowed", lambda: True)():
+            raise RuntimeError("Normal traffic generation is suspended")
 
         if route_id not in self.arrival_routes:
 
@@ -204,7 +367,159 @@ class SimulationEngine:
 
         return aircraft
 
+    def test_spawn_nodes(self):
+        """Return route-node starts whose route/profile continuation is unique."""
+        candidates = {}
+        for route_id, route in self.arrival_routes.items():
+            points = route.get("waypoints", [])
+            profiles = self.arrival_profiles.get(str(route_id), {})
+            if not points or any(
+                not isinstance(profiles.get(str(item.get("name", "")).upper()), dict)
+                or not isinstance(profiles[str(item.get("name", "")).upper()].get("cum_nm"), (int, float))
+                or not isinstance(profiles[str(item.get("name", "")).upper()].get("profile_altitude_ft"), (int, float))
+                for item in points
+            ):
+                continue
+            for index, point in enumerate(points[:-1]):
+                name = str(point.get("name", "")).strip().upper()
+                profile = profiles.get(name)
+                if (not name or not isinstance(profile, dict)
+                        or not isinstance(profile.get("profile_altitude_ft"), (int, float))):
+                    continue
+                if not isinstance(profile.get("cum_nm"), (int, float)):
+                    continue
+                constraint = profile.get("altitude")
+                profiled_altitude = float(profile["profile_altitude_ft"])
+                if isinstance(constraint, dict):
+                    limit = float(constraint.get("feet", profiled_altitude))
+                    if ((constraint.get("type") == "AT" and profiled_altitude != limit)
+                            or (constraint.get("type") == "AT_OR_ABOVE" and profiled_altitude < limit)
+                            or (constraint.get("type") == "AT_OR_BELOW" and profiled_altitude > limit)):
+                        continue
+                speed = resolve_spawn_speed(points, self.arrival_profiles, str(route_id),
+                                            float(profile["cum_nm"]), 250.0)
+                if (not speed.get("resolved") or not any(
+                    speed["speed_kts"] >= get_aircraft_performance(kind)["minimum_arrival_speed_kts"]
+                    for kind in AIRCRAFT_PERFORMANCE
+                )):
+                    continue
+                continuation = tuple(str(item.get("name", "")).upper()
+                                     for item in points[index:])
+                candidates.setdefault(name, []).append((route_id, index, continuation))
+        eligible = []
+        for name, options in candidates.items():
+            continuations = {item[2] for item in options}
+            if len(continuations) != 1:
+                continue
+            route_id, index, _ = options[0]
+            route = self.arrival_routes[route_id]
+            point = route["waypoints"][index]
+            profile = self.arrival_profiles[str(route_id)][name]
+            eligible.append({"node": name, "route_id": str(route_id),
+                             "latitude": point["latitude"], "longitude": point["longitude"],
+                             "altitude_ft": profile["profile_altitude_ft"],
+                             "speed_kts": profile.get("speed", {}).get("knots"),
+                             "route_index": index})
+        return sorted(eligible, key=lambda item: (item["node"], item["route_id"]))
+
+    def spawn_test_aircraft(self, callsign, aircraft_type, node, route_id):
+        if getattr(self, "session_mode", "NORMAL") != "TEST" or not getattr(self, "session_id", None):
+            raise RuntimeError("Test spawning is not enabled")
+        entry = next((item for item in self.test_spawn_nodes()
+                      if item["node"] == str(node).upper()
+                      and item["route_id"] == str(route_id)), None)
+        if entry is None:
+            raise ValueError("Node is not an eligible test spawn point")
+        if any(ac.callsign == callsign for ac in self.manager.all()):
+            raise ValueError("Callsign is already active in this test session")
+        points = self.arrival_routes[entry["route_id"]]["waypoints"]
+        profile = self.arrival_profiles[entry["route_id"]][entry["node"]]
+        performance = get_aircraft_performance(aircraft_type)
+        altitude = float(profile.get("profile_altitude_ft"))
+        constraint = profile.get("altitude")
+        if isinstance(constraint, dict):
+            limit = float(constraint.get("feet", altitude))
+            if constraint.get("type") == "AT":
+                altitude = limit
+            if ((constraint.get("type") == "AT_OR_ABOVE" and altitude < limit)
+                    or (constraint.get("type") == "AT_OR_BELOW" and altitude > limit)):
+                raise ValueError("Node profile conflicts with its published altitude constraint")
+        speed_result = resolve_spawn_speed(
+            points, self.arrival_profiles, entry["route_id"],
+            float(profile["cum_nm"]), performance["spawn_speed_kts"]
+        )
+        if not speed_result.get("resolved"):
+            raise ValueError("Node speed profile cannot be resolved safely")
+        speed = speed_result["speed_kts"]
+        speed = float(speed)
+        if not math.isfinite(altitude) or altitude <= 0 or not math.isfinite(speed):
+            raise ValueError("Node has invalid profile data")
+        if speed < performance["minimum_arrival_speed_kts"]:
+            raise ValueError("Aircraft type is incompatible with the node speed restriction")
+        index = entry["route_index"]
+        aircraft = spawn_aircraft(callsign, aircraft_type, entry["latitude"], entry["longitude"])
+        aircraft.altitude_ft = round(altitude)
+        aircraft.target_altitude_ft = round(altitude)
+        aircraft.speed_kts = round(speed)
+        aircraft.target_speed_kts = round(speed)
+        aircraft.assign_route([item["name"] for item in points])
+        aircraft.arrival_route_id = entry["route_id"]
+        aircraft.test_session_id = self.session_id
+        aircraft.test_spawned = True
+        aircraft.phase = "ARRIVAL"
+        aircraft.approach_phase = "ARRIVAL"
+        aircraft.assigned_node = points[index]["name"]
+        aircraft.route_index = index + 1
+        aircraft.target_node = points[index + 1]["name"]
+        next_point = points[index + 1]
+        aircraft.heading_deg = heading_between(aircraft.lat, aircraft.lon,
+                                                next_point["latitude"], next_point["longitude"])
+        aircraft.target_heading_deg = aircraft.heading_deg
+        aircraft.current_distance = 0.0
+        self.manager.add(aircraft)
+        return aircraft
+
+    def spawn_random_test_aircraft(self, node, route_id):
+        entry = next((item for item in self.test_spawn_nodes()
+                      if item["node"] == str(node).upper()
+                      and item["route_id"] == str(route_id)), None)
+        if entry is None:
+            raise ValueError("Node is not an eligible test spawn point")
+        profile = self.arrival_profiles[entry["route_id"]][entry["node"]]
+        speed = resolve_spawn_speed(
+            self.arrival_routes[entry["route_id"]]["waypoints"], self.arrival_profiles,
+            entry["route_id"], float(profile["cum_nm"]), 250.0
+        )
+        compatible = [kind for kind in AIRCRAFT_PERFORMANCE
+                      if speed.get("resolved") and speed["speed_kts"] >=
+                      get_aircraft_performance(kind)["minimum_arrival_speed_kts"]]
+        if not compatible:
+            raise ValueError("No aircraft type is compatible with this node profile")
+        aircraft_type = random.choice(compatible)
+        self._test_spawn_sequence += 1
+        callsign = f"TST{self._test_spawn_sequence:04d}"
+        return self.spawn_test_aircraft(callsign, aircraft_type, node, route_id)
+
+    def remove_test_aircraft(self, callsign):
+        if getattr(self, "session_mode", "NORMAL") != "TEST":
+            raise ValueError("Test session is not active")
+        aircraft = next((item for item in self.manager.all()
+                         if item.callsign == callsign
+                         and getattr(item, "test_session_id", None) == self.session_id), None)
+        if aircraft is None:
+            return False
+        self.holding_manager.cancel_holding_route(aircraft, "test aircraft removed")
+        self._release_approach_reservation(aircraft)
+        self.manager.remove(aircraft)
+        self._last_separation_event_at.pop(callsign, None)
+        self._last_holding_release_diagnostic_at.pop(callsign, None)
+        return True
+
     def spawn_due_arrivals(self, dt=1.0):
+
+        if (getattr(self, "session_mode", "NORMAL") == "TEST"
+                or not getattr(self, "normal_generation_allowed", lambda: True)()):
+            return []
 
         active_aircraft = self.manager.all()
         wave_active_count = sum(
@@ -510,13 +825,19 @@ class SimulationEngine:
     def _minimum_sequencing_speed(self, aircraft):
         """Return a type- and phase-appropriate speed floor for sequencing."""
         performance = get_aircraft_performance(getattr(aircraft, "aircraft_type", ""))
-        minimum = float(performance.get("minimum_arrival_speed_kts", 170))
+        altitude = float(getattr(aircraft, "altitude_ft", 0) or 0)
+        minimum = indicated_to_true_airspeed(
+            float(performance.get("minimum_arrival_speed_kts", 170)), altitude
+        )
         if getattr(aircraft, "phase", "") == "FINAL":
             index = getattr(aircraft, "approach_index", None)
             points = self.approach_ai.approach_points
             if isinstance(index, int) and 0 <= index < len(points):
                 profile_speed = self.approach_ai._get_speed(aircraft, points[index].get("id"))
                 if isinstance(profile_speed, (int, float)):
+                    profile_speed = indicated_to_true_airspeed(
+                        profile_speed, points[index].get("altitude_ft", altitude)
+                    )
                     # Permit modest sequencing reduction while retaining a
                     # floor tied to this aircraft's configured approach speed.
                     minimum = max(135.0, min(minimum, float(profile_speed) - 10.0))
@@ -558,23 +879,39 @@ class SimulationEngine:
         aircraft._arrival_start_fix_pending = True
 
         route_profiles = self.arrival_profiles.get(str(aircraft.arrival_route_id), {})
-        first_profile = (route_profiles.get(str(first.get("name", "")).upper(), {})
-                         if isinstance(route_profiles, dict) else {})
-        altitude = first_profile.get("altitude")
-        altitude_ft = altitude.get("feet") if isinstance(altitude, dict) else altitude
-        if isinstance(altitude_ft, (int, float)) and not isinstance(altitude_ft, bool):
-            aircraft.altitude_ft = altitude_ft
-            aircraft.target_altitude_ft = altitude_ft
+        fallback = int(aircraft.altitude_ft)
+        resolved = resolve_spawn_altitude(
+            aircraft.arrival_route_id, waypoints, self.arrival_profiles,
+            aircraft.lat, aircraft.lon, fallback,
+        )
+        if resolved["resolved"]:
+            aircraft.altitude_ft = resolved["altitude_ft"]
+            aircraft.target_altitude_ft = resolved["altitude_ft"]
+        else:
+            logging.getLogger(__name__).warning(
+                "Arrival route profile unresolved route=%s waypoint=%s: %s; "
+                "using documented aircraft performance spawn altitude %s ft",
+                aircraft.arrival_route_id, resolved.get("waypoint"),
+                resolved.get("reason"), fallback)
 
-        speed = first_profile.get("speed")
-        speed_kts = speed.get("knots") if isinstance(speed, dict) else speed
-        if isinstance(speed_kts, (int, float)) and not isinstance(speed_kts, bool):
-            aircraft.speed_kts = speed_kts
-            aircraft.target_speed_kts = speed_kts
+        scheduled_speed = arrival_schedule_groundspeed(
+            getattr(aircraft, "aircraft_type", "A320"), aircraft.altitude_ft
+        )
+        first_fix_profile = route_profiles.get(str(first["name"]).upper(), {})
+        first_fix_constraint = first_fix_profile.get("speed", {})
+        if isinstance(first_fix_constraint, dict):
+            first_fix_speed = first_fix_constraint.get("knots")
+            if isinstance(first_fix_speed, (int, float)) and first_fix_speed > 0:
+                speed_at_fix = indicated_to_true_airspeed(first_fix_speed, aircraft.altitude_ft)
+                scheduled_speed = (min(scheduled_speed, speed_at_fix)
+                                   if first_fix_constraint.get("type") == "MAX" else speed_at_fix)
+        aircraft.target_speed_kts = scheduled_speed
 
         print(f"ARRIVAL SPAWN: {aircraft.callsign} route={aircraft.arrival_route_id} "
               f"spawn={first['name']} index=0 lat={aircraft.lat} lon={aircraft.lon} "
-              f"alt={aircraft.altitude_ft}")
+              f"alt={aircraft.altitude_ft} speed={aircraft.speed_kts} "
+              f"profile_progress_nm={resolved.get('progress_nm')} "
+              f"target_speed={aircraft.target_speed_kts}")
 
     def _arrival_route_for(self, callsign, additional_aircraft=()):
 
@@ -799,8 +1136,6 @@ class SimulationEngine:
                                       + float(getattr(first[0], "vertical_speed_fpm", 0)) * first_eta / 60.0)
                     second_altitude = (float(getattr(second[0], "altitude_ft", 0))
                                        + float(getattr(second[0], "vertical_speed_fpm", 0)) * second_eta / 60.0)
-                    if abs(first_altitude - second_altitude) >= self.MIN_VERTICAL_SEPARATION_FT:
-                        continue
                     gap_nm = abs(first_eta - second_eta) * max(first[4], second[4]) / 3600.0
                     if gap_nm < self.MIN_MERGE_SEPARATION_NM:
                         candidates.append((max(first_eta, second_eta), point_index,
@@ -1014,8 +1349,6 @@ class SimulationEngine:
                             second_altitude = (float(getattr(second[0], "altitude_ft", 0))
                                                + float(getattr(second[0], "vertical_speed_fpm", 0)) * prediction_time / 60.0)
                             vertical_separation = abs(first_altitude - second_altitude)
-                            if vertical_separation >= self.MIN_VERTICAL_SEPARATION_FT:
-                                continue
                             fastest_speed = max(first[3], second[3])
                             arrival_gap_nm = (
                                 abs(first_eta_seconds - second_eta_seconds)
@@ -1131,13 +1464,21 @@ class SimulationEngine:
 
         unique_conflicts = {}
         for conflict in detected_conflicts:
+            conflict["session_scope"] = self._decision_session_scope()
             key = mistral_controller.conflict_key(conflict)
             unique_conflicts.setdefault(key, conflict)
         active_holds = {
             aircraft.callsign for aircraft in aircraft_list
             if self.holding_manager.has_active_holding_route(aircraft)
         }
-        mistral_controller.clear_conflicts(set(unique_conflicts), active_holds)
+        mistral_controller.clear_conflicts(
+            set(unique_conflicts), active_holds,
+            session_scope=self._decision_session_scope(),
+        )
+        mistral_controller.process_pending(
+            list(unique_conflicts.values()), self.holding_manager,
+            self._record_ai_conflict_decision,
+        )
         for conflict in unique_conflicts.values():
             requested = mistral_controller.request_conflict(
                 conflict,
@@ -1168,6 +1509,8 @@ class SimulationEngine:
         if not hasattr(self, "ai_decision_log"):
             self.ai_decision_log = []
         selected = decision.get("callsign")
+        decision_source = result.get("decision_source", "DETERMINISTIC_FALLBACK")
+        self._count_decision_audit("SHARED_WAYPOINT_CONFLICT", decision_source)
         self.ai_decision_log.insert(0, {
             "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
             "callsign": selected,
@@ -1185,7 +1528,10 @@ class SimulationEngine:
             "hold_circuits": decision.get("hold_circuits"),
             "rejoin_node": decision.get("rejoin_node"),
             "reason": decision["reason"],
-            "decision_source": result.get("decision_source", "Mistral"),
+            "decision_source": decision_source,
+            "lifecycle_state": "COMMITTED" if result.get("holding") else "REJECTED",
+            "validation_result": result.get("validation_result"),
+            "validation_reason": result.get("validation_reason"),
             "aircraft_ahead": conflict.get("predicted_timing", {}).get("aircraft_ahead"),
             "aircraft_behind": conflict.get("predicted_timing", {}).get("aircraft_behind"),
             "current_separation_nm": conflict.get("predicted_timing", {}).get("current_separation_nm"),
@@ -1196,14 +1542,68 @@ class SimulationEngine:
         })
         del self.ai_decision_log[50:]
 
-    def _record_guidance_event(self, aircraft, event, waypoint, reason):
+    def _count_decision_audit(self, decision_type, decision_source):
+        if not hasattr(self, "decision_audit_counts"):
+            self.decision_audit_counts = {}
+        by_type = self.decision_audit_counts.setdefault(str(decision_type), {})
+        source = str(decision_source or "UNATTRIBUTED")
+        by_type[source] = by_type.get(source, 0) + 1
+
+    def _record_guidance_event(self, aircraft, event, waypoint, reason, decision_source=None):
+        if not hasattr(self, "_last_separation_event_at"):
+            self._last_separation_event_at = {}
+        if not hasattr(self, "ai_decision_log"):
+            self.ai_decision_log = []
         event_key = (str(aircraft.callsign), str(event), str(waypoint),
+                     getattr(aircraft, "route_index", None),
                      str(reason) if event == "APPROACH CLEARANCE WITHHELD" else None)
         now = datetime.now().astimezone()
         previous = self._last_separation_event_at.get(event_key)
         if previous is not None and (now - previous).total_seconds() < 30:
             return
         self._last_separation_event_at[event_key] = now
+        if decision_source is None:
+            if str(event).startswith("AI "):
+                decision_source = "AI"
+            elif str(event).startswith("DETERMINISTIC "):
+                decision_source = "DETERMINISTIC_FALLBACK"
+            elif event == "APPROACH CLEARANCE WITHHELD":
+                decision_source = "SAFETY_REJECTION"
+            else:
+                decision_source = "UNATTRIBUTED"
+        decision_type = ("APPROACH_ENTRY" if "APPROACH ENTRY" in event
+                         else "HOLD_RELEASE" if "HOLD RELEASE" in event or "HOLD CONTINUED" in event
+                         else "HOLD_LEVEL" if "HOLD LEVEL" in event
+                         else "APPROACH_RESOLUTION" if "APPROACH WAIT" in event or "HOLD SELECTED" in event
+                         else str(event))
+        self._count_decision_audit(decision_type, decision_source)
+        logging.getLogger(__name__).info(
+            "Aircraft navigation event",
+            extra={
+                "event": str(event),
+                "aircraft_callsign": getattr(aircraft, "callsign", None),
+                "route_id": getattr(aircraft, "arrival_route_id", None),
+                "route_cursor": getattr(aircraft, "route_index", None),
+                "active_route": list(getattr(aircraft, "route", []) or []),
+                "assigned_waypoint": getattr(aircraft, "assigned_node", None),
+                "target_waypoint": getattr(aircraft, "target_node", None),
+                "clearance_direct_node": getattr(getattr(aircraft, "clearance", None), "direct_node", None),
+                "distance_nm": getattr(aircraft, "current_distance", None),
+                "altitude_ft": getattr(aircraft, "altitude_ft", None),
+                "target_altitude_ft": getattr(aircraft, "target_altitude_ft", None),
+                "heading_deg": getattr(aircraft, "heading_deg", None),
+                "target_heading_deg": getattr(aircraft, "target_heading_deg", None),
+                "speed_kts": getattr(aircraft, "speed_kts", None),
+                "guidance_mode": getattr(aircraft, "phase", None),
+                "hold_active": bool(callable(getattr(getattr(self, "holding_manager", None),
+                                                       "has_active_holding_route", None))
+                                    and self.holding_manager.has_active_holding_route(aircraft)),
+                "approach_clearance": bool(getattr(aircraft, "approach_clearance", False)),
+                "approach_entry_node": getattr(aircraft, "_approach_entry_node", None),
+                "decision_source": decision_source,
+                "reason": reason,
+            },
+        )
         self.ai_decision_log.insert(0, {
             "timestamp": now.isoformat(timespec="seconds"),
             "callsign": aircraft.callsign,
@@ -1224,6 +1624,7 @@ class SimulationEngine:
             "target_speed_kts": getattr(aircraft, "target_speed_kts", None),
             "next_constrained_waypoint": getattr(aircraft, "target_node", None),
             "reason": reason,
+            "decision_source": decision_source,
         })
         del self.ai_decision_log[50:]
 
@@ -1277,17 +1678,40 @@ class SimulationEngine:
         """Apply speed control for predicted near-term conflicts before movement."""
         traffic = [ac for ac in aircraft_list
                    if getattr(ac, "phase", "") in ("ARRIVAL", "FINAL", "DEPARTURE")]
-        for first_index, first in enumerate(traffic):
-            for second in traffic[first_index + 1:]:
-                mean_latitude = math.radians((first.lat + second.lat) / 2.0)
-                east = (second.lon - first.lon) * 60.0 * math.cos(mean_latitude)
-                north = (second.lat - first.lat) * 60.0
-                first_speed = max(0.0, float(getattr(first, "speed_kts", 0) or 0)) / 3600.0
-                second_speed = max(0.0, float(getattr(second, "speed_kts", 0) or 0)) / 3600.0
-                first_heading = math.radians(float(getattr(first, "heading_deg", 0) or 0))
-                second_heading = math.radians(float(getattr(second, "heading_deg", 0) or 0))
-                relative_east = second_speed * math.sin(second_heading) - first_speed * math.sin(first_heading)
-                relative_north = second_speed * math.cos(second_heading) - first_speed * math.cos(first_heading)
+        kinematics = []
+        for aircraft in traffic:
+            speed_kts = max(0.0, float(getattr(aircraft, "speed_kts", 0) or 0))
+            heading = math.radians(float(getattr(aircraft, "heading_deg", 0) or 0))
+            speed_nm_per_second = speed_kts / 3600.0
+            kinematics.append((
+                aircraft,
+                float(aircraft.lat),
+                float(aircraft.lon),
+                speed_kts,
+                speed_nm_per_second * math.sin(heading),
+                speed_nm_per_second * math.cos(heading),
+            ))
+
+        for first_index, first_data in enumerate(kinematics):
+            first, first_lat, first_lon, first_speed_kts, first_east, first_north = first_data
+            for second_data in kinematics[first_index + 1:]:
+                second, second_lat, second_lon, second_speed_kts, second_east, second_north = second_data
+                mean_latitude = math.radians((first_lat + second_lat) / 2.0)
+                east = (second_lon - first_lon) * 60.0 * math.cos(mean_latitude)
+                north = (second_lat - first_lat) * 60.0
+                detection_radius_nm = max(
+                    self.MIN_MERGE_SEPARATION_NM,
+                    self.CONFLICT_WARNING_DISTANCE_NM,
+                    self.CRITICAL_SEPARATION_NM,
+                )
+                maximum_closure_nm = (
+                    detection_radius_nm + (first_speed_kts + second_speed_kts)
+                    * self.PREDICTION_LOOKAHEAD_SECONDS / 3600.0 + 1e-9
+                )
+                if math.hypot(east, north) > maximum_closure_nm:
+                    continue
+                relative_east = second_east - first_east
+                relative_north = second_north - first_north
                 relative_speed_sq = relative_east ** 2 + relative_north ** 2
                 if relative_speed_sq <= 1e-12:
                     closest_time = 0.0
@@ -1301,8 +1725,6 @@ class SimulationEngine:
                     + (float(getattr(second, "vertical_speed_fpm", 0))
                        - float(getattr(first, "vertical_speed_fpm", 0))) * closest_time / 60.0
                 )
-                if vertical_difference >= self.MIN_VERTICAL_SEPARATION_FT:
-                    continue
                 if closest_distance < self.CONFLICT_WARNING_DISTANCE_NM:
                     self._record_separation_event(
                         first, second, getattr(first, "target_node", None), "SEPARATION WARNING",
@@ -1324,14 +1746,14 @@ class SimulationEngine:
                         and first_progress is not None and second_progress is not None):
                     yielding, leader = (first, second) if first_progress < second_progress else (second, first)
                 else:
-                    first_eta = (self._approach_merge_eta_seconds(first, first_route, first_progress, first_speed * 3600.0)
+                    first_eta = (self._approach_merge_eta_seconds(first, first_route, first_progress, first_speed_kts)
                                  if first_progress is not None else None)
-                    second_eta = (self._approach_merge_eta_seconds(second, second_route, second_progress, second_speed * 3600.0)
+                    second_eta = (self._approach_merge_eta_seconds(second, second_route, second_progress, second_speed_kts)
                                   if second_progress is not None else None)
                     if first_eta is not None and second_eta is not None:
                         yielding, leader = (first, second) if first_eta >= second_eta else (second, first)
                     else:
-                        yielding, leader = (first, second) if first_speed <= second_speed else (second, first)
+                        yielding, leader = (first, second) if first_speed_kts <= second_speed_kts else (second, first)
 
                 target = getattr(yielding, "target_speed_kts", None)
                 leader_speed = float(getattr(leader, "speed_kts", 0) or 0)
@@ -1426,34 +1848,149 @@ class SimulationEngine:
                     f"Same-route following spacing applied at {getattr(follower, 'target_speed_kts', 0):.0f} knots",
                 )
 
+    def _choose_holding_level(self, aircraft, hold):
+        current_level = hold.get("target_holding_level_ft")
+        holding_id = hold.get("holding_route_id")
+        safe_levels = self.holding_manager.safe_holding_levels(aircraft, holding_id)
+        interval = int(hold.get("completed_circuits", 0)) // 2
+        decision_id = ("holding-level", *self._decision_session_scope(),
+                       str(aircraft.callsign), str(holding_id), interval)
+        occupants = [
+            {"callsign": item.get("callsign"), "level_ft": item.get("holding_level_ft"),
+             "circuits_completed": item.get("circuits_completed")}
+            for item in self.holding_manager.active_holding_routes()
+            if str(item.get("holding_route_id")) == str(holding_id)
+        ]
+        snapshot = {
+            "session_scope": self._decision_session_scope(),
+            "callsign": str(aircraft.callsign), "holding_route_id": str(holding_id),
+            "current_level_ft": float(current_level or aircraft.altitude_ft),
+            "safe_levels_ft": tuple(int(level) for level in safe_levels),
+            "occupants": tuple(sorted((str(item["callsign"]), item["level_ft"])
+                                       for item in occupants)),
+        }
+        holding_config = self.holding_manager._holding_route_by_id(holding_id) or {}
+        fallback_level = self.holding_manager._select_holding_level(
+            aircraft, holding_config,
+            self.holding_manager._flight_level(holding_config.get("lower_limit")),
+            self.holding_manager._flight_level(holding_config.get("upper_limit")),
+            exclude_aircraft=aircraft, exclude_level=current_level,
+        ) if safe_levels else None
+        fallback = str(int(fallback_level)) if fallback_level is not None else "REMAIN"
+        choices = {"REMAIN", *(str(int(level)) for level in safe_levels)}
+        prompt = json.dumps({
+            "task": "After a completed circuit, choose REMAIN or one safe holding level listed below.",
+            "aircraft": {"callsign": aircraft.callsign,
+                         "type": getattr(aircraft, "aircraft_type", None),
+                         "altitude_ft": aircraft.altitude_ft,
+                         "current_holding_level_ft": current_level,
+                         "speed_kts": aircraft.speed_kts,
+                         "holding_fix": hold.get("rejoin_waypoint"),
+                         "circuits_completed": hold.get("completed_circuits"),
+                         "holding_route_id": holding_id},
+            "available_safe_levels_ft": safe_levels,
+            "other_aircraft_in_hold": occupants,
+            "hold_capacity": holding_config.get("capacity"),
+            "policy": "Level changes are considered only at the existing eligible circuit boundary; use 2,000 ft spacing when practical.",
+            "choice_schema": {"choice": "REMAIN or one listed level in feet", "reason": "short rationale"},
+        }, separators=(",", ":"))
+        result = (mistral_controller.operational_choice(
+            decision_id, prompt, choices, snapshot, fallback
+        ) if getattr(self, "ai_arrival_decisions_enabled", False) else {
+            "status": "decided", "choice": fallback, "source": "deterministic_fallback",
+            "reason": "AI path disabled for this engine instance",
+        })
+        if result["status"] == "pending":
+            return {"choice": "PENDING", "level_ft": None, "source": "pending"}
+        if result["choice"] == "REMAIN":
+            self._record_guidance_event(
+                aircraft, "AI HOLD LEVEL RETAINED", hold.get("rejoin_waypoint"),
+                f"{result.get('reason', '')}; source={result.get('source')}",
+            )
+            return {"choice": "REMAIN", "level_ft": None, "source": result.get("source")}
+        try:
+            selected_level = float(result["choice"])
+        except (TypeError, ValueError):
+            selected_level = None
+        if selected_level not in safe_levels:
+            selected_level = fallback_level
+            source = "deterministic_fallback"
+            reason = "AI level no longer passes current holding-level safety validation"
+        else:
+            source = result.get("source")
+            reason = result.get("reason", "")
+        if selected_level is None:
+            return {"choice": "REMAIN", "level_ft": None, "source": source}
+        self._record_guidance_event(
+            aircraft, "AI HOLD LEVEL SELECTED" if source == "Mistral"
+            else "DETERMINISTIC HOLD LEVEL SELECTED",
+            hold.get("rejoin_waypoint"),
+            f"{current_level} ft to {selected_level:g} ft: {reason}; source={source}",
+        )
+        return {"choice": "CHANGE", "level_ft": selected_level, "source": source}
+
     def _can_release_holding(self, aircraft):
         hold = self.holding_manager.state_for(aircraft)
         if hold is None:
-            return {"safe": False, "reason": "Active holding state is missing"}
+            return self._holding_release_denial(
+                aircraft, None, "Active holding state is missing",
+                failed_condition="active_holding_state_missing",
+            )
+        holding_config = next((item for item in getattr(self, "holding_routes", [])
+                               if isinstance(item, dict)
+                               and str(item.get("id")) == str(hold.get("holding_route_id"))), {})
+        area = str(hold.get("rejoin_waypoint", "")).upper()
+        area_capacity = holding_config.get("downstream_capacity")
+        if area_capacity is not None:
+            try:
+                area_capacity = max(1, int(area_capacity))
+            except (TypeError, ValueError):
+                area_capacity = 6
+            occupancy = self._downstream_segment_occupancy(aircraft, area)
+            if occupancy >= area_capacity:
+                return self._holding_release_denial(
+                    aircraft, hold,
+                    f"Downstream segment at {area} is at capacity ({occupancy}/{area_capacity})",
+                    failed_condition="downstream_segment_capacity_reached",
+                    conflict_waypoint=area, downstream_occupancy=occupancy,
+                    downstream_capacity=area_capacity,
+                )
         priority_callsign = hold.get("priority_callsign")
         protected_merge_point = hold.get("protected_merge_point")
         if priority_callsign and protected_merge_point:
             priority = next((item for item in self.manager.all()
                              if str(item.callsign) == str(priority_callsign)), None)
-            if priority is None:
-                return {"safe": True, "reason": "Priority aircraft has cleared the protected merge point"}
-            priority_route = self.arrival_routes.get(getattr(priority, "arrival_route_id", None), {})
-            priority_points = priority_route.get("waypoints", []) if isinstance(priority_route, dict) else []
-            merge_index = next((index for index, point in enumerate(priority_points)
-                                if str(point.get("name", "")).upper()
-                                == str(protected_merge_point).upper()), None)
-            priority_index = getattr(priority, "route_index", None)
-            if (merge_index is not None and isinstance(priority_index, int)
+            priority_cleared = priority is None
+            priority_route_id = getattr(priority, "arrival_route_id", None) if priority is not None else None
+            priority_index = getattr(priority, "route_index", None) if priority is not None else None
+            merge_index = None
+            if priority is not None:
+                priority_route = self.arrival_routes.get(priority_route_id, {})
+                priority_points = priority_route.get("waypoints", []) if isinstance(priority_route, dict) else []
+                merge_index = next((index for index, point in enumerate(priority_points)
+                                    if str(point.get("name", "")).upper()
+                                    == str(protected_merge_point).upper()), None)
+                priority_cleared = (
+                    merge_index is not None and isinstance(priority_index, int)
                     and priority_index > merge_index
-                    and not self.holding_manager.has_active_holding_route(priority)):
-                return {"safe": True,
-                        "reason": f"Priority aircraft cleared protected merge point {protected_merge_point}",
-                        "other_aircraft": priority_callsign,
-                        "conflict_waypoint": protected_merge_point}
-            return {"safe": False,
-                    "reason": f"Waiting for priority aircraft {priority_callsign} to clear {protected_merge_point}",
-                    "other_aircraft": priority_callsign,
-                    "conflict_waypoint": protected_merge_point}
+                    and not self.holding_manager.has_active_holding_route(priority)
+                )
+            if not priority_cleared:
+                return self._holding_release_denial(
+                    aircraft, hold,
+                    f"Waiting for priority aircraft {priority_callsign} to clear {protected_merge_point}",
+                    failed_condition="priority_aircraft_not_clear_of_protected_merge",
+                    other_aircraft=priority_callsign,
+                    conflict_waypoint=protected_merge_point,
+                    priority_route_id=priority_route_id,
+                    priority_route_index=priority_index,
+                    priority_merge_index=merge_index,
+                    priority_is_holding=(self.holding_manager.has_active_holding_route(priority)
+                                         if priority is not None else None),
+                )
+            # Clearing the protected merge point is necessary but not
+            # sufficient: continue through approach-entry and reservation
+            # validation before authorizing hold release.
         route_id = getattr(aircraft, "arrival_route_id", None)
         route_definition = self.arrival_routes.get(route_id, {})
         route_points = route_definition.get("waypoints", [])
@@ -1461,7 +1998,10 @@ class SimulationEngine:
         fix_name = str(hold["rejoin_waypoint"]).upper()
         fix_index = next((i for i, name in enumerate(route_names) if str(name).upper() == fix_name), None)
         if fix_index is None:
-            return {"safe": False, "reason": "Holding fix is not on the permanent route"}
+            return self._holding_release_denial(
+                aircraft, hold, "Holding fix is not on the permanent route",
+                failed_condition="holding_fix_not_on_saved_route", holding_fix=fix_name,
+            )
 
         def cumulative(points):
             values = [0.0]
@@ -1477,11 +2017,19 @@ class SimulationEngine:
             held_points = [by_name[str(name).upper()] for name in route_names]
             held_progress = cumulative(held_points)
         except (KeyError, TypeError, ValueError):
-            return {"safe": False, "reason": "Permanent route coordinates are incomplete"}
+            return self._holding_release_denial(
+                aircraft, hold, "Permanent route coordinates are incomplete",
+                failed_condition="permanent_route_coordinates_incomplete",
+                missing_route_waypoints=[name for name in route_names
+                                         if str(name).upper() not in by_name],
+            )
         own_speed = getattr(aircraft, "target_speed_kts", None) or getattr(aircraft, "speed_kts", 0)
         own_altitude = getattr(aircraft, "altitude_ft", 0)
         if not isinstance(own_speed, (int, float)) or own_speed <= 0:
-            return {"safe": False, "reason": "No valid speed for rejoin prediction"}
+            return self._holding_release_denial(
+                aircraft, hold, "No valid speed for rejoin prediction",
+                failed_condition="invalid_rejoin_speed", target_speed_kts=own_speed,
+            )
 
         downstream = []
         for index in range(fix_index + 1, len(route_names)):
@@ -1512,7 +2060,11 @@ class SimulationEngine:
             try:
                 other_cumulative = cumulative(other_route_points)
             except (KeyError, TypeError, ValueError):
-                return {"safe": False, "reason": f"{other.callsign} route coordinates are unavailable"}
+                return self._holding_release_denial(
+                    aircraft, hold, f"{other.callsign} route coordinates are unavailable",
+                    failed_condition="blocking_aircraft_route_coordinates_unavailable",
+                    other_aircraft=other.callsign,
+                )
             for name, held_point, held_eta in downstream:
                 for other_index, other_point in enumerate(other_route_points):
                     same_name = str(other_point.get("name", "")).upper() == str(name).upper()
@@ -1525,23 +2077,27 @@ class SimulationEngine:
                     if other_state is not None:
                         if other_state["completed_circuits"] < other_state["requested_circuits"]:
                             continue
-                        own_wait_started = hold.get("holding_since", float("inf"))
-                        other_wait_started = other_state.get("holding_since", float("inf"))
-                        if own_wait_started <= other_wait_started:
+                        own_priority = HoldingManager.holding_priority_score(hold)
+                        other_priority = HoldingManager.holding_priority_score(other_state)
+                        if own_priority >= other_priority:
                             continue
-                        return {"safe": False, "reason": f"{other.callsign} has waited longer and is ready to rejoin the downstream route",
-                                "other_aircraft": other.callsign, "conflict_waypoint": name}
+                        return self._holding_release_denial(
+                            aircraft, hold,
+                            f"{other.callsign} has higher circuit-and-age holding priority and is ready to rejoin the downstream route",
+                            failed_condition="higher_priority_holding_aircraft_ready_to_rejoin",
+                            other_aircraft=other.callsign, conflict_waypoint=name,
+                        )
                     time_gap = abs(held_eta - (other_cumulative[other_index] - other_progress) * 3600.0 / other_speed)
                     other_altitude = getattr(other, "altitude_ft", 0)
-                    if abs(own_altitude - other_altitude) >= 1000:
-                        continue
                     predicted_gap_nm = time_gap * max(float(own_speed), float(other_speed)) / 3600.0
                     if predicted_gap_nm < self.MIN_MERGE_SEPARATION_NM:
-                        return {"safe": False,
-                                "reason": f"{other.callsign} is predicted to merge at {name}",
-                                "other_aircraft": other.callsign,
-                                "conflict_waypoint": name,
-                                "predicted_separation_nm": round(predicted_gap_nm, 2)}
+                        return self._holding_release_denial(
+                            aircraft, hold, f"{other.callsign} is predicted to merge at {name}",
+                            failed_condition="predicted_downstream_merge_spacing",
+                            other_aircraft=other.callsign, conflict_waypoint=name,
+                            predicted_separation_nm=round(predicted_gap_nm, 2),
+                            required_separation_nm=self.MIN_MERGE_SEPARATION_NM,
+                        )
 
         own_eta = self._approach_merge_eta_seconds(
             aircraft, route_definition, held_progress[fix_index], float(own_speed)
@@ -1566,23 +2122,191 @@ class SimulationEngine:
                 )
                 if other_eta is None or abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0 >= self.MIN_MERGE_SEPARATION_NM:
                     continue
-                if abs(own_altitude - getattr(other, "altitude_ft", 0)) >= self.MIN_VERTICAL_SEPARATION_FT:
-                    continue
                 final_approach_fix = (self.approach_ai.approach_points[-1].get("id")
                                       if self.approach_ai.approach_points else "downstream approach")
-                return {"safe": False,
-                        "reason": f"{other.callsign} is predicted to converge on the downstream approach at {final_approach_fix}",
-                        "other_aircraft": other.callsign,
-                        "conflict_waypoint": final_approach_fix,
-                        "predicted_separation_nm": round(
-                            abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0, 2
-                        )}
+                return self._holding_release_denial(
+                    aircraft, hold,
+                    f"{other.callsign} is predicted to converge on the downstream approach at {final_approach_fix}",
+                    failed_condition="predicted_downstream_approach_spacing",
+                    other_aircraft=other.callsign, conflict_waypoint=final_approach_fix,
+                    predicted_separation_nm=round(
+                        abs(own_eta - other_eta) * max(float(own_speed), float(other_speed)) / 3600.0, 2
+                    ),
+                    required_separation_nm=self.MIN_MERGE_SEPARATION_NM,
+                )
         handoff = self._can_approach_handoff(aircraft)
         if not handoff.get("safe"):
-            return {"safe": False, "reason": handoff.get("reason", "Configured approach transition is unavailable")}
+            return self._holding_release_denial(
+                aircraft, hold,
+                handoff.get("reason", "Configured approach transition is unavailable"),
+                failed_condition="approach_handoff_rejected",
+                handoff_details={key: value for key, value in handoff.items() if key != "safe"},
+            )
+        # The deterministic validator owns the release decision. An AI pending
+        # response or preference to continue cannot veto an already safe release.
         return {"safe": True, "reason": "Downstream route clear and required separation available",
+                "decision_source": "deterministic_safety_validation",
                 "approach_entry_index": handoff["approach_entry_index"],
                 "approach_entry_node": handoff["approach_entry_node"]}
+        decision_id = ("hold-release", *self._decision_session_scope(), str(aircraft.callsign),
+                       str(hold.get("holding_route_id")), str(route_id))
+        reservations = tuple(sorted(
+            (str(node), str(getattr(owner, "callsign", "")))
+            for node, owner in getattr(self, "approach_reservations", {}).items()
+        ))
+        snapshot = {
+            "session_scope": self._decision_session_scope(),
+            "callsign": str(aircraft.callsign),
+            "arrival_route_id": str(route_id),
+            "holding_route_id": str(hold.get("holding_route_id")),
+            "holding_level_ft": float(hold.get("target_holding_level_ft") or aircraft.altitude_ft),
+            "rejoin_waypoint": str(hold.get("rejoin_waypoint", "")),
+            "completed_circuits": int(hold.get("completed_circuits", 0)),
+            "route_index": getattr(aircraft, "route_index", None),
+            "assigned_node": str(getattr(aircraft, "assigned_node", "")),
+            "target_node": str(getattr(aircraft, "target_node", "")),
+            "position": (round(float(getattr(aircraft, "lat", 0)), 5),
+                         round(float(getattr(aircraft, "lon", 0)), 5)),
+            "approach_entry_node": handoff["approach_entry_node"],
+            "feasible_approach_entries": tuple(
+                item["node"] for item in handoff.get("approach_candidates_considered", [])
+                if item.get("eligible")
+            ),
+            "approach_reservations": reservations,
+        }
+        nearby = [{
+            "callsign": item.callsign, "type": getattr(item, "aircraft_type", None),
+            "position": [item.lat, item.lon], "altitude_ft": item.altitude_ft,
+            "speed_kts": item.speed_kts, "route_id": getattr(item, "arrival_route_id", None),
+            "next_waypoint": getattr(item, "target_node", None),
+            "holding": (self.holding_manager.holding_status(item)
+                        if callable(getattr(self.holding_manager, "holding_status", None)) else None),
+        } for item in traffic if getattr(item, "phase", "") in {"ARRIVAL", "FINAL"}]
+        prompt = json.dumps({
+            "task": "Choose RELEASE only if this held aircraft should rejoin now; otherwise choose CONTINUE.",
+            "aircraft": {"callsign": aircraft.callsign, "type": getattr(aircraft, "aircraft_type", None),
+                         "position": [aircraft.lat, aircraft.lon], "altitude_ft": aircraft.altitude_ft,
+                         "holding_level_ft": snapshot["holding_level_ft"],
+                         "speed_kts": aircraft.speed_kts, "route": hold.get("original_route", []),
+                         "rejoin_waypoint": hold.get("rejoin_waypoint"),
+                         "rejoin_node": hold.get("rejoin_node"),
+                         "circuits_completed": hold.get("completed_circuits"),
+                         "target_waypoint": getattr(aircraft, "target_node", None)},
+            "validated_safe_release": {"approach_entry_node": handoff["approach_entry_node"],
+                                       "approach_entry_index": handoff["approach_entry_index"],
+                                       "reason": handoff.get("reason")},
+            "currently_feasible_approach_entries": handoff.get("approach_candidates_considered", []),
+            "holding_capacity": {"route_id": hold.get("holding_route_id"),
+                                 "occupancy": (self.holding_manager.holding_occupancy(hold.get("holding_route_id"))
+                                               if callable(getattr(self.holding_manager, "holding_occupancy", None)) else None),
+                                 "capacity": holding_config.get("capacity"),
+                                 "assigned_level_ft": snapshot["holding_level_ft"]},
+            "entry_reservations": [
+                {"node": node, "callsign": owner.callsign,
+                 "status": getattr(self, "approach_reservation_status", {}).get(node, "active")}
+                for node, owner in getattr(self, "approach_reservations", {}).items()
+            ],
+            "nearby_arrivals": nearby,
+            "choice_schema": {"choice": "RELEASE or CONTINUE", "reason": "short rationale"},
+        }, separators=(",", ":"))
+        choice = mistral_controller.operational_choice(
+            decision_id, prompt, {"RELEASE", "CONTINUE"}, snapshot, "RELEASE"
+        )
+        if choice["status"] == "pending":
+            return self._holding_release_denial(
+                aircraft, hold, "Waiting for AI hold-release decision",
+                failed_condition="ai_release_decision_pending",
+                conflict_waypoint=handoff["approach_entry_node"],
+            )
+        if choice["choice"] == "CONTINUE":
+            mistral_controller.clear_operational_decision(decision_id)
+            self._release_approach_reservation(aircraft)
+            self._record_guidance_event(
+                aircraft, "AI HOLD CONTINUED", hold.get("rejoin_waypoint"),
+                choice.get("reason", "AI selected another holding circuit"),
+            )
+            return self._holding_release_denial(
+                aircraft, hold, choice.get("reason", "AI selected another holding circuit"),
+                failed_condition="ai_selected_continue_holding",
+            )
+        self._record_guidance_event(
+            aircraft, "AI HOLD RELEASE SELECTED", handoff["approach_entry_node"],
+            f"{choice.get('reason', '')}; source={choice.get('source')}",
+        )
+        return {"safe": True, "reason": choice.get("reason", "AI selected safe hold release"),
+                "decision_source": choice.get("source"),
+                "approach_entry_index": handoff["approach_entry_index"],
+                "approach_entry_node": handoff["approach_entry_node"]}
+
+    def _downstream_segment_occupancy(self, releasing_aircraft, area):
+        """Count aircraft actually past this area's hold fix on compatible routes."""
+        count = 0
+        for other in self.manager.all():
+            if (other is releasing_aircraft
+                    or getattr(other, "phase", "") not in {"ARRIVAL", "FINAL"}
+                    or self.holding_manager.has_active_holding_route(other)):
+                continue
+            route_id = str(getattr(other, "arrival_route_id", ""))
+            route = self.arrival_routes.get(route_id)
+            if not isinstance(route, dict):
+                continue
+            names = [str(point.get("name", "")).upper()
+                     for point in route.get("waypoints", []) if isinstance(point, dict)]
+            if area not in names:
+                continue
+            cursor = getattr(other, "route_index", None)
+            if not isinstance(cursor, int) or isinstance(cursor, bool):
+                continue
+            # route_index is the next active target for arrival navigation.
+            # Count only after the area fix and through this route's approach
+            # trigger; aircraft still upstream are not occupying the segment.
+            area_index = names.index(area)
+            trigger = str(route.get("approach_trigger", "")).upper()
+            trigger_index = next((i for i in range(area_index + 1, len(names))
+                                  if names[i] == trigger), len(names) - 1)
+            if area_index < cursor <= trigger_index or (
+                    getattr(other, "phase", "") == "FINAL" and cursor > area_index):
+                count += 1
+        return count
+
+    def _holding_release_denial(self, aircraft, hold, reason, **details):
+        """Log a throttled structured explanation while preserving the denial result."""
+        callsign = str(getattr(aircraft, "callsign", "<unknown>"))
+        hold_id = (hold.get("holding_route_id") if isinstance(hold, dict) else
+                   getattr(aircraft, "holding_route_id", None))
+        completed = hold.get("completed_circuits") if isinstance(hold, dict) else None
+        requested = hold.get("requested_circuits") if isinstance(hold, dict) else None
+        key = (callsign, str(hold_id), str(reason))
+        now = time.monotonic()
+        last_emitted = getattr(self, "_last_holding_release_diagnostic_at", {})
+        previous = last_emitted.get(key)
+        if previous is None or now - previous >= 30.0:
+            last_emitted[key] = now
+            self._last_holding_release_diagnostic_at = last_emitted
+            logging.getLogger(__name__).warning(
+                "Holding release denied: %s", reason,
+                extra={
+                    "event": "holding_release_denied",
+                    "aircraft_callsign": callsign,
+                    "hold_id": hold_id,
+                    "circuits_completed": completed,
+                    "circuits_requested": requested,
+                    "release_denial_reason": reason,
+                    "blocking_aircraft": details.get("other_aircraft"),
+                    "blocking_condition": details.get("failed_condition"),
+                    "blocking_waypoint": details.get("conflict_waypoint"),
+                    "release_details": details,
+                },
+            )
+        result_keys = {"other_aircraft", "conflict_waypoint", "predicted_separation_nm"}
+        failed_condition = details.get("failed_condition")
+        result = {"safe": False, "reason": reason,
+                  **{key: value for key, value in details.items() if key in result_keys}}
+        if failed_condition == "ai_selected_continue_holding":
+            result["decision_source"] = "AI"
+        elif failed_condition == "ai_release_decision_pending":
+            result["decision_source"] = "AI_PENDING"
+        return result
 
     def _can_approach_handoff(self, aircraft, from_fallback=False):
         with self._approach_allocation_lock:
@@ -1608,6 +2332,8 @@ class SimulationEngine:
         )
 
     def _evaluate_approach_handoff(self, aircraft, from_fallback=False):
+        if not hasattr(self, "approach_reservation_status"):
+            self.approach_reservation_status = {}
         self._prune_approach_reservations()
         route = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None))
         if not isinstance(route, dict):
@@ -1620,16 +2346,13 @@ class SimulationEngine:
             return {"safe": False, "reason": "Approach trajectory cannot be predicted"}
         traffic = self.manager.all()
 
-        # Only points with an explicitly configured transition from the
-        # arrival trigger may be considered. The supported direct transition
-        # is then checked against route geometry, altitude readiness, current
-        # ownership and predicted spacing along the downstream approach.
+        # Consider each configured approach point, then validate its explicit
+        # transition and operational feasibility below. This keeps an absent
+        # or unsupported transition visible in diagnostics instead of silently
+        # dropping that node from the candidate set.
         points = self.approach_ai.approach_points
-        entries = [
-            (index, point) for index, point in enumerate(points)
-            if isinstance(point.get("arrival_entry_transition"), dict)
-            and point["arrival_entry_transition"].get("type") == "DIRECT_FROM_ARRIVAL_TRIGGER"
-        ]
+        entries = [(index, point) for index, point in enumerate(points)
+                   if isinstance(point, dict) and point.get("id")]
         if not entries:
             self._release_approach_reservation(aircraft)
             return {"safe": False, "reason": "No configured arrival-trigger approach transition is available"}
@@ -1646,18 +2369,30 @@ class SimulationEngine:
         }
         candidates = []
         failures = []
+        candidate_diagnostics = []
         required_hold_delays = []
         for index, point in entries:
             node = str(point["id"]).upper()
+            transition = point.get("arrival_entry_transition")
+            if (not isinstance(transition, dict)
+                    or transition.get("type") != "DIRECT_FROM_ARRIVAL_TRIGGER"):
+                reason = f"{node} has no supported transition from the arrival trigger"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
+                continue
             owner = self.approach_reservations.get(node)
             if owner is not None and owner is not aircraft:
-                failures.append(f"{node} reserved for {owner.callsign}")
+                reason = f"{node} reserved for {owner.callsign}"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
             eta = self._approach_entry_eta_seconds(aircraft, route, own_progress,
                                                    float(own_speed), point,
                                                    from_fallback=from_fallback)
             if eta is None:
-                failures.append(f"{node} trajectory cannot be predicted")
+                reason = f"{node} trajectory cannot be predicted"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
             speed = float(own_speed)
             predicted_altitude = float(aircraft.altitude_ft) + float(
@@ -1666,7 +2401,9 @@ class SimulationEngine:
             target_altitude = float(point.get("altitude_ft", predicted_altitude))
             required_vs = (target_altitude - float(aircraft.altitude_ft)) * 60.0 / max(eta, 1.0)
             if abs(required_vs) > 1500.0:
-                failures.append(f"{node} altitude is not reachable at current readiness")
+                reason = f"{node} altitude is not reachable at current readiness"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
 
             # Routes must end close enough to join the selected entry through
@@ -1675,14 +2412,18 @@ class SimulationEngine:
             trigger = str(route.get("approach_trigger", "")).upper()
             if (not route_points
                     or str(route_points[-1].get("name", "")).upper() != trigger):
-                failures.append(f"{node} direct transition does not start at the configured arrival trigger")
+                reason = f"{node} direct transition does not start at the configured arrival trigger"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
             endpoint = route_points[-1]
             connector_nm = self._route_segment_length_nm(
                 endpoint, {"latitude": point["latitude"], "longitude": point["longitude"]}
             )
             if connector_nm > self.SEQUENCING_WINDOW_NM:
-                failures.append(f"{node} is incompatible with this arrival route")
+                reason = f"{node} is incompatible with this arrival route"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
 
             occupied = None
@@ -1693,8 +2434,7 @@ class SimulationEngine:
                             {"latitude": point["latitude"], "longitude": point["longitude"]},
                             {"latitude": other.lat, "longitude": other.lon},
                         ) >= self.MIN_MERGE_SEPARATION_NM
-                        or abs(predicted_altitude - float(other.altitude_ft))
-                        >= self.MIN_VERTICAL_SEPARATION_FT):
+                        ):
                     continue
                 # A nearby aircraft is not an automatic entry conflict if its
                 # validated route and ETA show it will clear before this
@@ -1715,7 +2455,9 @@ class SimulationEngine:
                     occupied = other
                     break
             if occupied is not None:
-                failures.append(f"{node} is currently occupied by {occupied.callsign} and downstream ETA cannot be predicted")
+                reason = f"{node} is currently occupied by {occupied.callsign} and downstream ETA cannot be predicted"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
 
             minimum_margin = float("inf")
@@ -1747,36 +2489,37 @@ class SimulationEngine:
                         getattr(other, "vertical_speed_fpm", 0) or 0
                     ) * other_eta / 60.0
                     gap = abs(own_eta - other_eta) * max(speed, float(other_speed)) / 3600.0
-                    if abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT:
-                        minimum_margin = min(minimum_margin, gap - self.MIN_MERGE_SEPARATION_NM)
-                        if gap < self.MIN_MERGE_SEPARATION_NM:
-                            required_hold_delays.append(max(
-                                0.0,
-                                other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0
-                                / max(speed, float(other_speed)) - own_eta,
-                            ))
-                            if own_eta > other_eta:
-                                desired_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
-                                    speed, float(other_speed)
-                                )
-                                required_speed = own_eta * speed / max(desired_eta, 1.0)
-                                minimum_speed = self._minimum_sequencing_speed(aircraft)
-                                minimum_sequencing_target = max(
-                                    minimum_speed, speed - self.MAX_SEQUENCING_SPEED_DELTA_KTS
-                                )
-                                if minimum_sequencing_target <= required_speed < speed - 1.0:
-                                    speed_solution = (required_speed if speed_solution is None
-                                                      else min(speed_solution, required_speed))
-                                    continue
-                            unsafe_reason = (
-                                f"{other.callsign} is predicted inside 5 NM at "
-                                f"{points[downstream_index].get('id', 'approach fix')}"
+                    minimum_margin = min(minimum_margin, gap - self.MIN_MERGE_SEPARATION_NM)
+                    if gap < self.MIN_MERGE_SEPARATION_NM:
+                        required_hold_delays.append(max(
+                            0.0,
+                            other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0
+                            / max(speed, float(other_speed)) - own_eta,
+                        ))
+                        if own_eta > other_eta:
+                            desired_eta = other_eta + self.MIN_MERGE_SEPARATION_NM * 3600.0 / max(
+                                speed, float(other_speed)
                             )
-                            break
+                            required_speed = own_eta * speed / max(desired_eta, 1.0)
+                            minimum_speed = self._minimum_sequencing_speed(aircraft)
+                            minimum_sequencing_target = max(
+                                minimum_speed, speed - self.MAX_SEQUENCING_SPEED_DELTA_KTS
+                            )
+                            if minimum_sequencing_target <= required_speed < speed - 1.0:
+                                speed_solution = (required_speed if speed_solution is None
+                                                  else min(speed_solution, required_speed))
+                                continue
+                        unsafe_reason = (
+                            f"{other.callsign} is predicted inside {self.MIN_MERGE_SEPARATION_NM:g} NM at "
+                            f"{points[downstream_index].get('id', 'approach fix')}"
+                        )
+                        break
                 if unsafe_reason:
                     break
             if unsafe_reason:
-                failures.append(f"{node}: {unsafe_reason}")
+                reason = f"{node}: {unsafe_reason}"
+                failures.append(reason)
+                candidate_diagnostics.append({"node": node, "eligible": False, "reason": reason})
                 continue
             if speed_solution is not None:
                 adjusted_margin = float("inf")
@@ -1808,15 +2551,13 @@ class SimulationEngine:
                         gap = abs(adjusted_own_eta - other_etas[downstream_index]) * max(
                             speed_solution, float(other_speed)
                         ) / 3600.0
-                        if (abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT
-                                and gap < self.MIN_MERGE_SEPARATION_NM):
+                        if gap < self.MIN_MERGE_SEPARATION_NM:
                             unsafe_reason = (
-                                f"{other.callsign} remains inside 5 NM at "
+                                f"{other.callsign} remains inside {self.MIN_MERGE_SEPARATION_NM:g} NM at "
                                 f"{points[downstream_index].get('id', 'approach fix')} after speed adjustment"
                             )
                             break
-                        if abs(own_alt - other_alt) < self.MIN_VERTICAL_SEPARATION_FT:
-                            adjusted_margin = min(adjusted_margin, gap - self.MIN_MERGE_SEPARATION_NM)
+                        adjusted_margin = min(adjusted_margin, gap - self.MIN_MERGE_SEPARATION_NM)
                     if unsafe_reason:
                         break
                 if unsafe_reason:
@@ -1831,26 +2572,265 @@ class SimulationEngine:
             rank = preference_rank.get(node, len(preference_rank))
             candidates.append((node == prior_entry, -rank, minimum_margin,
                                -connector_nm, -eta, index, node, speed_solution))
+            candidate_diagnostics.append({"node": node, "eligible": True,
+                                          "connector_nm": round(connector_nm, 2),
+                                          "eta_seconds": round(eta, 1),
+                                          "altitude_ft": target_altitude,
+                                          "downstream_margin_nm": (None if math.isinf(minimum_margin)
+                                                                   else round(minimum_margin, 2))})
+
+        logging.getLogger(__name__).info(
+            "Approach candidates evaluated callsign=%s route=%s trigger=%s candidates=%s",
+            getattr(aircraft, "callsign", "<unknown>"), getattr(aircraft, "arrival_route_id", None),
+            route.get("approach_trigger"), candidate_diagnostics,
+        )
 
         if not candidates:
+            trigger_name = str(route.get("approach_trigger", "")).upper()
+            compatible_holds = getattr(self.holding_manager, "compatible_holding_options", None)
+            holds = compatible_holds(aircraft, trigger_name) if callable(compatible_holds) else []
+            hold_choices = [f"HOLD:{item['holding_route_id']}" for item in holds]
+            fallback_action = hold_choices[0] if hold_choices else "WAIT"
+            resolution_id = ("approach-resolution", *self._decision_session_scope(), str(aircraft.callsign),
+                             str(getattr(aircraft, "arrival_route_id", "")), trigger_name)
+            resolution_snapshot = {
+                "session_scope": self._decision_session_scope(),
+                "callsign": str(aircraft.callsign),
+                "route_id": str(getattr(aircraft, "arrival_route_id", "")),
+                "trigger": trigger_name,
+                "phase": str(getattr(aircraft, "phase", "")),
+                "route_cursor": getattr(aircraft, "route_index", None),
+                "assigned_node": str(getattr(aircraft, "assigned_node", "")),
+                "target_node": str(getattr(aircraft, "target_node", "")),
+                "navigation_state_version": getattr(aircraft, "navigation_state_version", None),
+                "holding_options": tuple(hold_choices),
+                "reservations": tuple(sorted(
+                    (str(node), str(getattr(owner, "callsign", "")))
+                    for node, owner in self.approach_reservations.items() if owner is not aircraft
+                )),
+                "latitude": float(getattr(aircraft, "lat", 0)),
+                "longitude": float(getattr(aircraft, "lon", 0)),
+            }
+            resolution_prompt = json.dumps({
+                "task": "No approach entry passed the deterministic safety checks. Choose one listed compatible hold or WAIT.",
+                "aircraft": {"callsign": aircraft.callsign,
+                             "type": getattr(aircraft, "aircraft_type", None),
+                             "position": [getattr(aircraft, "lat", None), getattr(aircraft, "lon", None)],
+                             "altitude_ft": getattr(aircraft, "altitude_ft", None),
+                             "speed_kts": getattr(aircraft, "speed_kts", None),
+                             "route_id": getattr(aircraft, "arrival_route_id", None),
+                             "route": list(getattr(aircraft, "route", []) or []),
+                             "next_waypoint": getattr(aircraft, "target_node", None)},
+                "approach_candidate_rejections": failures,
+                "approach_candidates_considered": candidate_diagnostics,
+                "compatible_holds": holds,
+                "active_holding_assignments": (self.holding_manager.active_holding_routes()
+                                                if callable(getattr(self.holding_manager, "active_holding_routes", None)) else []),
+                "available_actions": hold_choices + ["WAIT"],
+                "choice_schema": {"choice": "one listed HOLD:<route_id> or WAIT", "reason": "short rationale"},
+            }, separators=(",", ":"))
+            resolution = (mistral_controller.operational_choice(
+                resolution_id, resolution_prompt, hold_choices + ["WAIT"],
+                resolution_snapshot, fallback_action,
+            ) if getattr(self, "ai_arrival_decisions_enabled", False) else {
+                "status": "decided", "choice": fallback_action,
+                "source": "deterministic_fallback", "reason": "AI path disabled for this engine instance",
+            })
+            if resolution["status"] == "pending":
+                return {"safe": False, "ai_pending": True,
+                        "reason": "Waiting for an AI hold-or-wait decision; no approach entry is safe",
+                        "holding_route_id": fallback_action[5:] if fallback_action.startswith("HOLD:") else None,
+                        "approach_candidates_considered": candidate_diagnostics}
+            if resolution["choice"].startswith("HOLD:"):
+                self._record_guidance_event(
+                    aircraft, "AI HOLD SELECTED" if resolution.get("source") == "Mistral"
+                    else "DETERMINISTIC HOLD SELECTED", trigger_name,
+                    f"{resolution.get('reason', '')}; hold={resolution['choice'][5:]}; source={resolution.get('source')}",
+                )
+                return {"safe": False, "ai_action": "HOLD",
+                        "holding_route_id": resolution["choice"][5:],
+                        "decision_source": resolution.get("source"),
+                        "reason": resolution.get("reason", "Holding selected because no approach entry is safe"),
+                        "approach_candidates_considered": candidate_diagnostics}
+            self._record_guidance_event(
+                aircraft, "AI APPROACH WAIT SELECTED" if resolution.get("source") == "Mistral"
+                else "DETERMINISTIC APPROACH WAIT SELECTED", trigger_name,
+                f"{resolution.get('reason', '')}; source={resolution.get('source')}",
+            )
+            rejection_reason = "; ".join(failures) or "Neither approach entry is safe"
+            if not any(isinstance(point.get("arrival_entry_transition"), dict)
+                       and point["arrival_entry_transition"].get("type") == "DIRECT_FROM_ARRIVAL_TRIGGER"
+                       for point in points if isinstance(point, dict)):
+                rejection_reason = f"No configured arrival-trigger approach transition; {rejection_reason}"
             result = {"safe": False,
-                      "reason": "; ".join(failures) or "Neither approach entry is safe"}
+                      "ai_action": "WAIT",
+                      "reason": (resolution.get("reason") if resolution.get("source") == "Mistral"
+                                 else f"{rejection_reason}; {resolution.get('reason', '')}"),
+                      "approach_candidates_considered": candidate_diagnostics}
             if required_hold_delays:
                 result["required_delay_seconds"] = max(required_hold_delays)
             return result
         candidates.sort(reverse=True)
-        _, preference_score, _, _, negative_eta, selected_index, selected_node, speed_solution = candidates[0]
-        eta = -negative_eta
+        deterministic_candidate = candidates[0]
+        safe_entries = [
+            {"node": item[6], "index": item[5], "preference_rank": -item[1],
+             "predicted_entry_eta_seconds": round(-item[4], 1),
+             "downstream_margin_nm": (None if math.isinf(item[2]) else round(item[2], 2)),
+             "altitude_ft": float(points[item[5]].get("altitude_ft", 0) or 0)}
+            for item in candidates
+        ]
+        reservation_snapshot = tuple(sorted(
+            (str(node).upper(), str(getattr(owner, "callsign", "")))
+            for node, owner in self.approach_reservations.items() if owner is not aircraft
+        ))
+        decision_id = ("approach-entry", *self._decision_session_scope(), str(aircraft.callsign),
+                       str(getattr(aircraft, "arrival_route_id", "")),
+                       str(route.get("approach_trigger", "")).upper())
+        snapshot = {
+            "session_scope": self._decision_session_scope(),
+            "callsign": str(aircraft.callsign),
+            "route_id": str(getattr(aircraft, "arrival_route_id", "")),
+            "trigger": str(route.get("approach_trigger", "")).upper(),
+            "phase": str(getattr(aircraft, "phase", "")),
+            "approach_clearance": bool(getattr(aircraft, "approach_clearance", False)),
+            "route_cursor": getattr(aircraft, "route_index", None),
+            "assigned_node": str(getattr(aircraft, "assigned_node", "")),
+            "target_node": str(getattr(aircraft, "target_node", "")),
+            "navigation_state_version": getattr(aircraft, "navigation_state_version", None),
+            "safe_nodes": tuple(item["node"] for item in safe_entries),
+            "reservations": reservation_snapshot,
+            "latitude": float(getattr(aircraft, "lat", 0)),
+            "longitude": float(getattr(aircraft, "lon", 0)),
+        }
+        prompt = json.dumps({
+            "task": "Choose one safe, compatible approach entry for this arrival. Select only a listed safe node.",
+            "policy": [
+                "Honor the route-specific preference rank unless traffic conditions justify another listed safe node.",
+                "If APP32 is reserved, consider APP38 when safe and compatible.",
+                "If APP38 is assigned to a leading aircraft and APP25 is listed safe for this trailing aircraft, prefer APP25 over APP32.",
+                "Do not treat different nodes as proof of separation; the listed candidates already passed the safety checks.",
+            ],
+            "aircraft": {
+                "callsign": aircraft.callsign, "type": getattr(aircraft, "aircraft_type", None),
+                "position": {"latitude": aircraft.lat, "longitude": aircraft.lon},
+                "altitude_ft": getattr(aircraft, "altitude_ft", None),
+                "target_altitude_ft": getattr(aircraft, "target_altitude_ft", None),
+                "speed_kts": getattr(aircraft, "speed_kts", None), "route_id": getattr(aircraft, "arrival_route_id", None),
+                "route": list(getattr(aircraft, "route", []) or []),
+                "route_index": getattr(aircraft, "route_index", None),
+                "next_waypoint": getattr(aircraft, "target_node", None),
+                "current_entry": prior_entry,
+            },
+            "arrival_preferences": configured_preferences,
+            "entry_candidates_validated_safe": safe_entries,
+            "approach_candidates_considered": candidate_diagnostics,
+            "existing_entry_reservations": [
+                {"node": node, "callsign": owner.callsign,
+                 "reservation_status": self.approach_reservation_status.get(node, "active"),
+                 "phase": getattr(owner, "phase", None),
+                 "approach_index": getattr(owner, "approach_index", None)}
+                for node, owner in self.approach_reservations.items()
+            ],
+            "nearby_arrivals": [
+                {"callsign": item.callsign, "position": [item.lat, item.lon],
+                 "altitude_ft": item.altitude_ft, "speed_kts": item.speed_kts,
+                 "route_id": getattr(item, "arrival_route_id", None),
+                 "next_waypoint": getattr(item, "target_node", None),
+                 "assigned_entry": getattr(item, "_approach_entry_node", None),
+                 "approach_index": getattr(item, "approach_index", None)}
+                for item in traffic if item is not aircraft
+                and getattr(item, "phase", "") in {"ARRIVAL", "FINAL"}
+            ],
+            "choice_schema": {"choice": "one listed node ID", "reason": "short rationale"},
+        }, separators=(",", ":"))
+        ai_choice = (mistral_controller.operational_choice(
+            decision_id, prompt, [item["node"] for item in safe_entries], snapshot,
+            deterministic_candidate[6],
+        ) if getattr(self, "ai_arrival_decisions_enabled", False) else {
+            "status": "decided", "choice": deterministic_candidate[6],
+            "source": "deterministic_fallback", "reason": "AI path disabled for this engine instance",
+        })
+        if ai_choice["status"] == "pending":
+            provisional_node = deterministic_candidate[6]
+            self._release_approach_reservation(aircraft)
+            self.approach_reservations[provisional_node] = aircraft
+            # The candidate has already passed every deterministic route,
+            # altitude, traffic, and separation check. Do not leave the
+            # aircraft orbiting its arrival trigger while the optional model
+            # preference is still pending; commit this safe deterministic
+            # fallback through the normal clearance path.
+            self.approach_reservation_status[provisional_node] = "active"
+            aircraft._approach_entry_index = deterministic_candidate[5]
+            aircraft._approach_entry_node = provisional_node
+            self._record_guidance_event(
+                aircraft, "APPROACH_CANDIDATE_SELECTED", provisional_node,
+                "AI selection pending; committing the highest-ranked deterministic candidate after safety validation",
+                decision_source="DETERMINISTIC_PENDING_FALLBACK",
+            )
+            self._record_guidance_event(
+                aircraft, "APPROACH_RESERVATION_GRANTED", provisional_node,
+                "Deterministic safety checks passed; reservation committed while AI preference was pending",
+                decision_source="DETERMINISTIC_PENDING_FALLBACK",
+            )
+            return {"safe": True,
+                    "reason": "AI preference pending; deterministic safe approach entry committed",
+                    "approach_entry_index": deterministic_candidate[5],
+                    "approach_entry_node": provisional_node,
+                    "decision_source": "DETERMINISTIC_PENDING_FALLBACK",
+                    "approach_candidates_considered": candidate_diagnostics}
+        selected_candidate = next(
+            (item for item in candidates if item[6] == ai_choice["choice"]),
+            deterministic_candidate,
+        )
+        if ai_choice.get("source") == "deterministic_fallback" and prior_entry is not None:
+            selected_candidate = next((item for item in candidates if item[6] == prior_entry),
+                                      selected_candidate)
+        selected_node = selected_candidate[6]
+        selected_index = selected_candidate[5]
+        preference_score = selected_candidate[1]
+        negative_eta = selected_candidate[4]
+        speed_solution = selected_candidate[7]
         self._release_approach_reservation(aircraft)
         self.approach_reservations[selected_node] = aircraft
+        self.approach_reservation_status[selected_node] = "active"
+        eta = -negative_eta
         aircraft._approach_entry_index = selected_index
         aircraft._approach_entry_node = selected_node
         selected_eta = (eta * float(own_speed) / speed_solution
                         if speed_solution is not None else eta)
-        return {"safe": True, "reason": f"{selected_node} selected with downstream separation available",
+        decision_reason = ai_choice.get("reason", "Safe route-priority fallback")
+        self._record_guidance_event(
+            aircraft,
+            "APPROACH_CANDIDATE_SELECTED",
+            selected_node,
+            f"{decision_reason}; source={ai_choice.get('source')}",
+            decision_source=ai_choice.get("source"),
+        )
+        self._record_guidance_event(
+            aircraft,
+            "APPROACH_RESERVATION_GRANTED",
+            selected_node,
+            "Deterministic validation passed and entry reservation was committed",
+            decision_source=ai_choice.get("source"),
+        )
+        self._record_guidance_event(
+            aircraft,
+            "AI APPROACH ENTRY SELECTED" if ai_choice.get("source") == "Mistral"
+            else "DETERMINISTIC APPROACH ENTRY SELECTED",
+            selected_node,
+            f"{decision_reason}; source={ai_choice.get('source')}",
+        )
+        logging.getLogger(__name__).info(
+            "Approach entry selected callsign=%s node=%s source=%s safe_candidates=%s",
+            getattr(aircraft, "callsign", "<unknown>"), selected_node,
+            ai_choice.get("source"), [item["node"] for item in safe_entries],
+        )
+        return {"safe": True, "reason": f"{selected_node} selected with downstream separation available: {decision_reason}",
                 "approach_entry_index": selected_index, "approach_entry_node": selected_node,
                 "approach_entry_preference_rank": -preference_score,
                 "predicted_entry_eta_seconds": round(selected_eta, 1),
+                "decision_source": ai_choice.get("source"),
+                "approach_candidates_considered": candidate_diagnostics,
                 **({"speed_reduction_kts": round(speed_solution, 1)}
                    if speed_solution is not None else {})}
 
@@ -1885,6 +2865,12 @@ class SimulationEngine:
                 if id(owner) not in active or active[id(owner)] is not owner:
                     self._release_approach_reservation(owner)
                     continue
+                # A hold assignment suspends approach sequencing ownership.
+                # Retaining its old entry reservation blocks another arrival
+                # even though the held aircraft has not committed that entry.
+                if self.holding_manager.has_active_holding_route(owner):
+                    self._release_approach_reservation(owner)
+                    continue
                 entry_index = getattr(owner, "_approach_entry_index", None)
                 if (getattr(owner, "phase", "") not in {"ARRIVAL", "FINAL"}
                         or (isinstance(entry_index, int)
@@ -1906,6 +2892,21 @@ class SimulationEngine:
             for aircraft in active.values():
                 node = str(getattr(aircraft, "_approach_entry_node", "")).upper()
                 entry_index = getattr(aircraft, "_approach_entry_index", None)
+                if ((node not in configured_entries or not isinstance(entry_index, int))
+                        and getattr(aircraft, "phase", "") == "FINAL"
+                        and getattr(aircraft, "approach_clearance", False)):
+                    active_target = str(getattr(aircraft, "target_node", "")).upper()
+                    target_entry = next((
+                        (index, str(point.get("id", "")).upper())
+                        for index, point in enumerate(self.approach_ai.approach_points)
+                        if isinstance(point, dict)
+                        and str(point.get("id", "")).upper() == active_target
+                        and active_target in configured_entries
+                    ), None)
+                    if target_entry is not None:
+                        entry_index, node = target_entry
+                        aircraft._approach_entry_index = entry_index
+                        aircraft._approach_entry_node = node
                 if (node not in configured_entries
                         or not isinstance(entry_index, int)
                         or getattr(aircraft, "phase", "") not in {"ARRIVAL", "FINAL"}):
@@ -1921,6 +2922,7 @@ class SimulationEngine:
         for node, owner in list(self.approach_reservations.items()):
             if owner is aircraft:
                 self.approach_reservations.pop(node, None)
+                getattr(self, "approach_reservation_status", {}).pop(node, None)
         for name in ("_approach_entry_index", "_approach_entry_node"):
             if hasattr(aircraft, name):
                 delattr(aircraft, name)
@@ -1942,6 +2944,23 @@ class SimulationEngine:
             "speed": aircraft.speed_kts, "holding_route_id": release.get("holding_route_id"),
             "hold_circuits": release.get("completed_circuits"), "rejoin_node": next_node,
             "reason": safety.get("reason", "Downstream route clear and required separation available"),
+            "decision_source": safety.get("decision_source", "DETERMINISTIC_SAFETY_VALIDATION"),
+            "old_state": release.get("old_state"), "new_state": release.get("new_state"),
+            "old_route": release.get("old_route"),
+            "old_route_index": release.get("old_route_index"),
+            "old_target_node": release.get("old_target_node"),
+            "active_route": list(getattr(aircraft, "route", []) or []),
+            "route_index": getattr(aircraft, "route_index", None),
+            "assigned_waypoint": getattr(aircraft, "assigned_node", None),
+            "target_waypoint": getattr(aircraft, "target_node", None),
+            "clearance_direct_node": getattr(getattr(aircraft, "clearance", None), "direct_node", None),
+            "hold_active": release.get("hold_active"),
+            "approach_entry_node": release.get("approach_entry_node"),
+            "reservation_state": [
+                {"node": node, "status": self.approach_reservation_status.get(node, "active")}
+                for node, owner in getattr(self, "approach_reservations", {}).items()
+                if owner is aircraft
+            ],
         })
         del self.ai_decision_log[50:]
 
@@ -2100,6 +3119,10 @@ class SimulationEngine:
 
     def process_due_departures(self):
 
+        if (getattr(self, "session_mode", "NORMAL") == "TEST"
+                or not getattr(self, "normal_generation_allowed", lambda: True)()):
+            return []
+
         active_count = len(self.manager.all())
         wave_name = self.traffic_manager.active_wave[0]
         departure_gaps = {
@@ -2112,6 +3135,14 @@ class SimulationEngine:
             active_capacity=self.traffic_manager.active_wave_capacity,
             release_gap_range=departure_gaps.get(wave_name),
         )
+
+        if not departures:
+            self._record_departure_diagnostic(
+                getattr(self.scheduler, "last_departure_status", "no_due_aircraft"),
+                active_aircraft=active_count,
+                active_capacity=min(self.traffic_manager.active_wave_capacity,
+                                    getattr(self.scheduler, "MAX_ACTIVE_AIRCRAFT", active_count)),
+            )
 
         for aircraft_data in departures:
 
@@ -2129,35 +3160,90 @@ class SimulationEngine:
             route = self._departure_route_for(aircraft_data["destination"])
             if route is None:
                 print(f"DEPARTURE ROUTE UNAVAILABLE: {callsign} -> {aircraft_data['destination']}")
+                self._record_departure_diagnostic(
+                    "missing_or_incompatible_sid", callsign=callsign,
+                    destination=aircraft_data["destination"],
+                    aircraft_type=aircraft_data["aircraft_type"],
+                )
                 continue
             points = route["waypoints"]
             if not points:
+                self._record_departure_diagnostic(
+                    "empty_sid_route", callsign=callsign, route_id=route.get("route_id"),
+                )
                 continue
             first = points[0]
             aircraft = spawn_aircraft(callsign, aircraft_data["aircraft_type"], first["latitude"], first["longitude"])
             aircraft.phase = "DEPARTURE"
-            initial_altitude = first.get("altitude", {}).get("feet")
-            if isinstance(initial_altitude, (int, float)):
-                aircraft.altitude_ft = int(initial_altitude)
-                aircraft.target_altitude_ft = int(initial_altitude)
+            departure_profile = match_departure_profile(
+                route, aircraft_data["aircraft_type"], getattr(self, "departure_profiles", {})
+            )
+            runway_profile = departure_profile[0] if departure_profile else None
+            initial_altitude = (runway_profile.get("alt_ft") if runway_profile
+                                else first.get("altitude", {}).get("feet", 20))
+            aircraft.altitude_ft = float(initial_altitude if initial_altitude is not None else 20)
+            aircraft.target_altitude_ft = aircraft.altitude_ft
+            aircraft.speed_kts = 0.0
+            roll_speed = (runway_profile.get("ias_kt") if runway_profile
+                          else 150.0)
+            aircraft.target_speed_kts = float(roll_speed or 150)
+            aircraft.on_ground = True
+            aircraft.state = "TAKEOFF_ROLL"
+            aircraft.departure_profile = departure_profile
+            aircraft.departure_profile_available = departure_profile is not None
+            if departure_profile is None:
+                logging.getLogger(__name__).warning(
+                    "Departure profile unavailable route=%s name=%s aircraft=%s; using route fallback",
+                    route.get("route_id"), route.get("name"), aircraft_data["aircraft_type"],
+                )
+                self._record_departure_diagnostic(
+                    "missing_profile_route_fallback_used", callsign=callsign,
+                    route_id=route.get("route_id"), route_name=route.get("name"),
+                    aircraft_type=aircraft_data["aircraft_type"],
+                )
             aircraft.destination = aircraft_data["destination"]
             aircraft.assign_route([p["name"] for p in points])
             aircraft.departure_waypoints = points
             aircraft.departure_route_id = route["route_id"]
             self.scheduler.db.mark_departing(callsign)
             self.manager.add(aircraft)
+            self._record_departure_diagnostic(
+                "spawned_on_runway", callsign=callsign, route_id=route["route_id"],
+                aircraft_type=aircraft_data["aircraft_type"], profile_available=departure_profile is not None,
+            )
             print(f"DEPARTURE SPAWNED: {callsign} route {route['route_id']}")
+
+    def _record_departure_diagnostic(self, status, **details):
+        if not hasattr(self, "departure_diagnostics"):
+            self.departure_diagnostics = []
+        self.departure_diagnostics.insert(0, {
+            "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "status": str(status), **details,
+        })
+        del self.departure_diagnostics[50:]
 
     def _departure_route_for(self, destination):
         routes = list(self.departure_routes.values())
         if not routes:
             return None
         destination = str(destination or "").upper()
+        mapped_route_id = getattr(self, "departure_destination_map", {}).get(destination)
+        if mapped_route_id:
+            route = self.departure_routes.get(str(mapped_route_id))
+            if (isinstance(route, dict) and route.get("waypoints")
+                    and str(route.get("runway", "27")).upper()
+                    == str(getattr(self.runway, "ident", "27")).upper()):
+                return route
+            logging.getLogger(__name__).error(
+                "Departure destination map references unavailable route destination=%s route=%s",
+                destination, mapped_route_id,
+            )
+            return None
         matching = [r for r in routes if destination in r.get("name", "").upper()
                     or destination == r["waypoints"][-1]["name"].upper()]
         if matching:
             return min(matching, key=lambda route: route["route_id"])
-        return routes[sum(destination.encode("utf-8")) % len(routes)]
+        return None
 
     def update(
         self,
@@ -2169,6 +3255,9 @@ class SimulationEngine:
         self.process_due_departures()
 
         traffic = self.manager.all()
+        prune_holds = getattr(getattr(self, "holding_manager", None), "prune_inactive_holds", None)
+        if callable(prune_holds):
+            prune_holds(traffic)
         self._restore_shared_waypoint_speeds(traffic)
         self._apply_shared_waypoint_separation(traffic)
         self._detect_shared_waypoint_conflicts(traffic)
@@ -2187,14 +3276,86 @@ class SimulationEngine:
                         self.scheduler.aircraft_completed(aircraft.callsign)
                         print(f"DEPARTURE COMPLETED: {aircraft.callsign} | NEXT ARRIVAL SCHEDULED")
                         continue
-                    waypoint = next((p for p in aircraft.departure_waypoints if p["name"] == aircraft.target_node), None)
-                    if waypoint:
-                        altitude = waypoint.get("altitude", {})
-                        if altitude.get("feet") is not None:
-                            aircraft.assign_altitude(altitude["feet"])
-                        speed = waypoint.get("speed", {})
-                        if speed.get("knots") is not None:
-                            aircraft.assign_speed(speed["knots"])
+                    self._validate_departure_fix_constraints(aircraft)
+                    if getattr(aircraft, "on_ground", False):
+                        if aircraft.speed_kts >= 140.0:
+                            aircraft.on_ground = False
+                            aircraft.state = "CLIMB"
+                        else:
+                            aircraft.assign_speed(
+                                float((aircraft.departure_profile or [{}])[0].get("ias_kt") or 150)
+                                if getattr(aircraft, "departure_profile_available", False)
+                                else 150.0
+                            )
+                            continue
+                    profile = getattr(aircraft, "departure_profile", None)
+                    row = next((item for item in profile or []
+                                if str(item.get("waypoint", "")).upper()
+                                == str(aircraft.target_node).upper()), None)
+                    if row is not None:
+                        altitude = row.get("alt_ft")
+                        if isinstance(altitude, (int, float)):
+                            constraint = row.get("pub_alt_constraint")
+                            if constraint and constraint.get("unit") in {"ft", "feet"}:
+                                required = float(constraint["value"])
+                                operator = constraint.get("operator")
+                                if operator in {"<=", "<"}:
+                                    altitude = min(float(altitude), required)
+                                elif operator in {">=", ">"}:
+                                    altitude = max(float(altitude), required)
+                                elif operator in {"=", "@"}:
+                                    altitude = required
+                            constraints = [item.get("pub_alt_constraint") for item in profile
+                                           if item.get("waypoint") == "RWY27"]
+                            departure_minimum = next((item["value"] for item in constraints
+                                                      if item and item.get("operator") in {">=", ">"}
+                                                      and item.get("unit") in {"ft", "feet"}), None)
+                            if (str(row.get("waypoint")).upper() == "BB154"
+                                    and departure_minimum is not None):
+                                aircraft.departure_climbout_minimum_ft = departure_minimum
+                            aircraft.assign_altitude(altitude)
+                        target_speed = row.get("gs_kt")
+                        if isinstance(target_speed, (int, float)) and target_speed > 0:
+                            target_altitude = getattr(
+                                aircraft, "target_altitude_ft", aircraft.altitude_ft
+                            )
+                            indicated_speed = row.get("ias_kt")
+                            if isinstance(indicated_speed, (int, float)) and indicated_speed > 0:
+                                aircraft.departure_target_ias_kts = float(indicated_speed)
+                                target_speed = min(
+                                    float(target_speed),
+                                    indicated_to_true_airspeed(indicated_speed, target_altitude),
+                                )
+                            aircraft.assign_speed(float(target_speed))
+                        speed_limit = departure_speed_limit_gs(
+                            row.get("pub_speed_constraint"),
+                            getattr(aircraft, "target_altitude_ft", aircraft.altitude_ft),
+                        )
+                        if speed_limit is not None:
+                            aircraft.assign_speed(min(float(aircraft.target_speed_kts), speed_limit))
+                        vertical_speed = row.get("vs_fpm")
+                        if not isinstance(vertical_speed, (int, float)):
+                            climb_gradient = row.get("climb_ft_per_nm")
+                            if isinstance(climb_gradient, (int, float)):
+                                vertical_speed = float(climb_gradient) * max(
+                                    float(getattr(aircraft, "speed_kts", 0)), 0.0
+                                ) / 60.0
+                        if isinstance(vertical_speed, (int, float)):
+                            aircraft.target_vertical_speed_fpm = float(vertical_speed)
+                            aircraft.departure_max_climb_rate_fpm = max(
+                                1500.0, abs(float(vertical_speed))
+                            )
+                        aircraft.departure_climb_ft_per_nm = row.get("climb_ft_per_nm")
+                    else:
+                        waypoint = next((p for p in aircraft.departure_waypoints
+                                         if p["name"] == aircraft.target_node), None)
+                        if waypoint:
+                            altitude = waypoint.get("altitude", {})
+                            if altitude.get("feet") is not None:
+                                aircraft.assign_altitude(altitude["feet"])
+                            speed = waypoint.get("speed", {})
+                            if speed.get("knots") is not None:
+                                aircraft.assign_speed(speed["knots"])
                     continue
 
                 self.arrival_ai.update(aircraft)
@@ -2233,3 +3394,57 @@ class SimulationEngine:
                 print(f"AIRCRAFT MOVEMENT ERROR {aircraft.callsign}: {error}")
 
         self._prune_approach_reservations()
+
+    def _validate_departure_fix_constraints(self, aircraft):
+        profile = getattr(aircraft, "departure_profile", None)
+        if not profile:
+            return
+        fix = str(getattr(aircraft, "assigned_node", "")).upper()
+        if not fix or fix == "RWY27":
+            return
+        checked = getattr(aircraft, "_validated_departure_fixes", set())
+        if fix in checked:
+            return
+        checked.add(fix)
+        aircraft._validated_departure_fixes = checked
+        row = next((item for item in profile
+                    if str(item.get("waypoint", "")).upper() == fix), None)
+        if row is None:
+            return
+        constraints = []
+        if fix == "BB154":
+            runway = next((item for item in profile
+                           if str(item.get("waypoint", "")).upper() == "RWY27"), None)
+            if runway and runway.get("pub_alt_constraint"):
+                constraints.append(("altitude", runway["pub_alt_constraint"], "RWY27 climb-out"))
+        if row.get("pub_alt_constraint"):
+            constraints.append(("altitude", row["pub_alt_constraint"], fix))
+        if row.get("pub_speed_constraint"):
+            constraints.append(("speed", row["pub_speed_constraint"], fix))
+        results = {}
+        for kind, constraint, source in constraints:
+            value = (float(getattr(aircraft, "altitude_ft", 0) or 0)
+                     if kind == "altitude" else true_to_indicated_airspeed(
+                         float(getattr(aircraft, "speed_kts", 0) or 0),
+                         float(getattr(aircraft, "altitude_ft", 0) or 0),
+                     ))
+            required = float(constraint["value"])
+            operator = constraint.get("operator")
+            passed = {
+                ">=": value >= required, ">": value > required,
+                "<=": value <= required, "<": value < required,
+                "=": abs(value - required) <= (100.0 if kind == "altitude" else 1.0),
+                "@": abs(value - required) <= (100.0 if kind == "altitude" else 1.0),
+            }.get(operator, False)
+            key = f"{kind}:{source}"
+            results[key] = {"passed": passed, "actual": round(value, 1),
+                            "operator": operator, "required": required,
+                            "unit": constraint.get("unit")}
+            if not passed:
+                logging.getLogger(__name__).warning(
+                    "Departure published constraint not met callsign=%s route=%s fix=%s source=%s kind=%s actual=%s %s required=%s %s",
+                    aircraft.callsign, getattr(aircraft, "departure_route_id", None), fix,
+                    source, kind, round(value, 1), constraint.get("unit"), operator,
+                    required, constraint.get("unit"),
+                )
+        aircraft.departure_constraint_checks = results

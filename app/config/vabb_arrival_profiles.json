@@ -78,20 +78,281 @@
       }
     },
     "005": {
-  "OPAKA": {
-    "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
-    "speed": { "type": "MAX", "knots": 250 }
-  },
-  "EMRAK": {
-    "altitude": { "type": "AT", "feet": 10000 },
-    "speed": { "type": "MAX", "knots": 230 },
-    "vertical_profile": { "descent_ft_per_nm": 33 }
-  },
-  "OLGUS": {
-    "altitude": { "type": "AT", "feet": 7300 },
-    "speed": { "type": "MAX", "knots": 210 },
-    "vertical_profile": { "descent_ft_per_nm": 37 }
-  }
-}
+      "OPAKA": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 14000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "EMRAK": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 230 },
+        "vertical_profile": { "descent_ft_per_nm": 33 }
+      },
+      "OLGUS": {
+        "altitude": { "type": "AT", "feet": 7300 },
+        "speed": { "type": "MAX", "knots": 210 },
+        "vertical_profile": { "descent_ft_per_nm": 37 }
+      }
+    },
+    "006": {
+      "AGELA": {},
+      "NM601": {
+        "altitude": { "type": "AT", "feet": 24000 }
+      },
+      "BEDOL": {
+        "altitude": { "type": "AT", "feet": 24000 }
+      },
+      "UKETU": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 12000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB251": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB252": {},
+      "BB253": {},
+      "BB254": {
+        "speed": { "type": "MAX", "knots": 210 }
+      }
+    },
+    "007": {
+      "BEDOL": {},
+      "UKETU": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 12000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB251": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB252": {},
+      "BB253": {},
+      "BB254": {
+        "speed": { "type": "MAX", "knots": 210 }
+      }
+    },
+    "008": {
+      "EPKOS": {},
+      "NM602": {
+        "altitude": { "type": "AT", "feet": 25000 }
+      },
+      "BEDOL": {
+        "altitude": { "type": "AT", "feet": 25000 }
+      },
+      "UKETU": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 12000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB251": {
+        "altitude": { "type": "AT", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 230 }
+      },
+      "BB252": {},
+      "BB253": {},
+      "BB254": {
+        "speed": { "type": "MAX", "knots": 210 }
+      }
+    },
+    "009": {
+      "BISET": {},
+      "NM614": {
+        "altitude": { "type": "AT", "feet": 20000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    },
+    "010": {
+      "DARMI": {},
+      "NM615": {
+        "altitude": { "type": "AT", "feet": 21000 }
+      },
+      "NM616": {
+        "altitude": { "type": "AT", "feet": 21000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    },
+    "011": {
+      "ERVIS": {},
+      "NM617": {
+        "altitude": { "type": "AT", "feet": 28000 }
+      },
+      "NM508": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 25000 }
+      },
+      "NM618": {
+        "altitude": { "type": "AT", "feet": 24000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    },
+    "012": {
+      "GUNDI": {},
+      "NM619": {
+        "altitude": { "type": "AT", "feet": 25000 }
+      },
+      "NM616": {
+        "altitude": { "type": "AT", "feet": 25000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    },
+    "013": {
+      "KABSO": {},
+      "NM617": {
+        "altitude": { "type": "AT", "feet": 29000 }
+      },
+      "NM508": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 25000 }
+      },
+      "NM618": {
+        "altitude": { "type": "AT", "feet": 24000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    },
+    "014": {
+      "SUGID": {},
+      "NM620": {
+        "altitude": { "type": "AT", "feet": 29000 }
+      },
+      "NM621": {
+        "altitude": { "type": "AT", "feet": 25000 }
+      },
+      "AKTOD": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 },
+        "speed": { "type": "MAX", "knots": 250 }
+      },
+      "BB260": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 16000 }
+      },
+      "BB261": {
+        "altitude": { "type": "AT_OR_ABOVE", "feet": 14000 }
+      },
+      "BB262": {
+        "altitude": { "type": "AT", "feet": 13000 }
+      },
+      "BB263": {
+        "altitude": { "type": "AT_OR_BELOW", "feet": 11000 },
+        "speed": { "type": "MAX", "knots": 220 }
+      },
+      "BB253": {
+        "altitude": { "type": "AT", "feet": 10000 },
+        "speed": { "type": "MAX", "knots": 200 }
+      },
+      "BB254": {
+        "speed": { "type": "AT", "knots": 190 }
+      }
+    }
   }
 }

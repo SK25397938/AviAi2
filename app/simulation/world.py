@@ -1,3 +1,5 @@
+import uuid
+
 from app.simulation.clock import simulation_clock
 from app.simulation.engine import SimulationEngine
 from app.intelligence.instruction_manager import instruction_manager
@@ -8,6 +10,87 @@ class SimulationWorld:
     def __init__(self):
         self.airport = "VABB"
         self.engine = SimulationEngine()
+        self.session_mode = "NORMAL"
+        self.session_id = None
+        self._normal_engine = None
+        normal_engine = self.engine
+        normal_engine.normal_generation_allowed = lambda: (
+            self.engine is normal_engine and self.session_mode == "NORMAL"
+        )
+
+    def enter_test_session(self):
+        if self.session_mode == "TEST":
+            return self.get_session_state()
+        session_id = uuid.uuid4().hex
+        # Construct successfully before swapping so a constructor failure leaves
+        # the live normal simulation and all its resources untouched.
+        test_engine = SimulationEngine(session_mode="TEST", session_id=session_id)
+        self._normal_engine = self.engine
+        self.engine = test_engine
+        self.session_mode = "TEST"
+        self.session_id = session_id
+        return self.get_session_state()
+
+    def exit_test_session(self, session_id=None):
+        if self.session_mode != "TEST":
+            return self.get_session_state()
+        if not session_id or session_id != self.session_id:
+            raise ValueError("Test session token does not match the active session")
+        test_engine = self.engine
+        normal_engine = self._normal_engine
+        if normal_engine is None:
+            raise RuntimeError("Normal simulation session is unavailable")
+        # Swapping under SimulationRunner's serialization lock makes this
+        # teardown atomic with respect to updates and spawn requests.
+        self.engine = normal_engine
+        self._normal_engine = None
+        self.session_mode = "NORMAL"
+        self.session_id = None
+        test_engine.manager.aircraft.clear()
+        test_engine.approach_reservations.clear()
+        test_engine.approach_reservation_status.clear()
+        test_engine.holding_manager._active_holds.clear()
+        test_engine._last_separation_event_at.clear()
+        test_engine._last_holding_release_diagnostic_at.clear()
+        traffic_manager = getattr(test_engine, "traffic_manager", None)
+        scheduler = getattr(test_engine, "scheduler", None)
+        for resource in (
+                getattr(test_engine, "aircraft_db", None),
+                getattr(traffic_manager, "db", traffic_manager),
+                getattr(scheduler, "db", scheduler)):
+            if resource is None:
+                continue
+            try:
+                resource.close()
+            except Exception:
+                pass
+        return self.get_session_state()
+
+    def get_session_state(self):
+        return {"session_mode": self.session_mode, "session_id": self.session_id,
+                "suspended_normal_aircraft_count": (
+                    len(self._normal_engine.manager.all())
+                    if self.session_mode == "TEST" and self._normal_engine is not None else 0
+                ),
+                "test_aircraft_count": sum(
+                    1 for ac in self.engine.manager.all()
+                    if getattr(ac, "test_session_id", None) == self.session_id
+                ) if self.session_mode == "TEST" else 0}
+
+    def spawn_test_aircraft(self, session_id, callsign, aircraft_type, node, route_id):
+        if self.session_mode != "TEST" or not session_id or session_id != self.session_id:
+            raise ValueError("Test session is not active")
+        return self.engine.spawn_test_aircraft(callsign, aircraft_type, node, route_id)
+
+    def spawn_random_test_aircraft(self, session_id, node, route_id):
+        if self.session_mode != "TEST" or not session_id or session_id != self.session_id:
+            raise ValueError("Test session is not active")
+        return self.engine.spawn_random_test_aircraft(node, route_id)
+
+    def remove_test_aircraft(self, session_id, callsign):
+        if self.session_mode != "TEST" or not session_id or session_id != self.session_id:
+            raise ValueError("Test session is not active")
+        return self.engine.remove_test_aircraft(callsign)
 
     def spawn(
         self,
@@ -46,6 +129,8 @@ class SimulationWorld:
 
         return {
 
+            "session": self.get_session_state(),
+
             "airport": self.airport,
 
             "clock": simulation_clock.get_state(),
@@ -54,9 +139,21 @@ class SimulationWorld:
                 self.engine.manager.all()
             ),
 
-            "instruction_log": instruction_manager.latest(),
+            "instruction_log": (instruction_manager.latest()
+                                if self.session_mode == "NORMAL" else []),
 
             "ai_decision_log": list(self.engine.ai_decision_log),
+
+            "decision_audit_summary": {
+                decision_type: dict(sources)
+                for decision_type, sources in getattr(
+                    self.engine, "decision_audit_counts", {}
+                ).items()
+            },
+
+            "departure_diagnostics": list(getattr(
+                self.engine, "departure_diagnostics", []
+            )),
 
             "arrival_guidance": [
                 {
@@ -87,6 +184,10 @@ class SimulationWorld:
                 {
 
                     "callsign": ac.callsign,
+
+                    "test_session_id": getattr(ac, "test_session_id", None),
+
+                    "test_spawned": getattr(ac, "test_spawned", False),
 
                     "type": ac.aircraft_type,
 

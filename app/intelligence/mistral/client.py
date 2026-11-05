@@ -53,6 +53,10 @@ def _clean_response(content):
         "hold_circuits", "rejoin_node", "reason"
     }
 
+    if set(data) == {"choice", "reason"}:
+        if not isinstance(data.get("choice"), str) or not isinstance(data.get("reason"), str):
+            return None
+        return json.dumps(data)
     if not required_fields.issubset(data.keys()):
         return None
 

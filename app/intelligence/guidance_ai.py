@@ -1,6 +1,11 @@
 import math
+import logging
 
 from app.intelligence.graph_navigator import GraphNavigator
+from app.intelligence.fallback_selection import (evaluate_fallback_candidates,
+                                                  route_end_fallback_candidates)
+from app.navigation.arrival_profile import arrival_schedule_groundspeed
+from app.navigation.speed_conversion import indicated_to_true_airspeed
 from app.simulation.physics import TURN_RATE_DEG_PER_SEC
 
 
@@ -39,6 +44,8 @@ class GuidanceAI:
         arrival_profiles=None,
         decision_event_callback=None,
         approach_handoff_validator=None,
+        holding_level_decider=None,
+        fallback_transition_validator=None,
     ):
 
         self.graph = graph
@@ -49,6 +56,8 @@ class GuidanceAI:
         self.arrival_profiles = arrival_profiles or {}
         self.decision_event_callback = decision_event_callback
         self.approach_handoff_validator = approach_handoff_validator
+        self.holding_level_decider = holding_level_decider
+        self.fallback_transition_validator = fallback_transition_validator
         self._progress = {}
 
         self.navigator = GraphNavigator(
@@ -73,6 +82,63 @@ class GuidanceAI:
         previous_target = getattr(aircraft, "_guidance_previous_target", None)
         current_position = (float(aircraft.lat), float(aircraft.lon))
         aircraft._guidance_previous_position = current_position
+
+        if getattr(aircraft, "_approach_ai_waiting", False):
+            safety = (self.approach_handoff_validator(aircraft)
+                      if self.approach_handoff_validator is not None else {"safe": False})
+            if safety.get("safe") and not self._valid_approach_selection(aircraft, safety):
+                safety = {**safety, "safe": False,
+                          "reason": "Approach validator did not provide a committed entry reservation"}
+            if safety.get("safe"):
+                trigger = str(self.arrival_routes.get(
+                    getattr(aircraft, "arrival_route_id", None), {}
+                ).get("approach_trigger", "")).upper()
+                trigger_index = next((index for index, name in enumerate(aircraft.route)
+                                      if str(name).upper() == trigger), None)
+                entry_index = safety.get("approach_entry_index")
+                entry_node = safety.get("approach_entry_node")
+                if (trigger_index is not None and isinstance(entry_index, int)
+                        and isinstance(entry_node, str)):
+                    aircraft.assigned_node = aircraft.route[trigger_index]
+                    aircraft.route_index = trigger_index + 1
+                    aircraft.approach_clearance = True
+                    aircraft._approach_entry_index = entry_index
+                    aircraft._approach_entry_node = entry_node
+                    aircraft.phase = "FINAL"
+                    aircraft.state = "APPROACH"
+                    aircraft.approach_phase = "INTERCEPT"
+                    aircraft.target_node = entry_node
+                    aircraft.clearance.direct_node = entry_node
+                    if self.decision_event_callback is not None:
+                        self.decision_event_callback(
+                            aircraft, "APPROACH CLEARED", trigger,
+                            f"AI selected safe entry {entry_node}; pending trigger handoff completed",
+                        )
+                        self.decision_event_callback(
+                            aircraft, "ROUTE TRANSITION", trigger,
+                            f"Arrival route transitioned to approach entry {entry_node}",
+                        )
+                    for name in ("_approach_ai_waiting", "_approach_clearance_waiting"):
+                        if hasattr(aircraft, name):
+                            delattr(aircraft, name)
+                    self._record_progress(aircraft, dt)
+                    return
+            if safety.get("ai_pending"):
+                if self._enter_pending_approach_hold(aircraft, safety, dt):
+                    for name in ("_approach_ai_waiting", "_approach_clearance_waiting"):
+                        if hasattr(aircraft, name):
+                            delattr(aircraft, name)
+                    return
+                # Do not pin guidance to the approach trigger while the model
+                # is pending. The normal trigger capture path below applies
+                # the configured route-extension fallback (or a compatible
+                # hold) and keeps the aircraft moving on an executable route.
+                delattr(aircraft, "_approach_ai_waiting")
+            # A completed WAIT/HOLD recommendation returns to the normal
+            # trigger-resolution path below, where the selected safe action
+            # is validated and executed.
+            if hasattr(aircraft, "_approach_ai_waiting"):
+                delattr(aircraft, "_approach_ai_waiting")
 
         # A denied temporary sequencing fix is a real waiting state. Recheck
         # it before capture handling; otherwise a zero-distance target would
@@ -146,13 +212,121 @@ class GuidanceAI:
                 route_definition = self.arrival_routes.get(getattr(aircraft, "arrival_route_id", None), {})
                 trigger = str(route_definition.get("approach_trigger", "")).upper()
                 if str(getattr(aircraft, "assigned_node", "")).upper() == trigger and trigger:
-                    aircraft.phase = "FINAL"
-                    aircraft.state = "APPROACH"
-                    aircraft.approach_phase = "INTERCEPT"
-                    print(f"APPROACH HANDOFF: {aircraft.callsign} at {aircraft.assigned_node}")
+                    existing_entry = {
+                        "safe": bool(getattr(aircraft, "approach_clearance", False)),
+                        "approach_entry_index": getattr(aircraft, "_approach_entry_index", None),
+                        "approach_entry_node": getattr(aircraft, "_approach_entry_node", None),
+                    }
+                    handoff_validator = getattr(self, "approach_handoff_validator", None)
+                    if self._valid_approach_selection(aircraft, existing_entry):
+                        safety = existing_entry
+                    else:
+                        safety = (handoff_validator(aircraft)
+                                  if handoff_validator is not None
+                                  else {"safe": False,
+                                        "reason": "No approach handoff validator is configured"})
+                    if safety.get("safe") and self._valid_approach_selection(aircraft, safety):
+                        entry_node = safety["approach_entry_node"]
+                        aircraft.approach_clearance = True
+                        aircraft._approach_entry_index = safety["approach_entry_index"]
+                        aircraft._approach_entry_node = entry_node
+                        aircraft.phase = "FINAL"
+                        aircraft.state = "APPROACH"
+                        aircraft.approach_phase = "INTERCEPT"
+                        aircraft.target_node = entry_node
+                        aircraft.clearance.direct_node = entry_node
+                        navigator = getattr(self, "navigator", None)
+                        if navigator is not None:
+                            aircraft.assign_heading(navigator.heading_to_node(aircraft, entry_node))
+                        if self.decision_event_callback is not None:
+                            self.decision_event_callback(
+                                aircraft, "APPROACH HANDOFF", trigger,
+                                f"Validated route-end allocation committed for {entry_node}",
+                            )
+                        self._record_progress(aircraft, dt)
+                        return
+
+                    graph = getattr(self, "graph", None)
+                    graph_nodes = getattr(graph, "nodes", {})
+                    get_graph_node = getattr(graph, "get_node", lambda _name: None)
+                    fallback_nodes = route_end_fallback_candidates(
+                        route_definition.get("approach_fallback_preferences", []),
+                        aircraft.route, aircraft.route_index, trigger, graph_nodes,
+                    )
+                    trigger_node = get_graph_node(trigger)
+                    reachable = []
+                    if trigger_node is not None:
+                        for fallback_name in fallback_nodes:
+                            fallback_node = get_graph_node(fallback_name)
+                            if fallback_node is None:
+                                continue
+                            values = (
+                                trigger_node.get("lat", trigger_node.get("latitude")),
+                                trigger_node.get("lon", trigger_node.get("longitude")),
+                                fallback_node.get("lat", fallback_node.get("latitude")),
+                                fallback_node.get("lon", fallback_node.get("longitude")),
+                            )
+                            if any(value is None for value in values):
+                                continue
+                            distance_nm = self._distance_nm(*map(float, values))
+                            if distance_nm > 35.0:
+                                continue
+                            validator = getattr(self, "fallback_transition_validator", None)
+                            validation = (validator(aircraft, fallback_name)
+                                          if callable(validator) else {"safe": True})
+                            if isinstance(validation, bool):
+                                validation = {"safe": validation}
+                            if validation.get("safe"):
+                                reachable.append((float(validation.get("distance_nm", distance_nm)),
+                                                  fallback_name))
+                    if reachable and not getattr(aircraft, "_approach_extension_used", False):
+                        _, fallback_name = min(reachable)
+                        fallback_index = len(aircraft.route)
+                        aircraft.route.extend([fallback_name, trigger])
+                        aircraft._approach_extension_used = True
+                        aircraft._approach_extension_fix = fallback_name
+                        aircraft._approach_extension_index = fallback_index
+                        aircraft.approach_clearance = False
+                        aircraft.target_node = fallback_name
+                        aircraft.clearance.direct_node = fallback_name
+                        navigator = getattr(self, "navigator", None)
+                        if navigator is not None:
+                            aircraft.assign_heading(navigator.heading_to_node(aircraft, fallback_name))
+                        if self.decision_event_callback is not None:
+                            self.decision_event_callback(
+                                aircraft, "APPROACH ROUTE-END FALLBACK", fallback_name,
+                                f"No approach entry passed safety validation; configured fallback from {trigger}",
+                            )
+                        self._record_progress(aircraft, dt)
+                        return
+                    manager = getattr(self, "holding_manager", None)
+                    if manager is not None and aircraft.route:
+                        previous_cursor = aircraft.route_index
+                        aircraft.route_index = len(aircraft.route) - 1
+                        try:
+                            options = manager.compatible_holding_options(aircraft, trigger)
+                            for option in options:
+                                result = manager.apply_holding_route(
+                                    aircraft, option["holding_route_id"], circuits=1,
+                                    required_delay_seconds=safety.get("required_delay_seconds"),
+                                )
+                                if result.get("success"):
+                                    navigator = getattr(self, "navigator", None)
+                                    if navigator is not None and aircraft.target_node:
+                                        aircraft.assign_heading(
+                                            navigator.heading_to_node(aircraft, aircraft.target_node)
+                                        )
+                                    self._record_progress(aircraft, dt)
+                                    return
+                        finally:
+                            if not manager.has_active_holding_route(aircraft):
+                                aircraft.route_index = previous_cursor
+                    aircraft.approach_clearance = False
                     if self.decision_event_callback is not None:
-                        self.decision_event_callback(aircraft, "APPROACH HANDOFF", aircraft.assigned_node,
-                                                     "Approach trigger was captured")
+                        self.decision_event_callback(
+                            aircraft, "APPROACH HANDOFF BLOCKED", trigger,
+                            safety.get("reason", "No safe entry or reachable configured fallback"),
+                        )
                 return
             # Arrival steering is always to the indexed waypoint. Keeping the
             # index and target synchronized here prevents stale targets and
@@ -198,6 +372,13 @@ class GuidanceAI:
         captured = (self._valid_waypoint_capture(
             aircraft, node, distance, capture_distance, previous_position
         ) if route_waypoint_navigation else distance <= capture_distance)
+        if not captured and active_holding_state is not None:
+            reason, details = self._waypoint_capture_rejection(
+                aircraft, node, distance, capture_distance, previous_position
+            )
+            self.holding_manager.report_boundary_capture_rejection(
+                aircraft, reason, **details
+            )
         if captured:
 
             reached_node = aircraft.target_node
@@ -221,6 +402,34 @@ class GuidanceAI:
                         if hasattr(aircraft, name):
                             delattr(aircraft, name)
                 else:
+                    selected_hold = safety.get("holding_route_id")
+                    if (safety.get("ai_action") == "HOLD" and selected_hold
+                            and self.holding_manager is not None):
+                        options = self.holding_manager.compatible_holding_options(aircraft, reached_node)
+                        selected_option = next((option for option in options
+                                                if str(option.get("holding_route_id")) == str(selected_hold)), None)
+                        if selected_option is not None:
+                            applied = self.holding_manager.apply_holding_route(
+                                aircraft, selected_hold, circuits=1,
+                                required_delay_seconds=safety.get("required_delay_seconds"),
+                            )
+                            if applied.get("success"):
+                                for name in ("_approach_clearance_waiting", "_approach_ai_waiting",
+                                             "_approach_extension_used", "_approach_extension_fix",
+                                             "_approach_extension_index"):
+                                    if hasattr(aircraft, name):
+                                        delattr(aircraft, name)
+                                if self.decision_event_callback is not None:
+                                    self.decision_event_callback(
+                                        aircraft, "AI HOLD ASSIGNED", reached_node,
+                                        f"Hold {selected_hold} assigned after no approach entry passed safety validation",
+                                    )
+                                return
+                        if self.decision_event_callback is not None:
+                            self.decision_event_callback(
+                                aircraft, "AI HOLD REJECTED", reached_node,
+                                f"Selected hold {selected_hold} is no longer compatible or available; remaining at safe reassessment fix",
+                            )
                     # The delay fix is the configured waiting point for this
                     # sequencing extension. Keep the route cursor on it so
                     # the aircraft is reassessed here as traffic changes,
@@ -252,8 +461,30 @@ class GuidanceAI:
                 and trigger
                 and str(reached_node).upper() == trigger
             )
-            if is_approach_trigger and self.approach_handoff_validator is not None:
-                safety = self.approach_handoff_validator(aircraft)
+            if is_approach_trigger and self.decision_event_callback is not None:
+                self.decision_event_callback(
+                    aircraft, "APPROACH_TRIGGER_REACHED", reached_node,
+                    f"cursor={aircraft.route_index}; position=({aircraft.lat:.6f},{aircraft.lon:.6f}); altitude_ft={aircraft.altitude_ft}; speed_kts={aircraft.speed_kts}",
+                )
+            if is_approach_trigger:
+                aircraft.approach_clearance = False
+                safety = (self.approach_handoff_validator(aircraft)
+                          if self.approach_handoff_validator is not None else {
+                              "safe": False,
+                              "reason": "No approach handoff validator is configured",
+                          })
+                if safety.get("safe") and not self._valid_approach_selection(aircraft, safety):
+                    safety = {**safety, "safe": False,
+                              "reason": "Approach validator did not provide a committed entry reservation"}
+                if safety.get("ai_pending"):
+                    if self._enter_pending_approach_hold(aircraft, safety, dt):
+                        return
+                    aircraft._approach_ai_waiting = True
+                    aircraft._approach_clearance_waiting = True
+                    # Continue through the same validated delay-route logic
+                    # used for a completed WAIT decision. Returning here would
+                    # leave the trigger as both current fix and guidance target
+                    # until the asynchronous decision completed.
                 speed_reduction = safety.get("speed_reduction_kts")
                 if isinstance(speed_reduction, (int, float)):
                     aircraft.assign_speed(float(speed_reduction))
@@ -275,6 +506,18 @@ class GuidanceAI:
                     aircraft.assigned_node = reached_node
                     options = (self.holding_manager.compatible_holding_options(aircraft, reached_node)
                                if self.holding_manager is not None else [])
+                    selected_hold = safety.get("holding_route_id")
+                    if selected_hold:
+                        if not any(str(option.get("holding_route_id")) == str(selected_hold)
+                                   for option in options) and self.decision_event_callback is not None:
+                            self.decision_event_callback(
+                                aircraft, "AI HOLD REJECTED", reached_node,
+                                f"Selected hold {selected_hold} is no longer compatible or available; evaluating safe fallback holds",
+                            )
+                        options = sorted(options, key=lambda option: (
+                            str(option.get("holding_route_id")) != str(selected_hold),
+                            option.get("occupancy", 0), option.get("distance_in_route", 0),
+                        ))
                     held = False
                     for option in options:
                         result = self.holding_manager.apply_holding_route(
@@ -285,7 +528,7 @@ class GuidanceAI:
                             held = True
                             if self.decision_event_callback is not None:
                                 self.decision_event_callback(
-                                    aircraft, "HOLD ASSIGNED", reached_node,
+                                    aircraft, "HOLD_ENTERED", reached_node,
                                     f"Downstream approach separation unavailable; holding on {option['holding_route_id']}"
                                 )
                             aircraft.assign_heading(self.navigator.heading_to_node(aircraft, aircraft.target_node))
@@ -296,13 +539,37 @@ class GuidanceAI:
                         # provides path extension when a hold is unavailable.
                         aircraft.separation_status = "APPROACH DELAYED"
                         trigger_node = self.graph.get_node(trigger)
-                        extension_fix = min(
-                            ("DOGAP", "MB398"),
-                            key=lambda fix: self._distance_nm(
-                                trigger_node["lat"], trigger_node["lon"],
-                                self.graph.get_node(fix)["lat"], self.graph.get_node(fix)["lon"],
-                            ),
+                        route_index = getattr(aircraft, "route_index", -1)
+                        fallback_result = evaluate_fallback_candidates(
+                            route_definition.get("approach_fallback_preferences", []),
+                            aircraft.route, route_index, getattr(self.graph, "nodes", {}),
                         )
+                        fallback_candidates = []
+                        validator = getattr(self, "fallback_transition_validator", None)
+                        for fallback_name in fallback_result["candidates"]:
+                            validation = (validator(aircraft, fallback_name)
+                                          if callable(validator) else {"safe": True})
+                            if isinstance(validation, bool):
+                                validation = {"safe": validation}
+                            if validation.get("safe"):
+                                fallback_point = self.graph.get_node(fallback_name)
+                                if fallback_point is not None:
+                                    distance_nm = self._distance_nm(
+                                        float(aircraft.lat), float(aircraft.lon),
+                                        float(fallback_point["lat"]), float(fallback_point["lon"]),
+                                    )
+                                    fallback_candidates.append((
+                                        float(validation.get("distance_nm", distance_nm)), fallback_name
+                                    ))
+                        if not fallback_candidates:
+                            aircraft._approach_fallback_result = fallback_result
+                            if self.decision_event_callback is not None:
+                                self.decision_event_callback(
+                                    aircraft, "NO SAFE GLOBAL FALLBACK", reached_node,
+                                    "MB398 and OLGUS are unavailable or their validated transitions conflict with traffic; retain safe holding/wait behavior",
+                                )
+                            return fallback_result
+                        extension_fix = min(fallback_candidates)[1]
                         if not getattr(aircraft, "_approach_extension_used", False):
                             # Insert one reusable delay loop in the active route.
                             aircraft.route[aircraft.route_index + 1:aircraft.route_index + 1] = [
@@ -322,7 +589,7 @@ class GuidanceAI:
                             if (isinstance(delay_index, int)
                                     and delay_index < len(aircraft.route)
                                     and str(aircraft.route[delay_index]).upper() == extension_fix):
-                                # Reuse the same DOGAP/entry pair until cleared.
+                                # Reuse the same route-compatible fallback loop until cleared.
                                 aircraft.route_index = delay_index - 1
                     if self.decision_event_callback is not None:
                         self.decision_event_callback(
@@ -333,21 +600,53 @@ class GuidanceAI:
                         return
             else:
                 safety = {"safe": True}
-            if (is_approach_trigger and safety.get("safe", True)
-                    and not (self.holding_manager is not None
-                             and self.holding_manager.has_active_holding_route(aircraft))):
-                aircraft.approach_clearance = True
-                if self.decision_event_callback is not None:
-                    self.decision_event_callback(aircraft, "APPROACH CLEARED", reached_node,
-                                                 "Configured approach trigger captured")
 
             if strict_arrival_navigation:
                 aircraft.assigned_node = reached_node
                 aircraft.route_index += 1
-                if aircraft.route_index < len(aircraft.route):
+                if self.decision_event_callback is not None:
+                    self.decision_event_callback(
+                        aircraft, "ROUTE_CURSOR_ADVANCED", reached_node,
+                        f"cursor={aircraft.route_index}; next={aircraft.route[aircraft.route_index] if aircraft.route_index < len(aircraft.route) else None}",
+                    )
+                at_holding_boundary = (
+                    active_holding_state is not None
+                    and self.holding_manager.is_holding_circuit_boundary(aircraft)
+                )
+                if at_holding_boundary:
+                    # Let HoldingManager atomically release or splice the next
+                    # circuit before publishing a new target. In particular,
+                    # do not briefly commit the permanent-route rejoin target.
+                    aircraft.target_node = reached_node
+                elif aircraft.route_index < len(aircraft.route):
                     aircraft.target_node = aircraft.route[aircraft.route_index]
                 else:
                     aircraft.target_node = None
+                if (is_approach_trigger and safety.get("safe", True)
+                        and not (self.holding_manager is not None
+                                 and self.holding_manager.has_active_holding_route(aircraft))):
+                    entry_index = safety.get("approach_entry_index")
+                    entry_node = safety.get("approach_entry_node")
+                    if isinstance(entry_index, int) and isinstance(entry_node, str):
+                        aircraft.approach_clearance = True
+                        aircraft._approach_entry_index = entry_index
+                        aircraft._approach_entry_node = entry_node
+                        aircraft.phase = "FINAL"
+                        aircraft.state = "APPROACH"
+                        aircraft.approach_phase = "INTERCEPT"
+                        aircraft.target_node = entry_node
+                        aircraft.clearance.direct_node = entry_node
+                        if self.decision_event_callback is not None:
+                            self.decision_event_callback(
+                                aircraft, "APPROACH CLEARED", reached_node,
+                                "Configured entry reservation and clearance committed",
+                                decision_source=safety.get("decision_source"),
+                            )
+                            self.decision_event_callback(
+                                aircraft, "APPROACH_CLEARANCE_COMMITTED", entry_node,
+                                f"Trigger={reached_node}; route transition validated and committed",
+                                decision_source=safety.get("decision_source"),
+                            )
             else:
                 aircraft.assigned_node = reached_node
                 aircraft.advance_route()
@@ -357,16 +656,41 @@ class GuidanceAI:
                 and self.holding_manager.has_active_holding_route(aircraft)
                 and self.holding_manager.is_holding_circuit_boundary(aircraft)
             ):
+                if self.decision_event_callback is not None:
+                    self.decision_event_callback(
+                        aircraft, "HOLD_CIRCUIT_COMPLETED", aircraft.target_node,
+                        f"Completed circuit at cursor={aircraft.route_index}; requesting one safety reassessment",
+                    )
+                    self.decision_event_callback(
+                        aircraft, "HOLD_RELEASE_REQUESTED", aircraft.target_node,
+                        "One genuine circuit completed; requesting AI decision and deterministic safety validation",
+                    )
                 release = self.holding_manager.complete_holding_circuit(
                     aircraft,
                     self.holding_release_validator,
+                    self.holding_level_decider,
                 )
                 if release.get("released") and self.holding_release_callback is not None:
                     self.holding_release_callback(aircraft, release)
-                elif release.get("success") and self.decision_event_callback is not None:
+                    if self.decision_event_callback is not None:
+                        self.decision_event_callback(
+                            aircraft, "HOLD_RELEASED", release.get("rejoin_waypoint"),
+                            "Release passed safety validation and the permanent arrival route was restored",
+                        )
+                        self.decision_event_callback(
+                            aircraft, "ROUTE_RESTORED", release.get("rejoin_waypoint"),
+                            f"cursor={aircraft.route_index}; target={aircraft.target_node}; hold guidance released",
+                        )
+                elif (release.get("success") or release.get("release_attempted")) \
+                        and self.decision_event_callback is not None:
+                    safety = release.get("safety", {})
+                    decision_source = safety.get("decision_source") or "SAFETY_REJECTION"
                     self.decision_event_callback(
-                        aircraft, "HOLD EXTENDED", getattr(aircraft, "holding_fix", None),
+                        aircraft,
+                        "HOLD RELEASE FAILED" if release.get("release_attempted") else "HOLD EXTENDED",
+                        getattr(aircraft, "holding_fix", None),
                         release.get("message", "Additional holding circuit scheduled"),
+                        decision_source=decision_source,
                     )
 
             if aircraft.target_node is None:
@@ -447,6 +771,28 @@ class GuidanceAI:
         state["last_distance"] = distance
         if legitimate_wait or state["elapsed"] < self.PROGRESS_STALL_SECONDS:
             return
+        last_diagnostic = state.get("last_diagnostic_elapsed", -self.PROGRESS_STALL_SECONDS)
+        if state["elapsed"] - last_diagnostic >= self.PROGRESS_STALL_SECONDS:
+            state["last_diagnostic_elapsed"] = state["elapsed"]
+            logging.getLogger(__name__).warning(
+                "Arrival route progression stalled",
+                extra={
+                    "event": "ROUTE_PROGRESSION_BLOCKED",
+                    "aircraft_callsign": getattr(aircraft, "callsign", None),
+                    "route_id": getattr(aircraft, "arrival_route_id", None),
+                    "route_cursor": getattr(aircraft, "route_index", None),
+                    "assigned_waypoint": getattr(aircraft, "assigned_node", None),
+                    "target_waypoint": target,
+                    "clearance_direct_node": signature[2],
+                    "distance_nm": distance,
+                    "heading_deg": getattr(aircraft, "heading_deg", None),
+                    "target_heading_deg": getattr(aircraft, "target_heading_deg", None),
+                    "guidance_mode": getattr(aircraft, "phase", None),
+                    "hold_active": bool(self.holding_manager is not None
+                                        and self.holding_manager.has_active_holding_route(aircraft)),
+                    "reason": "target and route cursor remained unchanged without decreasing range",
+                },
+            )
         # Repair only an impossible self-target. Holds and clearance waits
         # have explicit reassessment paths and must remain untouched.
         if (target == getattr(aircraft, "assigned_node", None)
@@ -474,6 +820,42 @@ class GuidanceAI:
                     self.decision_event_callback(
                         aircraft, "NAVIGATION STALL RECOVERED", next_target, reason
                     )
+
+    def _enter_pending_approach_hold(self, aircraft, safety, dt):
+        """Keep an arrival flying a configured circuit while no entry is safe."""
+        manager = self.holding_manager
+        selected_id = safety.get("holding_route_id")
+        if manager is None or not selected_id:
+            return False
+        options = manager.compatible_holding_options(aircraft, aircraft.target_node)
+        selected = next((option for option in options
+                         if str(option.get("holding_route_id")) == str(selected_id)), None)
+        if selected is None:
+            return False
+        result = manager.apply_holding_route(aircraft, selected_id, circuits=1)
+        if not result.get("success"):
+            return False
+        if self.decision_event_callback is not None:
+            self.decision_event_callback(
+                    aircraft, "HOLD_ENTERED", aircraft.target_node,
+                f"No approach entry passed safety validation; one circuit assigned while AI reassessment is pending ({selected_id})",
+                decision_source="DETERMINISTIC_SAFETY_FALLBACK",
+            )
+        return True
+
+    def _valid_approach_selection(self, aircraft, safety):
+        """Require a selected entry and, in the engine, its live reservation."""
+        entry_index = safety.get("approach_entry_index")
+        entry_node = safety.get("approach_entry_node")
+        if (not safety.get("safe") or not isinstance(entry_index, int)
+                or isinstance(entry_index, bool) or entry_index < 0
+                or not isinstance(entry_node, str) or not entry_node.strip()):
+            return False
+        owner = getattr(getattr(self, "approach_handoff_validator", None), "__self__", None)
+        reservations = getattr(owner, "approach_reservations", None)
+        if isinstance(reservations, dict) and reservations.get(entry_node.upper()) is not aircraft:
+            return False
+        return True
 
     @classmethod
     def _distance_to_segment_nm(cls, latitude, longitude, start, end):
@@ -519,13 +901,51 @@ class GuidanceAI:
                 (float(aircraft.lat), float(aircraft.lon))) <= capture_distance
         return True
 
+    def _waypoint_capture_rejection(self, aircraft, node, distance, capture_distance,
+                                    previous_position):
+        """Describe why the route capture predicate rejected this sample."""
+        details = {
+            "distance_nm": round(float(distance), 4),
+            "capture_radius_nm": round(float(capture_distance), 4),
+        }
+        if distance > capture_distance:
+            if previous_position is None:
+                return "outside_capture_radius_without_previous_sample", details
+            segment_distance = self._distance_to_segment_nm(
+                node["lat"], node["lon"], previous_position,
+                (float(aircraft.lat), float(aircraft.lon)),
+            )
+            details["sampled_segment_distance_nm"] = round(segment_distance, 4)
+            return "sampled_path_outside_capture_tube", details
+
+        if previous_position is not None:
+            previous_distance = self._distance_nm(
+                previous_position[0], previous_position[1], node["lat"], node["lon"]
+            )
+            details["previous_distance_nm"] = round(previous_distance, 4)
+            if distance > previous_distance + 0.01:
+                segment_distance = self._distance_to_segment_nm(
+                    node["lat"], node["lon"], previous_position,
+                    (float(aircraft.lat), float(aircraft.lon)),
+                )
+                details["sampled_segment_distance_nm"] = round(segment_distance, 4)
+                return "receding_from_fix_without_capture_tube_passage", details
+        return "capture_validation_rejected", details
+
     def apply_route_constraints(self, aircraft):
         if not aircraft.route or aircraft.target_node is None or aircraft.phase == "FINAL":
             return
-        if not (
-            self.holding_manager is not None
-            and self.holding_manager.has_active_holding_route(aircraft)
-        ):
+        active_holding = (self.holding_manager is not None
+                          and self.holding_manager.has_active_holding_route(aircraft))
+        if not active_holding:
+            if aircraft.phase == "ARRIVAL":
+                scheduled_speed = arrival_schedule_groundspeed(
+                    aircraft.aircraft_type, getattr(aircraft, "altitude_ft", 0)
+                )
+                sequence_ceiling = getattr(aircraft, "_sequence_speed_ceiling", None)
+                if isinstance(sequence_ceiling, (int, float)):
+                    scheduled_speed = min(scheduled_speed, float(sequence_ceiling))
+                aircraft.assign_speed(scheduled_speed)
             route_id = str(getattr(aircraft, "arrival_route_id", ""))
             waypoint_name = str(aircraft.target_node).upper()
             route_profiles = self.arrival_profiles.get(route_id, {})
@@ -537,8 +957,18 @@ class GuidanceAI:
                 return
 
             altitude_constraint = point_profile.get("altitude")
-            altitude = altitude_constraint.get("feet") if isinstance(altitude_constraint, dict) else altitude_constraint
-            constraint_type = altitude_constraint.get("type", "AT") if isinstance(altitude_constraint, dict) else "AT"
+            if isinstance(altitude_constraint, dict):
+                altitude = altitude_constraint.get("feet")
+                constraint_type = altitude_constraint.get("type", "AT")
+            elif isinstance(altitude_constraint, (int, float)) and not isinstance(altitude_constraint, bool):
+                altitude = altitude_constraint
+                constraint_type = "AT"
+            else:
+                # Non-published STAR profile altitudes guide descent between
+                # mandatory constraints. Without this fallback a waypoint
+                # with no published altitude leaves the previous target active.
+                altitude = point_profile.get("profile_altitude_ft")
+                constraint_type = "AT"
             speed_constraint = point_profile.get("speed")
             speed = speed_constraint.get("knots") if isinstance(speed_constraint, dict) else speed_constraint
             vertical_profile = point_profile.get("vertical_profile") or {}
@@ -568,9 +998,12 @@ class GuidanceAI:
                                  / max(distance_nm * 60.0, 1.0))
                 aircraft.target_vertical_speed_fpm = max(-1500.0, min(1500.0, required_rate))
             if isinstance(speed, (int, float)) and not isinstance(speed, bool) and speed > 0:
+                speed = indicated_to_true_airspeed(speed, getattr(aircraft, "altitude_ft", 0))
                 if isinstance(speed_constraint, dict) and speed_constraint.get("type") == "MAX":
                     current_target = getattr(aircraft, "target_speed_kts", None)
-                    if aircraft.speed_kts > speed and (current_target is None or current_target > speed):
+                    if current_target is None:
+                        current_target = aircraft.speed_kts
+                    if current_target > speed:
                         aircraft.assign_speed(speed)
                 else:
                     aircraft.assign_speed(speed)

@@ -584,6 +584,17 @@ async function loadApproachVisualization(){
 
 }
 
+function appendMapReferenceWaypoints(waypointFeatures){
+    // Verified OLGUS coordinates from the project's prior navigation route definition.
+    [{name:"OLGUS",latitude:19.215000,longitude:73.473333}].forEach(function(point){
+        waypointFeatures.push({
+            type:"Feature",
+            properties:{name:point.name,route_id:"NAVIGATION_REFERENCE"},
+            geometry:{type:"Point",coordinates:[point.longitude,point.latitude]}
+        });
+    });
+}
+
 async function loadRouteVisualization(){
 
     try{
@@ -702,6 +713,8 @@ async function loadRouteVisualization(){
             }
 
         });
+
+        appendMapReferenceWaypoints(waypointFeatures);
 
         map.getSource(
             "vabb-routes"
@@ -1008,7 +1021,7 @@ map.addLayer({
     type:"line",
     source:"holding-patterns",
     paint:{
-        "line-color":["case",["get","active"],"#d34332","#607783"],
+        "line-color":["case",["get","active"],"#e53935","#77818a"],
         "line-width":["case",["get","active"],3,2],
         "line-opacity":["case",["get","active"],0.92,0.55]
     }
@@ -1021,14 +1034,14 @@ map.addLayer({
     id:"configured-holding-fix-markers",
     type:"circle",
     source:"configured-holding-fixes",
-    paint:{"circle-radius":["case",["get","active"],7,5],"circle-color":["case",["get","active"],"#d34332","#607783"],"circle-stroke-color":"#ffffff","circle-stroke-width":2}
+    paint:{"circle-radius":["case",["get","active"],7,5],"circle-color":"#77818a","circle-stroke-color":"#ffffff","circle-stroke-width":2}
 });
 map.addLayer({
     id:"configured-holding-fix-labels",
     type:"symbol",
     source:"configured-holding-fixes",
     layout:{"text-field":["get","fix"],"text-size":10,"text-offset":[0,1.2]},
-    paint:{"text-color":["case",["get","active"],"#b51f1a","#40565f"],"text-halo-color":"#ffffff","text-halo-width":2}
+    paint:{"text-color":"#77818a","text-halo-color":"#ffffff","text-halo-width":2}
 });
 
     await loadHoldingPatternGeometry();
@@ -1381,7 +1394,7 @@ function addAirportFeatures(){
   map.addLayer({id:"parking-labels",type:"symbol",source:"parking",layout:{"text-field":["get","name"],"text-size":9,"text-offset":[0,1]},paint:{"text-color":"#cccccc"}});
   map.addLayer({id:"gates",type:"circle",source:"gates",paint:{"circle-radius":4,"circle-color":"#0066ff"}});
   map.addLayer({id:"gate-labels",type:"symbol",source:"gates",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1.2]},paint:{"text-color":"#ffffff"}});
-  map.addLayer({id:"holding",type:"circle",source:"holding",paint:{"circle-radius":4,"circle-color":"#ff0000"}});
+  map.addLayer({id:"holding",type:"circle",source:"holding",paint:{"circle-radius":4,"circle-color":"#77818a"}});
   map.on("click","holding",async e=>{
     if(!holdingMode) return;
     var feature=e.features[0];
@@ -1398,7 +1411,7 @@ function addAirportFeatures(){
     await fetch("/semantics/VABB/holding-point",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,node:node})});
     alert(name+" saved");
   });
-  map.addLayer({id:"holding-labels",type:"symbol",source:"holding",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1]},paint:{"text-color":"#ff4444"}});
+  map.addLayer({id:"holding-labels",type:"symbol",source:"holding",layout:{"text-field":["get","name"],"text-size":10,"text-offset":[0,1]},paint:{"text-color":"#77818a"}});
   var runwayLabels=[];
   airportData.runways.forEach(function(r){
     if(!r.geometry.length) return;

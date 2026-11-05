@@ -5,7 +5,7 @@ from pathlib import Path
 
 class TrafficDatabase:
 
-    def __init__(self):
+    def __init__(self, database_path="data/simulation/traffic.sqlite"):
 
         Path("data/simulation").mkdir(
             parents=True,
@@ -13,7 +13,8 @@ class TrafficDatabase:
         )
 
         self.conn = sqlite3.connect(
-            "data/simulation/traffic.sqlite"
+            database_path,
+            check_same_thread=False,
         )
 
         self.cursor = self.conn.cursor()
