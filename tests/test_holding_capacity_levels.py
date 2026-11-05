@@ -28,7 +28,34 @@ class HoldingCapacityLevelTests(unittest.TestCase):
                 self.assertEqual(route["holding_levels_ft"], [12000, 14000, 16000, 18000])
             if route["id"] in synthetic:
                 self.assertEqual(route["capacity"], 2)
-                self.assertNotIn("holding_levels_ft", route)
+                self.assertEqual(route["holding_levels_ft"], [12000, 14000])
+
+    def test_synthetic_candidates_are_only_configured_levels_and_each_can_be_assigned(self):
+        for hold_id in ("H-BB263-SYN", "H-NM668-SYN", "H-BB256-SYN", "H-BB252-SYN"):
+            manager, hold = self._manager_and_hold(hold_id)
+            self.assertEqual(manager._holding_levels(hold, 10000, 18000), [12000.0, 14000.0])
+            for level in hold["holding_levels_ft"]:
+                with self.subTest(hold=hold_id, level=level):
+                    manager, hold = self._manager_and_hold(hold_id)
+                    aircraft, _, _ = aircraft_for(hold)
+                    aircraft.altitude_ft = aircraft.target_altitude_ft = level
+                    result = manager.apply_holding_route(aircraft, hold_id, preferred_level_ft=level)
+                    self.assertTrue(result["success"], result["message"])
+                    self.assertEqual(manager.state_for(aircraft)["assigned_holding_level_ft"], level)
+
+    def test_synthetic_assignment_rejects_unsafe_levels_individually_and_together(self):
+        for unsafe in ({12000.0}, {14000.0}, {12000.0, 14000.0}):
+            with self.subTest(unsafe=unsafe):
+                manager, hold = self._manager_and_hold("H-BB256-SYN")
+                aircraft, _, _ = aircraft_for(hold)
+                with patch.object(manager, "_level_transition_is_safe",
+                                  side_effect=lambda _aircraft, level, _others: level not in unsafe):
+                    preferred = next(iter(unsafe)) if len(unsafe) == 1 else None
+                    result = manager.apply_holding_route(
+                        aircraft, hold["id"], preferred_level_ft=preferred
+                    )
+                    self.assertFalse(result["success"])
+                    self.assertIsNone(manager.state_for(aircraft))
 
     def test_primary_capacity_counts_slots_across_levels(self):
         manager, hold = self._manager_and_hold("H-GUTMU")
